@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { getUpcomingDividends } from "@/lib/data";
+import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 
 export const revalidate = 3600;
 
@@ -22,6 +23,12 @@ export default async function CalendarPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 sm:px-6 py-10">
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", url: "https://crady.net" },
+          { name: "배당 일정", url: "https://crady.net/calendar" },
+        ]}
+      />
       <h1 className="text-2xl font-bold">배당 일정</h1>
       <p className="text-sm text-[var(--gray-500)] mt-1">
         지급일이 다가오는 배당 ETF {upcoming.length}건

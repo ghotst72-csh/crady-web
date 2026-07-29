@@ -75,12 +75,12 @@ export function Header() {
           <Link href="/" className="font-bold text-lg tracking-tight shrink-0">
             CRA<span className="text-[var(--crady-accent)]">DY</span>
           </Link>
-          <nav className="flex items-center gap-1 sm:gap-4 text-sm">
+          <nav className="flex items-center gap-0.5 sm:gap-4 text-xs sm:text-sm min-w-0">
             {NAV.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="px-2 py-1.5 rounded-md text-[var(--gray-600)] hover:text-black hover:bg-[var(--gray-100)] transition-colors"
+                className="px-1.5 sm:px-2 py-1.5 rounded-md text-[var(--gray-600)] hover:text-black hover:bg-[var(--gray-100)] transition-colors whitespace-nowrap"
               >
                 {item.label}
               </Link>

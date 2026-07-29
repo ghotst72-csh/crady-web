@@ -140,6 +140,7 @@ export function YieldCarousel({ top10 }: { top10: EtfSnapshot[] }) {
   const [isHovered, setIsHovered] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [drag, setDrag] = useState<{ startX: number; deltaX: number } | null>(null);
+  const activePointerIdRef = useRef<number | null>(null);
   const [pulseTick, setPulseTick] = useState(0);
   const reducedMotion = usePrefersReducedMotion();
   const isMobile = useIsMobile();
@@ -187,20 +188,53 @@ export function YieldCarousel({ top10 }: { top10: EtfSnapshot[] }) {
     });
   }, [activeIndex, reducedMotion]);
 
+  // Hardened against rapid repeated swipes: every handler checks the event's
+  // pointerId against the one that actually started the drag, so a stray or
+  // overlapping pointer event (fast repeated swipes can fire a new
+  // pointerdown before the previous pointerup's state has committed) can
+  // never mutate someone else's in-flight gesture. Position itself is
+  // re-derived from activeIndex on every render (dist * STEP) — the only
+  // way it can appear to "drift" is a stuck non-zero dragOffset, so that
+  // value is also hard-clamped as a second line of defense, and cleanup
+  // runs on pointerup/cancel/lost-capture alike (three independent signals
+  // instead of relying on exactly one).
+  function endDrag(pointerId: number) {
+    if (activePointerIdRef.current !== pointerId) return;
+    activePointerIdRef.current = null;
+    setDrag((d) => {
+      if (d) {
+        if (d.deltaX <= -DRAG_COMMIT_THRESHOLD_PX) next();
+        else if (d.deltaX >= DRAG_COMMIT_THRESHOLD_PX) prev();
+        registerInteraction();
+      }
+      return null;
+    });
+  }
+
   function onPointerDown(e: React.PointerEvent) {
     registerInteraction();
+    activePointerIdRef.current = e.pointerId;
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     setDrag({ startX: e.clientX, deltaX: 0 });
   }
   function onPointerMove(e: React.PointerEvent) {
-    setDrag((d) => (d ? { ...d, deltaX: e.clientX - d.startX } : d));
+    if (activePointerIdRef.current !== e.pointerId) return;
+    const MAX_DRAG_PX = 400;
+    setDrag((d) => {
+      if (!d) return d;
+      const raw = e.clientX - d.startX;
+      const clamped = Math.max(-MAX_DRAG_PX, Math.min(MAX_DRAG_PX, raw));
+      return { ...d, deltaX: clamped };
+    });
   }
-  function onPointerUp() {
-    if (!drag) return;
-    if (drag.deltaX <= -DRAG_COMMIT_THRESHOLD_PX) next();
-    else if (drag.deltaX >= DRAG_COMMIT_THRESHOLD_PX) prev();
-    registerInteraction();
-    setDrag(null);
+  function onPointerUp(e: React.PointerEvent) {
+    endDrag(e.pointerId);
+  }
+  function onPointerCancel(e: React.PointerEvent) {
+    endDrag(e.pointerId);
+  }
+  function onLostPointerCapture(e: React.PointerEvent) {
+    endDrag(e.pointerId);
   }
 
   function onKeyDown(e: React.KeyboardEvent) {
@@ -285,7 +319,8 @@ export function YieldCarousel({ top10 }: { top10: EtfSnapshot[] }) {
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
+          onPointerCancel={onPointerCancel}
+          onLostPointerCapture={onLostPointerCapture}
           style={{ touchAction: "pan-y" }}
           className={`relative h-[300px] sm:h-[340px] select-none ${drag ? "cursor-grabbing" : "cursor-grab"}`}
         >

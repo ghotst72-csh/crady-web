@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 
 export const metadata: Metadata = {
   title: "소개",
@@ -9,6 +10,12 @@ export const metadata: Metadata = {
 export default function AboutPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 sm:px-6 py-10">
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", url: "https://crady.net" },
+          { name: "소개", url: "https://crady.net/about" },
+        ]}
+      />
       <h1 className="text-2xl font-bold">CRADY 소개</h1>
       <div className="mt-6 space-y-4 text-[var(--gray-700)] leading-relaxed text-sm">
         <p>

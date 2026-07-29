@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { getTopByCradyScore, providerLabel } from "@/lib/data";
+import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 
 export const revalidate = 3600;
 
@@ -15,6 +16,12 @@ export default async function RankingPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 sm:px-6 py-10">
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", url: "https://crady.net" },
+          { name: "랭킹", url: "https://crady.net/ranking" },
+        ]}
+      />
       <h1 className="text-2xl font-bold">배당 ETF 랭킹</h1>
       <p className="text-sm text-[var(--gray-500)] mt-1">
         CRADY 점수 기준 상위 {ranking.length}개 ETF

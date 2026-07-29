@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import {
   getHomeSnapshot,
   getThisWeekDividends,
@@ -14,6 +15,27 @@ import { WeekSchedule } from "@/components/WeekSchedule";
 import { RankingPreview } from "@/components/RankingPreview";
 
 export const revalidate = 3600;
+
+const TITLE = "CRADY | High Dividend ETF Calendar & Distribution Tracker";
+const DESCRIPTION =
+  "Track YieldMax, Defiance, Roundhill and other high dividend ETFs with estimated distributions, payment calendar and rankings.";
+
+export const metadata: Metadata = {
+  title: { absolute: TITLE },
+  description: DESCRIPTION,
+  alternates: { canonical: "https://crady.net" },
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    url: "https://crady.net",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: DESCRIPTION,
+  },
+};
 
 export default async function HomePage() {
   const [snapshot, thisWeek, keyMetrics] = await Promise.all([

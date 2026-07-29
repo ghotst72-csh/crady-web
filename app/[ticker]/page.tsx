@@ -15,6 +15,7 @@ import {
   providerLabel,
 } from "@/lib/data";
 import { RESERVED_PATHS } from "@/lib/reserved";
+import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 
 export const revalidate = 3600;
 
@@ -58,6 +59,11 @@ export async function generateMetadata({
       url: `https://crady.net/${ticker.toLowerCase()}`,
       type: "website",
     },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
   };
 }
 
@@ -91,8 +97,41 @@ export default async function TickerPage({
   const annualYieldPct = computeAnnualYieldPct(distributions, price?.close_price ?? null);
   const latestPaidDistribution = distributions.find((d) => d.amount != null);
 
+  const financialProductJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FinancialProduct",
+    name: etf.name ?? ticker,
+    tickerSymbol: ticker,
+    provider: { "@type": "Organization", name: providerLabel(etf.provider_id) },
+    category: isKnown(etf.category) ? etf.category : undefined,
+    url: `https://crady.net/${ticker.toLowerCase()}`,
+    ...(price?.close_price != null
+      ? {
+          offers: {
+            "@type": "Offer",
+            price: price.close_price,
+            priceCurrency: "USD",
+          },
+        }
+      : {}),
+    ...(annualYieldPct != null
+      ? { interestRate: `${annualYieldPct.toFixed(2)}%` }
+      : {}),
+  };
+
   return (
     <div className="mx-auto max-w-4xl px-4 sm:px-6 py-10">
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", url: "https://crady.net" },
+          { name: ticker, url: `https://crady.net/${ticker.toLowerCase()}` },
+        ]}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(financialProductJsonLd) }}
+      />
+
       {/* Header */}
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h1 className="text-3xl font-bold">{ticker}</h1>

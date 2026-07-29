@@ -16,6 +16,29 @@ export const metadata: Metadata = {
     type: "website",
     locale: "ko_KR",
   },
+  twitter: {
+    card: "summary_large_image",
+  },
+};
+
+const ORGANIZATION_JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "CRADY",
+  url: "https://crady.net",
+  logo: "https://crady.net/icon-512.png",
+};
+
+const WEBSITE_JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "CRADY",
+  url: "https://crady.net",
+  potentialAction: {
+    "@type": "SearchAction",
+    target: "https://crady.net/search?q={search_term_string}",
+    "query-input": "required name=search_term_string",
+  },
 };
 
 export default function RootLayout({
@@ -24,6 +47,14 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className="min-h-screen flex flex-col antialiased">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(ORGANIZATION_JSON_LD) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(WEBSITE_JSON_LD) }}
+        />
         <Header />
 
         <main className="flex-1">{children}</main>
