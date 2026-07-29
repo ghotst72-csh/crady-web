@@ -442,6 +442,22 @@ export function topByRiskEfficiency(rows: EtfSnapshot[], limit = 8) {
     .slice(0, limit);
 }
 
+/** Highest dividend-stability-score first — the "안전성" ranking axis. */
+export function topBySafety(rows: EtfSnapshot[], limit = 50) {
+  return rows
+    .filter((r) => r.dividendStabilityScore != null)
+    .sort((a, b) => b.dividendStabilityScore! - a.dividendStabilityScore!)
+    .slice(0, limit);
+}
+
+/** Largest latest-vs-prior dividend change first (both increases and decreases). */
+export function topByGrowth(rows: EtfSnapshot[], limit = 50) {
+  return rows
+    .filter((r) => r.dividendTrendPct != null)
+    .sort((a, b) => b.dividendTrendPct! - a.dividendTrendPct!)
+    .slice(0, limit);
+}
+
 export function topByProvider(rows: EtfSnapshot[], providerId: string, limit = 4) {
   return rows
     .filter((r) => r.provider_id === providerId && r.cradyScore != null)

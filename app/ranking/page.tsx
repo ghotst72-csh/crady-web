@@ -1,18 +1,31 @@
-import Link from "next/link";
 import type { Metadata } from "next";
-import { getTopByCradyScore, providerLabel } from "@/lib/data";
+import {
+  getHomeSnapshot,
+  topByAnnualYield,
+  topByCradyScoreSnapshot,
+  topBySafety,
+  topByGrowth,
+} from "@/lib/data";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
+import { RankingTable } from "@/components/RankingTable";
 
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: "ETF 랭킹",
-  description: "CRADY 점수 기준 배당 ETF 랭킹.",
+  description: "CRADY 점수, 연환산 분배율, 안정성, 성장성 기준 배당 ETF 랭킹.",
   alternates: { canonical: "https://crady.net/ranking" },
 };
 
 export default async function RankingPage() {
-  const ranking = await getTopByCradyScore(50);
+  const snapshot = await getHomeSnapshot();
+
+  const rankings = {
+    crady: topByCradyScoreSnapshot(snapshot, 50),
+    yield: topByAnnualYield(snapshot, 50),
+    safety: topBySafety(snapshot, 50),
+    growth: topByGrowth(snapshot, 50),
+  };
 
   return (
     <div className="mx-auto max-w-4xl px-4 sm:px-6 py-10">
@@ -24,32 +37,12 @@ export default async function RankingPage() {
       />
       <h1 className="text-2xl font-bold">배당 ETF 랭킹</h1>
       <p className="text-sm text-[var(--gray-500)] mt-1">
-        CRADY 점수 기준 상위 {ranking.length}개 ETF
+        정렬 기준을 선택하면 해당 기준으로 순위를 다시 계산합니다. 홈 화면의
+        연환산 분배율 순위와 헷갈리지 않도록 여기서 기준을 직접 골라보세요.
       </p>
 
-      <div className="mt-6 border border-[var(--gray-200)] rounded-xl overflow-hidden">
-        {ranking.map((etf, i) => (
-          <Link
-            key={etf.ticker}
-            href={`/${etf.ticker.toLowerCase()}`}
-            className="flex items-center gap-4 px-4 py-3 border-b border-[var(--gray-100)] last:border-0 hover:bg-[var(--gray-50)] transition-colors"
-          >
-            <span className="w-6 text-[var(--gray-400)] text-sm font-medium">
-              {i + 1}
-            </span>
-            <div className="flex-1 min-w-0">
-              <div className="font-semibold">{etf.ticker}</div>
-              <div className="text-xs text-[var(--gray-500)] truncate">
-                {etf.name} · {providerLabel(etf.provider_id)}
-              </div>
-            </div>
-            {etf.crady_score != null && (
-              <span className="text-sm font-bold text-[var(--crady-accent)]">
-                {etf.crady_score.toFixed(1)}
-              </span>
-            )}
-          </Link>
-        ))}
+      <div className="mt-6">
+        <RankingTable rankings={rankings} />
       </div>
     </div>
   );

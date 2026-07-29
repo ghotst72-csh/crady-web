@@ -57,3 +57,24 @@ body {
     animation: hero-pop 320ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 }
+
+/* Companion fade for the text/badge/button block around the animated number
+   — same rough duration as the number's own count-up so the whole card
+   reads as one synchronized change instead of a number that eases in next
+   to labels that hard-cut. */
+@keyframes hero-fade {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .animate-hero-fade {
+    animation: hero-fade 380ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}

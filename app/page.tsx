@@ -13,6 +13,7 @@ import { NextDistributionsRail } from "@/components/NextDistributionsRail";
 import { KeyMetrics } from "@/components/KeyMetrics";
 import { WeekSchedule } from "@/components/WeekSchedule";
 import { RankingPreview } from "@/components/RankingPreview";
+import { AppPromoSection } from "@/components/AppPromoSection";
 
 export const revalidate = 3600;
 
@@ -65,6 +66,10 @@ export default async function HomePage() {
         yieldTop={yieldTop10}
         increasedTop={increasedTop}
       />
+
+      {/* D. App promotion — the web's role is discovery, the app's role is
+          ongoing management; this section hands off the funnel. */}
+      <AppPromoSection />
     </div>
   );
 }

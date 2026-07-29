@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { getUpcomingDividends } from "@/lib/data";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
+import { DividendStagePill } from "@/components/DividendLifecycle";
 
 export const revalidate = 3600;
 
@@ -34,6 +35,15 @@ export default async function CalendarPage() {
         지급일이 다가오는 배당 ETF {upcoming.length}건
       </p>
 
+      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-[var(--gray-500)] border border-[var(--gray-200)] rounded-lg px-3 py-2">
+        <span className="font-semibold text-[var(--gray-600)]">배당 흐름</span>
+        <span>Ex-Date 예정 (매수 시 배당 대상)</span>
+        <span>→</span>
+        <span>지급 대기 (기준일 경과)</span>
+        <span>→</span>
+        <span>지급 완료</span>
+      </div>
+
       <div className="mt-6 space-y-6">
         {Array.from(byDate.entries()).map(([date, items]) => (
           <div key={date}>
@@ -45,15 +55,16 @@ export default async function CalendarPage() {
                 <Link
                   key={`${d.ticker}-${i}`}
                   href={`/${d.ticker.toLowerCase()}`}
-                  className="flex items-center justify-between px-4 py-3 border-b border-[var(--gray-100)] last:border-0 hover:bg-[var(--gray-50)] transition-colors"
+                  className="flex items-center justify-between gap-2 px-4 py-3 border-b border-[var(--gray-100)] last:border-0 hover:bg-[var(--gray-50)] transition-colors"
                 >
                   <span className="font-semibold">{d.ticker}</span>
-                  <span className="text-sm text-[var(--gray-500)]">
+                  <span className="text-sm text-[var(--gray-500)] hidden sm:inline">
                     기준일 {d.ex_date}
                   </span>
                   <span className="text-sm">
                     {d.amount != null ? `$${d.amount.toFixed(4)}` : "예정"}
                   </span>
+                  <DividendStagePill exDate={d.ex_date} payDate={d.pay_date} />
                 </Link>
               ))}
             </div>

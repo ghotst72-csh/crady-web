@@ -150,6 +150,7 @@ export function YieldCarousel({ top10 }: { top10: EtfSnapshot[] }) {
 
   const active = top10[activeIndex];
   const animatedYield = useAnimatedNumber(active?.annualYieldPct ?? 0);
+  const animatedScore = useAnimatedNumber(active?.cradyScore ?? 0);
 
   const registerInteraction = useCallback(() => {
     resumeAtRef.current = Date.now() + PAUSE_AFTER_INTERACTION_MS;
@@ -281,6 +282,7 @@ export function YieldCarousel({ top10 }: { top10: EtfSnapshot[] }) {
               etf={first}
               rank={1}
               animatedYield={first.annualYieldPct ?? 0}
+              animatedScore={first.cradyScore ?? 0}
               updatedAt={null}
               pulseKey={0}
               reducedMotion
@@ -293,7 +295,8 @@ export function YieldCarousel({ top10 }: { top10: EtfSnapshot[] }) {
   }
 
   return (
-    <section className="mx-auto max-w-6xl px-4 sm:px-6 pt-6">
+    <section className="mx-auto max-w-6xl xl:max-w-7xl px-4 sm:px-6 pt-6">
+      <div className="xl:grid xl:grid-cols-[1fr_300px] xl:gap-5 xl:items-start">
       <div
         role="region"
         aria-roledescription="carousel"
@@ -357,6 +360,7 @@ export function YieldCarousel({ top10 }: { top10: EtfSnapshot[] }) {
                     etf={active}
                     rank={activeIndex + 1}
                     animatedYield={animatedYield}
+                    animatedScore={animatedScore}
                     updatedAt={updatedAt}
                     pulseKey={pulseTick}
                     reducedMotion={reducedMotion}
@@ -443,6 +447,44 @@ export function YieldCarousel({ top10 }: { top10: EtfSnapshot[] }) {
           </div>
         </div>
       </div>
+
+      {/* Desktop-only right rail — PC's job is exploration, so give it the
+          full ranked list at a glance instead of the mobile pill strip. */}
+      <aside className="hidden xl:flex xl:flex-col border border-[var(--gray-200)] rounded-2xl overflow-hidden h-[340px]">
+        <div className="px-4 py-2.5 border-b border-[var(--gray-200)] bg-[var(--gray-50)] text-xs font-semibold text-[var(--gray-500)] shrink-0">
+          TOP 10 연환산 분배율
+        </div>
+        <ul className="overflow-y-auto flex-1">
+          {top10.map((etf, i) => (
+            <li key={etf.ticker}>
+              <button
+                type="button"
+                onClick={() => {
+                  registerInteraction();
+                  goTo(i);
+                }}
+                aria-current={i === activeIndex}
+                className={`w-full flex items-center gap-2.5 px-4 py-2 text-left border-b border-[var(--gray-100)] last:border-0 transition-colors ${
+                  i === activeIndex
+                    ? "bg-[var(--gray-100)]"
+                    : "hover:bg-[var(--gray-50)]"
+                }`}
+              >
+                <span className="w-4 text-[10px] text-[var(--gray-400)] font-medium">
+                  {i + 1}
+                </span>
+                <span className="text-sm font-semibold flex-1 min-w-0 truncate">
+                  {etf.ticker}
+                </span>
+                <span className="text-sm font-bold text-[var(--crady-accent)]">
+                  {etf.annualYieldPct != null ? `${etf.annualYieldPct.toFixed(1)}%` : "—"}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </aside>
+      </div>
     </section>
   );
 }
@@ -451,6 +493,7 @@ function CenterCard({
   etf,
   rank,
   animatedYield,
+  animatedScore,
   updatedAt,
   pulseKey,
   reducedMotion,
@@ -459,6 +502,7 @@ function CenterCard({
   etf: EtfSnapshot;
   rank: number;
   animatedYield: number;
+  animatedScore: number;
   updatedAt: string | null;
   pulseKey: number;
   reducedMotion: boolean;
@@ -481,42 +525,53 @@ function CenterCard({
         </span>
       </div>
 
-      <div className="mt-2 flex items-center gap-2">
-        <span className="text-xl sm:text-2xl font-extrabold">{etf.ticker}</span>
-        {etf.riskLevel && (
-          <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--gray-100)] text-[var(--gray-600)]">
-            {RISK_LABEL[etf.riskLevel] ?? etf.riskLevel}
-          </span>
-        )}
-      </div>
-      <div className="text-sm text-[var(--gray-500)] max-w-[150px] sm:max-w-none truncate">
-        {providerLabel(etf.provider_id)}
-        {etf.name ? ` · ${etf.name}` : ""}
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-[var(--gray-600)]">
-        {etf.cradyScore != null && (
-          <span>
-            CRADY 점수 <strong className="text-black">{etf.cradyScore.toFixed(1)}</strong>
-          </span>
-        )}
-        <span className="hidden sm:inline">
-          최근 90일 실지급 배당 run-rate 기준 연환산 분배율(Distribution Yield)
-        </span>
-        {updatedAt && <span className="hidden sm:inline">{updatedAt} KST 업데이트</span>}
-      </div>
-
-      <p className="mt-2 text-xs text-[var(--gray-400)] max-w-xl">
-        높은 분배율은 원금 손실 및 분배금 감소 위험을 포함하며 수익을 보장하지 않습니다.
-      </p>
-
-      <Link
-        href={`/${etf.ticker.toLowerCase()}`}
-        onClick={onNavigate}
-        className="mt-4 inline-flex items-center justify-center px-5 py-2.5 bg-black text-white rounded-lg text-sm font-semibold hover:bg-[var(--gray-900)] transition-colors"
+      {/* Ticker/name/provider/risk/score/CTA all settle together on the same
+          key — everything about the ETF changes as one synchronized unit,
+          not a number that eases in next to labels that hard-cut. */}
+      <div
+        key={pulseKey}
+        className={reducedMotion ? "" : "animate-hero-fade"}
       >
-        ETF 상세 보기 →
-      </Link>
+        <div className="mt-2 flex items-center gap-2">
+          <span className="text-xl sm:text-2xl font-extrabold">{etf.ticker}</span>
+          {etf.riskLevel && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--gray-100)] text-[var(--gray-600)]">
+              {RISK_LABEL[etf.riskLevel] ?? etf.riskLevel}
+            </span>
+          )}
+        </div>
+        <div className="text-sm text-[var(--gray-500)] max-w-[150px] sm:max-w-none truncate">
+          {providerLabel(etf.provider_id)}
+          {etf.name ? ` · ${etf.name}` : ""}
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-[var(--gray-600)]">
+          {etf.cradyScore != null && (
+            <span>
+              CRADY 점수{" "}
+              <strong className="text-black tabular-nums">
+                {animatedScore.toFixed(1)}
+              </strong>
+            </span>
+          )}
+          <span className="hidden sm:inline">
+            최근 90일 실지급 배당 run-rate 기준 연환산 분배율(Distribution Yield)
+          </span>
+          {updatedAt && <span className="hidden sm:inline">{updatedAt} KST 업데이트</span>}
+        </div>
+
+        <p className="mt-2 text-xs text-[var(--gray-400)] max-w-xl">
+          높은 분배율은 원금 손실 및 분배금 감소 위험을 포함하며 수익을 보장하지 않습니다.
+        </p>
+
+        <Link
+          href={`/${etf.ticker.toLowerCase()}`}
+          onClick={onNavigate}
+          className="mt-4 inline-flex items-center justify-center px-5 py-2.5 bg-black text-white rounded-lg text-sm font-semibold hover:bg-[var(--gray-900)] transition-colors"
+        >
+          ETF 상세 보기 →
+        </Link>
+      </div>
     </div>
   );
 }
