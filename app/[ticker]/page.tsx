@@ -9,9 +9,10 @@ import {
   getLatestPrice,
   getPriceHistory,
   getDistributions,
+  getDistributionsSince,
   getNextPrediction,
   getSameProviderEtfs,
-  computeAnnualYieldPct,
+  computeRunRateAnnualYieldPct,
   providerLabel,
 } from "@/lib/data";
 import { RESERVED_PATHS } from "@/lib/reserved";
@@ -53,10 +54,28 @@ export async function generateMetadata({
   if (!found) return {};
 
   const { ticker, etf } = found;
+
+  // Same calls the page component makes below with identical arguments —
+  // Next.js memoizes fetches within a request, so this doesn't double the
+  // Supabase round-trips. Real numbers here (not just "check the price")
+  // make each ticker's title/description genuinely unique and give search
+  // snippets an actual reason to be clicked for "high dividend ETF" queries.
+  const [risk, price, recentDistributions] = await Promise.all([
+    getRiskMetrics(ticker),
+    getLatestPrice(ticker),
+    getDistributionsSince(ticker, 90),
+  ]);
+  const yieldPct = computeRunRateAnnualYieldPct(recentDistributions, price?.close_price ?? null);
+
   const title = `${ticker} — ${etf.name ?? ticker} 배당 정보`;
-  const description = `${ticker}(${providerLabel(
-    etf.provider_id
-  )}) 배당 ETF의 현재 가격, 배당 내역, 다음 예상 배당, CRADY 점수를 확인하세요.`;
+  const description = [
+    `${ticker}(${providerLabel(etf.provider_id)}) 고배당 ETF.`,
+    yieldPct != null ? `연환산 분배율 ${yieldPct.toFixed(1)}%.` : null,
+    risk?.crady_score != null ? `CRADY 점수 ${risk.crady_score.toFixed(1)}.` : null,
+    "배당 일정, 예상 배당금, 위험도를 확인하세요.",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return {
     title,
@@ -92,18 +111,22 @@ export default async function TickerPage({
   if (!found) notFound();
   const { ticker, etf } = found;
 
-  const [risk, regime, price, history, distributions, prediction, siblings] =
+  const [risk, regime, price, history, distributions, recentDistributions, prediction, siblings] =
     await Promise.all([
       getRiskMetrics(ticker),
       getRegimeProfile(ticker),
       getLatestPrice(ticker),
       getPriceHistory(ticker, 30),
       getDistributions(ticker, 12),
+      getDistributionsSince(ticker, 90),
       getNextPrediction(ticker),
       getSameProviderEtfs(etf.provider_id, ticker),
     ]);
 
-  const annualYieldPct = computeAnnualYieldPct(distributions, price?.close_price ?? null);
+  const annualYieldPct = computeRunRateAnnualYieldPct(
+    recentDistributions,
+    price?.close_price ?? null
+  );
   const latestPaidDistribution = distributions.find((d) => d.amount != null);
   const changeFromLastPct =
     latestPaidDistribution?.amount != null &&
@@ -132,7 +155,7 @@ export default async function TickerPage({
         }
       : {}),
     ...(annualYieldPct != null
-      ? { interestRate: `${annualYieldPct.toFixed(2)}%` }
+      ? { interestRate: Number(annualYieldPct.toFixed(2)) }
       : {}),
   };
 

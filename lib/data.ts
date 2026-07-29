@@ -204,19 +204,40 @@ export async function getSameProviderEtfs(
   return data ?? [];
 }
 
-/** Annualized yield estimate — sum of last 12 distributions / current price. */
-export function computeAnnualYieldPct(
-  distributions: DistributionRow[],
-  currentPrice: number | null
+/** Distributions with pay_date within the last `days`, most recent first — a
+ * date-bounded window (not a row-count cap), so annualizing from it isn't
+ * skewed by payout frequency (a weekly payer needs ~13 rows to cover 90
+ * days; a fixed `.limit(12)` silently truncates that and understates yield). */
+export async function getDistributionsSince(
+  ticker: string,
+  days: number
+): Promise<DistributionRow[]> {
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+  const { data, error } = await supabase
+    .from("distributions")
+    .select("ticker, ex_date, pay_date, declaration_date, amount")
+    .eq("ticker", ticker)
+    .not("amount", "is", null)
+    .gte("pay_date", since)
+    .order("pay_date", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Run-rate annualized yield: trailing `windowDays` of payments extrapolated
+ * to a full year. Same methodology as getHomeSnapshot below, so a ticker
+ * never shows two different "annual yield" numbers depending on the page. */
+export function computeRunRateAnnualYieldPct(
+  distributions: { amount: number | null }[],
+  currentPrice: number | null,
+  windowDays = 90
 ): number | null {
   if (!currentPrice || currentPrice <= 0) return null;
-  const now = Date.now();
-  const oneYearAgo = now - 365 * 24 * 60 * 60 * 1000;
-  const sum = distributions
-    .filter((d) => d.amount != null && new Date(d.pay_date).getTime() >= oneYearAgo)
-    .reduce((acc, d) => acc + (d.amount ?? 0), 0);
+  const sum = distributions.reduce((acc, d) => acc + (d.amount ?? 0), 0);
   if (sum <= 0) return null;
-  return (sum / currentPrice) * 100;
+  return ((sum / windowDays) * 365 / currentPrice) * 100;
 }
 
 // ── Ranking / homepage aggregate queries ─────────────────────────────────────
@@ -371,11 +392,7 @@ export async function getHomeSnapshot(): Promise<EtfSnapshot[]> {
     const payments = distByTicker.get(e.ticker) ?? [];
     const pred = predByTicker.get(e.ticker);
 
-    const sum90d = payments.reduce((acc, p) => acc + p.amount, 0);
-    const annualYieldPct =
-      price && price > 0 && sum90d > 0
-        ? ((sum90d / 90) * 365 / price) * 100
-        : null;
+    const annualYieldPct = computeRunRateAnnualYieldPct(payments, price, 90);
 
     const latest = payments[payments.length - 1] ?? null;
     const prior = payments.slice(0, -1);

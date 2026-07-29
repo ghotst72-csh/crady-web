@@ -3,8 +3,8 @@ import {
   getEtf,
   getRiskMetrics,
   getLatestPrice,
-  getDistributions,
-  computeAnnualYieldPct,
+  getDistributionsSince,
+  computeRunRateAnnualYieldPct,
   providerLabel,
 } from "@/lib/data";
 
@@ -25,14 +25,17 @@ export default async function Image({
 }) {
   const { ticker: rawTicker } = await params;
   const ticker = rawTicker.toUpperCase();
-  const [etf, risk, price, distributions] = await Promise.all([
+  const [etf, risk, price, recentDistributions] = await Promise.all([
     getEtf(ticker),
     getRiskMetrics(ticker),
     getLatestPrice(ticker),
-    getDistributions(ticker, 12),
+    getDistributionsSince(ticker, 90),
   ]);
 
-  const annualYieldPct = computeAnnualYieldPct(distributions, price?.close_price ?? null);
+  const annualYieldPct = computeRunRateAnnualYieldPct(
+    recentDistributions,
+    price?.close_price ?? null
+  );
   const provider = etf ? providerLabel(etf.provider_id) : "";
 
   return new ImageResponse(
