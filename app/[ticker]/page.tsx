@@ -105,7 +105,7 @@ export default async function TickerPage({
   if (!found) notFound();
   const { ticker, etf } = found;
 
-  const [risk, regime, price, history, distributions, recentDistributions, prediction, siblings] =
+  const [risk, regime, price, history, distributions, recentDistributions, rawPrediction, siblings] =
     await Promise.all([
       getRiskMetrics(ticker),
       getRegimeProfile(ticker),
@@ -116,6 +116,15 @@ export default async function TickerPage({
       getNextPrediction(ticker),
       getSameProviderEtfs(etf.provider_id, ticker),
     ]);
+
+  // Defense-in-depth: getNextPrediction already filters to future pay
+  // dates at the query level, but a past-dated prediction must never reach
+  // the page as "next" even if that filter is ever changed or bypassed.
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const prediction =
+    rawPrediction && rawPrediction.target_pay_date && rawPrediction.target_pay_date >= todayStr
+      ? rawPrediction
+      : null;
 
   const annualYieldPct = computeRunRateAnnualYieldPct(
     recentDistributions,

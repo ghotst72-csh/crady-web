@@ -178,11 +178,16 @@ export async function getDistributions(
 export async function getNextPrediction(
   ticker: string
 ): Promise<NextPredictionRow | null> {
+  const today = new Date().toISOString().slice(0, 10);
+  // Picking the highest-confidence row (the old behavior) could surface a
+  // stale prediction from an already-paid cycle instead of the actual next
+  // one — filter to future pay dates and take the soonest.
   const { data, error } = await supabase
     .from("next_predictions")
     .select("ticker, target_ex_date, target_pay_date, predicted_amount, confidence_score")
     .eq("ticker", ticker)
-    .order("confidence_score", { ascending: false })
+    .gte("target_pay_date", today)
+    .order("target_pay_date", { ascending: true })
     .limit(1)
     .maybeSingle();
   if (error) throw error;
@@ -346,6 +351,7 @@ export type EtfSnapshot = {
 };
 
 export async function getHomeSnapshot(): Promise<EtfSnapshot[]> {
+  const todayStr = new Date().toISOString().slice(0, 10);
   const since90 = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
     .toISOString()
     .slice(0, 10);
@@ -363,10 +369,16 @@ export async function getHomeSnapshot(): Promise<EtfSnapshot[]> {
       .not("amount", "is", null)
       .gte("pay_date", since90)
       .order("pay_date", { ascending: true }),
+    // Ordering by confidence_score picked whichever row scored highest
+    // regardless of date — a stale prediction from an already-paid cycle
+    // could outrank the actual next one. Restrict to future pay dates and
+    // sort by date so the soonest (first per ticker below) is the real
+    // "next" prediction.
     supabase
       .from("next_predictions")
       .select("ticker, target_pay_date, predicted_amount, confidence_score")
-      .order("confidence_score", { ascending: false }),
+      .gte("target_pay_date", todayStr)
+      .order("target_pay_date", { ascending: true }),
   ]);
   if (etfsRes.error) throw etfsRes.error;
   if (riskRes.error) throw riskRes.error;
@@ -583,13 +595,22 @@ export type NextDistributionEntry = EtfSnapshot & {
   changeFromLastPct: number | null;
 };
 
-/** ETFs with a registered next-payment prediction, soonest target_pay_date first. */
+/** ETFs with a registered next-payment prediction, soonest target_pay_date first.
+ * Defense-in-depth: getHomeSnapshot's query already restricts to future
+ * target_pay_dates, but a past-dated prediction must never render as
+ * "next" here even if that upstream filter is ever changed or bypassed. */
 export function nextDistributionsTimeline(
   rows: EtfSnapshot[],
   limit = 10
 ): NextDistributionEntry[] {
+  const todayStr = new Date().toISOString().slice(0, 10);
   return rows
-    .filter((r) => r.nextPredictedAmount != null && r.nextPredictedDate != null)
+    .filter(
+      (r) =>
+        r.nextPredictedAmount != null &&
+        r.nextPredictedDate != null &&
+        r.nextPredictedDate >= todayStr
+    )
     .sort(
       (a, b) =>
         new Date(a.nextPredictedDate!).getTime() -
