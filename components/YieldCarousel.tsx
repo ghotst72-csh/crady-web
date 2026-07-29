@@ -231,6 +231,13 @@ export function YieldCarousel({ top10 }: { top10: EtfSnapshot[] }) {
   const updatedAt = formatUpdatedAt(active.calculatedAt);
 
   if (!mounted) {
+    // Root cause found: Intl.DateTimeFormat("ko-KR", {timeZone:"Asia/Seoul"})
+    // produces different output between Vercel's Node runtime (different
+    // ICU data) and the browser — a real, reproducible environment
+    // difference (confirmed by isolation testing directly against the live
+    // deployment), not a logic bug. updatedAt is intentionally omitted here
+    // and only computed post-mount (see the main render below), where it's
+    // a pure client-side value never compared against server HTML.
     const first = top10[0];
     return (
       <section className="mx-auto max-w-6xl px-4 sm:px-6 pt-6">
@@ -240,7 +247,7 @@ export function YieldCarousel({ top10 }: { top10: EtfSnapshot[] }) {
               etf={first}
               rank={1}
               animatedYield={first.annualYieldPct ?? 0}
-              updatedAt={formatUpdatedAt(first.calculatedAt)}
+              updatedAt={null}
               pulseKey={0}
               reducedMotion
               onNavigate={() => {}}
