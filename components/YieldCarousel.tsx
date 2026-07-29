@@ -124,6 +124,18 @@ function useIsMobile() {
 
 export function YieldCarousel({ top10 }: { top10: EtfSnapshot[] }) {
   const len = top10.length;
+  // Renders a minimal, non-interactive #1 card until this flips true. This
+  // guarantees the client's very first render pass (the one hydration
+  // compares against the server HTML) is trivially identical on both sides —
+  // the full transform/drag/autoplay carousel only ever mounts client-side,
+  // after hydration has already reconciled, so it can never be the subject
+  // of a hydration diff no matter how server/client environments differ.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: the standard client-only-mount gate, see comment above
+    setMounted(true);
+  }, []);
+
   const [activeIndex, setActiveIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
@@ -217,6 +229,27 @@ export function YieldCarousel({ top10 }: { top10: EtfSnapshot[] }) {
   const STEP = isMobile ? 150 : 240;
   const glow = PROVIDER_GLOW[active.provider_id] ?? "none";
   const updatedAt = formatUpdatedAt(active.calculatedAt);
+
+  if (!mounted) {
+    const first = top10[0];
+    return (
+      <section className="mx-auto max-w-6xl px-4 sm:px-6 pt-6">
+        <div className="relative border border-[var(--gray-200)] rounded-2xl overflow-hidden">
+          <div className="h-[300px] sm:h-[340px]">
+            <CenterCard
+              etf={first}
+              rank={1}
+              animatedYield={first.annualYieldPct ?? 0}
+              updatedAt={formatUpdatedAt(first.calculatedAt)}
+              pulseKey={0}
+              reducedMotion
+              onNavigate={() => {}}
+            />
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="mx-auto max-w-6xl px-4 sm:px-6 pt-6">
