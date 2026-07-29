@@ -488,3 +488,79 @@ export async function getThisWeekDividends(limit = 12): Promise<WeeklyDividend[]
     amount: r.amount,
   }));
 }
+
+// ── "오늘의 핵심" composite pick ───────────────────────────────────────────────
+// Not "highest yield" — a weighted mix so a single reckless outlier doesn't
+// win just for having the biggest number. Weights: CRADY score is the primary
+// signal (it already folds in stability), yield is capped so runaway numbers
+// don't dominate, a small bonus for having next-payment data and an upward
+// trend, and a penalty for EXTREME/RISKY so the pick isn't just "the wildest
+// ETF today."
+
+export type Highlight = EtfSnapshot & { compositeScore: number };
+
+export function pickTodayHighlight(rows: EtfSnapshot[]): Highlight | null {
+  const scored = rows
+    .filter((r) => r.cradyScore != null)
+    .map((r) => {
+      const cradyPart = r.cradyScore! * 0.5;
+      const yieldPart = Math.min(r.annualYieldPct ?? 0, 100) * 0.3;
+      const trendBonus = r.dividendTrend === "up" ? 10 : 0;
+      const predictionBonus = r.nextPredictedAmount != null ? 10 : 0;
+      const riskPenalty =
+        r.riskLevel === "EXTREME" ? 15 : r.riskLevel === "RISKY" ? 5 : 0;
+      const compositeScore =
+        cradyPart + yieldPart + trendBonus + predictionBonus - riskPenalty;
+      return { ...r, compositeScore };
+    })
+    .sort((a, b) => b.compositeScore - a.compositeScore);
+  return scored[0] ?? null;
+}
+
+// ── 핵심 지표 요약 (4 number cards) ────────────────────────────────────────────
+
+export type KeyMetrics = {
+  todayCount: number;
+  weekCount: number;
+  nextPredictionCount: number;
+  highScoreCount: number;
+};
+
+export async function getKeyMetrics(): Promise<KeyMetrics> {
+  const today = new Date().toISOString().slice(0, 10);
+  const in7 = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+
+  const [todayRes, weekRes, predRes, highScoreRes] = await Promise.all([
+    supabase
+      .from("distributions")
+      .select("ticker", { count: "exact", head: true })
+      .eq("pay_date", today),
+    supabase
+      .from("distributions")
+      .select("ticker", { count: "exact", head: true })
+      .gte("pay_date", today)
+      .lte("pay_date", in7),
+    supabase.from("next_predictions").select("ticker"),
+    supabase
+      .from("etf_risk_metrics")
+      .select("ticker", { count: "exact", head: true })
+      .gte("crady_score", 70),
+  ]);
+  if (todayRes.error) throw todayRes.error;
+  if (weekRes.error) throw weekRes.error;
+  if (predRes.error) throw predRes.error;
+  if (highScoreRes.error) throw highScoreRes.error;
+
+  const uniquePredictionTickers = new Set(
+    (predRes.data ?? []).map((r) => r.ticker)
+  ).size;
+
+  return {
+    todayCount: todayRes.count ?? 0,
+    weekCount: weekRes.count ?? 0,
+    nextPredictionCount: uniquePredictionTickers,
+    highScoreCount: highScoreRes.count ?? 0,
+  };
+}
