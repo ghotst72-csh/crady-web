@@ -315,9 +315,12 @@ export type EtfSnapshot = {
   latestDividendDate: string | null;
   nextPredictedAmount: number | null;
   nextPredictedDate: string | null;
+  nextPredictedConfidence: number | null;
   /** Latest payment vs the average of the rest of the 90-day window. */
   dividendTrend: "up" | "down" | "flat" | null;
   dividendTrendPct: number | null;
+  /** etf_risk_metrics.calculated_at — when the nightly pipeline last computed this row. */
+  calculatedAt: string | null;
 };
 
 export async function getHomeSnapshot(): Promise<EtfSnapshot[]> {
@@ -330,7 +333,7 @@ export async function getHomeSnapshot(): Promise<EtfSnapshot[]> {
     supabase
       .from("etf_risk_metrics")
       .select(
-        "ticker, crady_score, risk_level, volatility_30d, dividend_stability_score, latest_close_price"
+        "ticker, crady_score, risk_level, volatility_30d, dividend_stability_score, latest_close_price, calculated_at"
       ),
     supabase
       .from("distributions")
@@ -401,8 +404,10 @@ export async function getHomeSnapshot(): Promise<EtfSnapshot[]> {
       latestDividendDate: latest?.pay_date ?? null,
       nextPredictedAmount: pred?.predicted_amount ?? null,
       nextPredictedDate: pred?.target_pay_date ?? null,
+      nextPredictedConfidence: pred?.confidence_score ?? null,
       dividendTrend,
       dividendTrendPct,
+      calculatedAt: risk?.calculated_at ?? null,
     } satisfies EtfSnapshot;
   });
 }
@@ -489,34 +494,6 @@ export async function getThisWeekDividends(limit = 12): Promise<WeeklyDividend[]
   }));
 }
 
-// ── "오늘의 핵심" composite pick ───────────────────────────────────────────────
-// Not "highest yield" — a weighted mix so a single reckless outlier doesn't
-// win just for having the biggest number. Weights: CRADY score is the primary
-// signal (it already folds in stability), yield is capped so runaway numbers
-// don't dominate, a small bonus for having next-payment data and an upward
-// trend, and a penalty for EXTREME/RISKY so the pick isn't just "the wildest
-// ETF today."
-
-export type Highlight = EtfSnapshot & { compositeScore: number };
-
-export function pickTodayHighlight(rows: EtfSnapshot[]): Highlight | null {
-  const scored = rows
-    .filter((r) => r.cradyScore != null)
-    .map((r) => {
-      const cradyPart = r.cradyScore! * 0.5;
-      const yieldPart = Math.min(r.annualYieldPct ?? 0, 100) * 0.3;
-      const trendBonus = r.dividendTrend === "up" ? 10 : 0;
-      const predictionBonus = r.nextPredictedAmount != null ? 10 : 0;
-      const riskPenalty =
-        r.riskLevel === "EXTREME" ? 15 : r.riskLevel === "RISKY" ? 5 : 0;
-      const compositeScore =
-        cradyPart + yieldPart + trendBonus + predictionBonus - riskPenalty;
-      return { ...r, compositeScore };
-    })
-    .sort((a, b) => b.compositeScore - a.compositeScore);
-  return scored[0] ?? null;
-}
-
 // ── 핵심 지표 요약 (4 number cards) ────────────────────────────────────────────
 
 export type KeyMetrics = {
@@ -563,4 +540,33 @@ export async function getKeyMetrics(): Promise<KeyMetrics> {
     nextPredictionCount: uniquePredictionTickers,
     highScoreCount: highScoreRes.count ?? 0,
   };
+}
+
+// ── Next Estimated Distributions timeline ────────────────────────────────────
+
+export type NextDistributionEntry = EtfSnapshot & {
+  /** Change from the last confirmed (actual) payment to the predicted next one. */
+  changeFromLastPct: number | null;
+};
+
+/** ETFs with a registered next-payment prediction, soonest target_pay_date first. */
+export function nextDistributionsTimeline(
+  rows: EtfSnapshot[],
+  limit = 10
+): NextDistributionEntry[] {
+  return rows
+    .filter((r) => r.nextPredictedAmount != null && r.nextPredictedDate != null)
+    .sort(
+      (a, b) =>
+        new Date(a.nextPredictedDate!).getTime() -
+        new Date(b.nextPredictedDate!).getTime()
+    )
+    .slice(0, limit)
+    .map((r) => ({
+      ...r,
+      changeFromLastPct:
+        r.latestDividend != null && r.latestDividend > 0
+          ? ((r.nextPredictedAmount! - r.latestDividend) / r.latestDividend) * 100
+          : null,
+    }));
 }

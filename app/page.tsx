@@ -2,12 +2,13 @@ import {
   getHomeSnapshot,
   getThisWeekDividends,
   getKeyMetrics,
-  pickTodayHighlight,
   topByAnnualYield,
   topByCradyScoreSnapshot,
   topRecentlyIncreased,
+  nextDistributionsTimeline,
 } from "@/lib/data";
-import { TodayHighlight } from "@/components/TodayHighlight";
+import { YieldHeroTop10 } from "@/components/YieldHeroTop10";
+import { NextDistributionsRail } from "@/components/NextDistributionsRail";
 import { KeyMetrics } from "@/components/KeyMetrics";
 import { WeekSchedule } from "@/components/WeekSchedule";
 import { RankingPreview } from "@/components/RankingPreview";
@@ -21,35 +22,25 @@ export default async function HomePage() {
     getKeyMetrics(),
   ]);
 
-  const highlight = pickTodayHighlight(snapshot);
-  const yieldTop = topByAnnualYield(snapshot, 6);
+  const yieldTop10 = topByAnnualYield(snapshot, 10);
+  const nextDistributions = nextDistributionsTimeline(snapshot, 10);
   const cradyTop = topByCradyScoreSnapshot(snapshot, 6);
   const increasedTop = topRecentlyIncreased(snapshot, 6);
 
-  const yieldLeader = yieldTop[0] ?? null;
-  const cradyLeader = cradyTop[0] ?? null;
-
   return (
     <div>
-      {/* A. 오늘의 핵심 */}
-      {highlight && (
-        <TodayHighlight
-          highlight={highlight}
-          yieldLeader={yieldLeader}
-          cradyLeader={cradyLeader}
-        />
-      )}
+      {/* A. Hero — 연환산 분배율 TOP 10, no intro text/search above it */}
+      <YieldHeroTop10 top10={yieldTop10} />
 
-      {/* B. 핵심 지표 요약 */}
+      {/* B. Next Estimated Distributions */}
+      <NextDistributionsRail items={nextDistributions} />
+
+      {/* C. Existing sections, repositioned below A/B */}
       <KeyMetrics metrics={keyMetrics} />
-
-      {/* C. 이번 주 배당 일정 */}
       <WeekSchedule items={thisWeek} />
-
-      {/* D. 주요 랭킹 미리보기 (tabbed, replaces — not stacked) */}
       <RankingPreview
         cradyTop={cradyTop}
-        yieldTop={yieldTop}
+        yieldTop={yieldTop10}
         increasedTop={increasedTop}
       />
     </div>
