@@ -31,8 +31,8 @@ export default function RootLayout({
     <html lang="ko">
       <body className="min-h-screen flex flex-col antialiased">
         <header className="border-b border-[var(--gray-200)] sticky top-0 bg-white/95 backdrop-blur z-50">
-          <div className="mx-auto max-w-5xl px-4 sm:px-6 h-14 flex items-center justify-between">
-            <Link href="/" className="font-bold text-lg tracking-tight">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 h-14 flex items-center gap-3">
+            <Link href="/" className="font-bold text-lg tracking-tight shrink-0">
               CRA<span className="text-[var(--crady-accent)]">DY</span>
             </Link>
             <nav className="flex items-center gap-1 sm:gap-4 text-sm">
@@ -46,13 +46,41 @@ export default function RootLayout({
                 </Link>
               ))}
             </nav>
+
+            <div className="flex-1" />
+
+            {/* Compact header search — text input on sm+, icon-only on mobile */}
+            <form action="/search" className="hidden sm:block">
+              <div className="flex items-center border border-[var(--gray-300)] rounded-md overflow-hidden focus-within:border-black transition-colors">
+                <input
+                  type="text"
+                  name="q"
+                  placeholder="티커 검색"
+                  className="w-32 px-3 py-1.5 text-sm outline-none"
+                />
+                <button
+                  type="submit"
+                  aria-label="검색"
+                  className="px-2.5 py-1.5 text-[var(--gray-500)] hover:text-black"
+                >
+                  <SearchIcon />
+                </button>
+              </div>
+            </form>
+            <Link
+              href="/search"
+              aria-label="검색"
+              className="sm:hidden p-2 rounded-md text-[var(--gray-600)] hover:text-black hover:bg-[var(--gray-100)]"
+            >
+              <SearchIcon />
+            </Link>
           </div>
         </header>
 
         <main className="flex-1">{children}</main>
 
         <footer className="border-t border-[var(--gray-200)] mt-16">
-          <div className="mx-auto max-w-5xl px-4 sm:px-6 py-8 text-sm text-[var(--gray-500)] flex flex-col sm:flex-row gap-4 sm:justify-between">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 py-8 text-sm text-[var(--gray-500)] flex flex-col sm:flex-row gap-4 sm:justify-between">
             <p>&copy; 2026 CRADY. 본 사이트의 정보는 투자 권유가 아닙니다.</p>
             <div className="flex gap-4">
               <Link href="/privacy" className="hover:text-black">
@@ -69,5 +97,23 @@ export default function RootLayout({
         </footer>
       </body>
     </html>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.3-4.3" />
+    </svg>
   );
 }

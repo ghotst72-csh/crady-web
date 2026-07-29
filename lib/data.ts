@@ -292,3 +292,199 @@ export async function searchEtfs(
   if (error) throw error;
   return data ?? [];
 }
+
+// ── Home page snapshot — one bulk fetch powering every ranking section ───────
+// Built from etf_risk_metrics.latest_close_price (verified fresh — matches
+// etf_price_history same-day close) + a 90-day distributions window (~800
+// rows, comfortably under PostgREST's row cap) instead of etf_risk_metrics
+// .recent_dividend_yield, which is populated for only 3 of 73 tickers and
+// unusable for ranking.
+
+export type EtfSnapshot = {
+  ticker: string;
+  provider_id: string;
+  name: string | null;
+  price: number | null;
+  cradyScore: number | null;
+  riskLevel: string | null;
+  volatility30d: number | null;
+  dividendStabilityScore: number | null;
+  /** Run-rate annualized yield: (last-90-day paid sum / 90 * 365) / price * 100. */
+  annualYieldPct: number | null;
+  latestDividend: number | null;
+  latestDividendDate: string | null;
+  nextPredictedAmount: number | null;
+  nextPredictedDate: string | null;
+  /** Latest payment vs the average of the rest of the 90-day window. */
+  dividendTrend: "up" | "down" | "flat" | null;
+  dividendTrendPct: number | null;
+};
+
+export async function getHomeSnapshot(): Promise<EtfSnapshot[]> {
+  const since90 = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+
+  const [etfsRes, riskRes, distRes, predRes] = await Promise.all([
+    supabase.from("etfs").select("ticker, provider_id, name"),
+    supabase
+      .from("etf_risk_metrics")
+      .select(
+        "ticker, crady_score, risk_level, volatility_30d, dividend_stability_score, latest_close_price"
+      ),
+    supabase
+      .from("distributions")
+      .select("ticker, pay_date, amount")
+      .not("amount", "is", null)
+      .gte("pay_date", since90)
+      .order("pay_date", { ascending: true }),
+    supabase
+      .from("next_predictions")
+      .select("ticker, target_pay_date, predicted_amount, confidence_score")
+      .order("confidence_score", { ascending: false }),
+  ]);
+  if (etfsRes.error) throw etfsRes.error;
+  if (riskRes.error) throw riskRes.error;
+  if (distRes.error) throw distRes.error;
+  if (predRes.error) throw predRes.error;
+
+  const riskByTicker = new Map((riskRes.data ?? []).map((r) => [r.ticker, r]));
+
+  const distByTicker = new Map<string, { pay_date: string; amount: number }[]>();
+  for (const d of distRes.data ?? []) {
+    if (d.amount == null) continue;
+    if (!distByTicker.has(d.ticker)) distByTicker.set(d.ticker, []);
+    distByTicker.get(d.ticker)!.push({ pay_date: d.pay_date, amount: d.amount });
+  }
+
+  const predByTicker = new Map<string, (typeof predRes.data)[number]>();
+  for (const p of predRes.data ?? []) {
+    if (!predByTicker.has(p.ticker)) predByTicker.set(p.ticker, p);
+  }
+
+  return (etfsRes.data ?? []).map((e) => {
+    const risk = riskByTicker.get(e.ticker);
+    const price = risk?.latest_close_price ?? null;
+    const payments = distByTicker.get(e.ticker) ?? [];
+    const pred = predByTicker.get(e.ticker);
+
+    const sum90d = payments.reduce((acc, p) => acc + p.amount, 0);
+    const annualYieldPct =
+      price && price > 0 && sum90d > 0
+        ? ((sum90d / 90) * 365 / price) * 100
+        : null;
+
+    const latest = payments[payments.length - 1] ?? null;
+    const prior = payments.slice(0, -1);
+    let dividendTrend: EtfSnapshot["dividendTrend"] = null;
+    let dividendTrendPct: number | null = null;
+    if (latest && prior.length > 0) {
+      const priorAvg = prior.reduce((a, p) => a + p.amount, 0) / prior.length;
+      if (priorAvg > 0) {
+        dividendTrendPct = ((latest.amount - priorAvg) / priorAvg) * 100;
+        dividendTrend =
+          dividendTrendPct > 3 ? "up" : dividendTrendPct < -3 ? "down" : "flat";
+      }
+    }
+
+    return {
+      ticker: e.ticker,
+      provider_id: e.provider_id,
+      name: e.name,
+      price,
+      cradyScore: risk?.crady_score ?? null,
+      riskLevel: risk?.risk_level ?? null,
+      volatility30d: risk?.volatility_30d ?? null,
+      dividendStabilityScore: risk?.dividend_stability_score ?? null,
+      annualYieldPct,
+      latestDividend: latest?.amount ?? null,
+      latestDividendDate: latest?.pay_date ?? null,
+      nextPredictedAmount: pred?.predicted_amount ?? null,
+      nextPredictedDate: pred?.target_pay_date ?? null,
+      dividendTrend,
+      dividendTrendPct,
+    } satisfies EtfSnapshot;
+  });
+}
+
+export function topByAnnualYield(rows: EtfSnapshot[], limit = 8) {
+  return rows
+    .filter((r) => r.annualYieldPct != null)
+    .sort((a, b) => b.annualYieldPct! - a.annualYieldPct!)
+    .slice(0, limit);
+}
+
+export function topByCradyScoreSnapshot(rows: EtfSnapshot[], limit = 8) {
+  return rows
+    .filter((r) => r.cradyScore != null)
+    .sort((a, b) => b.cradyScore! - a.cradyScore!)
+    .slice(0, limit);
+}
+
+export function topRecentlyIncreased(rows: EtfSnapshot[], limit = 8) {
+  return rows
+    .filter((r) => r.dividendTrend === "up")
+    .sort((a, b) => (b.dividendTrendPct ?? 0) - (a.dividendTrendPct ?? 0))
+    .slice(0, limit);
+}
+
+/** Annualized yield per unit of 30d volatility — higher is more yield for less risk. */
+export function topByRiskEfficiency(rows: EtfSnapshot[], limit = 8) {
+  return rows
+    .filter((r) => r.annualYieldPct != null && r.volatility30d != null && r.volatility30d > 1)
+    .map((r) => ({ ...r, efficiency: r.annualYieldPct! / r.volatility30d! }))
+    .sort((a, b) => b.efficiency - a.efficiency)
+    .slice(0, limit);
+}
+
+export function topByProvider(rows: EtfSnapshot[], providerId: string, limit = 4) {
+  return rows
+    .filter((r) => r.provider_id === providerId && r.cradyScore != null)
+    .sort((a, b) => b.cradyScore! - a.cradyScore!)
+    .slice(0, limit);
+}
+
+export type WeeklyDividend = {
+  ticker: string;
+  provider_id: string;
+  name: string | null;
+  ex_date: string;
+  pay_date: string;
+  amount: number | null;
+};
+
+/** Distributions (paid or scheduled) with pay_date in the next 7 days. */
+export async function getThisWeekDividends(limit = 12): Promise<WeeklyDividend[]> {
+  const today = new Date();
+  const in7days = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const todayStr = today.toISOString().slice(0, 10);
+  const in7Str = in7days.toISOString().slice(0, 10);
+
+  const { data, error } = await supabase
+    .from("distributions")
+    .select("ticker, provider_id, ex_date, pay_date, amount")
+    .gte("pay_date", todayStr)
+    .lte("pay_date", in7Str)
+    .order("pay_date", { ascending: true })
+    .limit(limit * 3);
+  if (error) throw error;
+
+  const rows = data ?? [];
+  if (rows.length === 0) return [];
+  const tickers = [...new Set(rows.map((r) => r.ticker))];
+  const { data: etfRows, error: etfErr } = await supabase
+    .from("etfs")
+    .select("ticker, name")
+    .in("ticker", tickers);
+  if (etfErr) throw etfErr;
+  const nameByTicker = new Map((etfRows ?? []).map((e) => [e.ticker, e.name]));
+
+  return rows.slice(0, limit).map((r) => ({
+    ticker: r.ticker,
+    provider_id: r.provider_id,
+    name: nameByTicker.get(r.ticker) ?? null,
+    ex_date: r.ex_date,
+    pay_date: r.pay_date,
+    amount: r.amount,
+  }));
+}
