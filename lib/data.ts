@@ -30,6 +30,7 @@ export type RiskMetricsRow = {
   max_drawdown: number | null;
   recent_return_30d: number | null;
   recent_return_90d: number | null;
+  calculated_at: string | null;
 };
 
 export type RegimeProfileRow = {
@@ -106,7 +107,7 @@ export async function getRiskMetrics(
     .from("etf_risk_metrics")
     .select(
       "ticker, crady_score, risk_level, profile_type, dividend_stability_score, " +
-        "volatility_30d, volatility_90d, max_drawdown, recent_return_30d, recent_return_90d"
+        "volatility_30d, volatility_90d, max_drawdown, recent_return_30d, recent_return_90d, calculated_at"
     )
     .eq("ticker", ticker)
     .order("calculated_at", { ascending: false })
