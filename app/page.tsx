@@ -7,7 +7,7 @@ import {
   topRecentlyIncreased,
   nextDistributionsTimeline,
 } from "@/lib/data";
-import { YieldHeroTop10 } from "@/components/YieldHeroTop10";
+import { YieldCarousel } from "@/components/YieldCarousel";
 import { NextDistributionsRail } from "@/components/NextDistributionsRail";
 import { KeyMetrics } from "@/components/KeyMetrics";
 import { WeekSchedule } from "@/components/WeekSchedule";
@@ -29,8 +29,8 @@ export default async function HomePage() {
 
   return (
     <div>
-      {/* A. Hero — 연환산 분배율 TOP 10, no intro text/search above it */}
-      <YieldHeroTop10 top10={yieldTop10} />
+      {/* A. Hero — one interactive carousel, #1 CRCO centered by default */}
+      <YieldCarousel top10={yieldTop10} />
 
       {/* B. Next Estimated Distributions */}
       <NextDistributionsRail items={nextDistributions} />

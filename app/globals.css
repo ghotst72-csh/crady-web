@@ -28,6 +28,32 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-a {
-  color: inherit;
+/* Layered (not left bare) so Tailwind utility classes like text-white can
+   still override it — an unlayered rule here would always beat @layer
+   utilities regardless of specificity, which silently made every black-
+   background Link button (text-white) render invisible black-on-black. */
+@layer base {
+  a {
+    color: inherit;
+  }
+}
+
+/* Brief, restrained "this number just changed" pop — not a bounce, just a
+   quick settle. Skipped entirely under prefers-reduced-motion (callers gate
+   the className, but the guard here is a second line of defense). */
+@keyframes hero-pop {
+  0% {
+    opacity: 0.6;
+    transform: scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .animate-hero-pop {
+    animation: hero-pop 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
 }
