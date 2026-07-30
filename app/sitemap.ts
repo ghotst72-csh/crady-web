@@ -1,7 +1,12 @@
 import type { MetadataRoute } from "next";
 import { getHomeSnapshot } from "@/lib/data";
+import { ARTICLE_TYPE_SLUG } from "@/lib/magazine/recipes";
+import { HUB_IDS } from "@/lib/magazine/hubs";
+import type { ArticleTypeId } from "@/lib/magazine/types";
 
 export const dynamic = "force-static";
+
+const ARTICLE_TYPES = Object.keys(ARTICLE_TYPE_SLUG) as ArticleTypeId[];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const snapshot = await getHomeSnapshot();
@@ -34,7 +39,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "daily",
       priority: 0.8,
     },
-    { url: "https://crady.net/search", changeFrequency: "weekly", priority: 0.5 },
+    {
+      url: "https://crady.net/magazine",
+      lastModified: mostRecentCalculatedAt ?? undefined,
+      changeFrequency: "daily",
+      priority: 0.8,
+    },
     { url: "https://crady.net/about", changeFrequency: "monthly", priority: 0.3 },
   ];
 
@@ -45,5 +55,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.9,
   }));
 
-  return [...staticEntries, ...tickerEntries];
+  const hubEntries: MetadataRoute.Sitemap = HUB_IDS.map((slug) => ({
+    url: `https://crady.net/magazine/${slug}`,
+    lastModified: mostRecentCalculatedAt ?? undefined,
+    changeFrequency: "daily",
+    priority: 0.6,
+  }));
+
+  const magazineEntries: MetadataRoute.Sitemap = snapshot.flatMap((etf) =>
+    ARTICLE_TYPES.map((type) => ({
+      url: `https://crady.net/magazine/${etf.ticker.toLowerCase()}-${ARTICLE_TYPE_SLUG[type]}`,
+      lastModified: etf.calculatedAt ? new Date(etf.calculatedAt) : undefined,
+      changeFrequency: "daily" as const,
+      priority: type === "next-dividend-prediction" ? 0.85 : 0.7,
+    }))
+  );
+
+  return [...staticEntries, ...tickerEntries, ...hubEntries, ...magazineEntries];
 }

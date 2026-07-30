@@ -17,6 +17,7 @@ export type EtfRow = {
   asset_class: string | null;
   benchmark: string | null;
   holdings_count: number | null;
+  created_at: string | null;
 };
 
 export type RiskMetricsRow = {
@@ -92,7 +93,7 @@ export async function getEtf(ticker: string): Promise<EtfRow | null> {
     .select(
       "ticker, provider_id, name, category, payout_frequency, source_url, " +
         "short_description, long_description, investment_strategy, risk_summary, " +
-        "expense_ratio, aum, inception_date, asset_class, benchmark, holdings_count"
+        "expense_ratio, aum, inception_date, asset_class, benchmark, holdings_count, created_at"
     )
     .eq("ticker", ticker)
     .maybeSingle();
@@ -305,21 +306,6 @@ export async function getUpcomingDividends(
   return data ?? [];
 }
 
-export async function searchEtfs(
-  query: string,
-  limit = 20
-): Promise<{ ticker: string; name: string | null; provider_id: string }[]> {
-  const q = query.trim();
-  if (!q) return [];
-  const { data, error } = await supabase
-    .from("etfs")
-    .select("ticker, name, provider_id")
-    .or(`ticker.ilike.%${q}%,name.ilike.%${q}%`)
-    .limit(limit);
-  if (error) throw error;
-  return data ?? [];
-}
-
 // ── Home page snapshot — one bulk fetch powering every ranking section ───────
 // Built from etf_risk_metrics.latest_close_price (verified fresh — matches
 // etf_price_history same-day close) + a 90-day distributions window (~800
@@ -331,6 +317,7 @@ export type EtfSnapshot = {
   ticker: string;
   provider_id: string;
   name: string | null;
+  payoutFrequency: string | null;
   price: number | null;
   cradyScore: number | null;
   riskLevel: string | null;
@@ -357,7 +344,7 @@ export async function getHomeSnapshot(): Promise<EtfSnapshot[]> {
     .slice(0, 10);
 
   const [etfsRes, riskRes, distRes, predRes] = await Promise.all([
-    supabase.from("etfs").select("ticker, provider_id, name"),
+    supabase.from("etfs").select("ticker, provider_id, name, payout_frequency"),
     supabase
       .from("etf_risk_metrics")
       .select(
@@ -424,6 +411,10 @@ export async function getHomeSnapshot(): Promise<EtfSnapshot[]> {
       ticker: e.ticker,
       provider_id: e.provider_id,
       name: e.name,
+      payoutFrequency:
+        e.payout_frequency && e.payout_frequency.toLowerCase() !== "unknown"
+          ? e.payout_frequency
+          : null,
       price,
       cradyScore: risk?.crady_score ?? null,
       riskLevel: risk?.risk_level ?? null,

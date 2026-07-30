@@ -1,0 +1,485 @@
+import Link from "next/link";
+import { providerLabel } from "@/lib/data";
+import { DividendStagePill } from "@/components/DividendLifecycle";
+import type { ArticleData } from "./data";
+import type { FaqItem, Section } from "./types";
+
+const RISK_LABEL: Record<string, string> = {
+  SAFE: "Safe",
+  NORMAL: "Normal",
+  RISKY: "Risky",
+  EXTREME: "Extreme",
+};
+
+function fmtMoney(n: number | null | undefined, digits = 4): string {
+  return n != null ? `$${n.toFixed(digits)}` : "—";
+}
+function fmtPct(n: number | null | undefined, digits = 1): string {
+  return n != null ? `${n.toFixed(digits)}%` : "—";
+}
+
+// ── Section Library ──────────────────────────────────────────────────────────
+// Every function here takes the same ArticleData bundle and returns a
+// Section (heading + body) or null when there's nothing honest to say.
+// Recipes (lib/magazine/recipes.ts) pick which of these to compose for a
+// given article type — new article types are just new recipes, not new
+// rendering code.
+
+export function nextDividendHighlight(data: ArticleData): Section | null {
+  const { ticker, prediction, changeFromLastPct } = data;
+
+  return {
+    id: "next-dividend-highlight",
+    heading: `CRADY Next Dividend Prediction`,
+    body: (
+      <div className="not-prose border border-[var(--gray-200)] rounded-2xl p-5 sm:p-6 bg-gradient-to-b from-amber-50/40 to-transparent">
+        {prediction ? (
+          <>
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <span className="text-xs font-semibold text-[var(--gray-500)] uppercase tracking-wide">
+                {ticker} Forecast
+              </span>
+              {prediction.target_ex_date && prediction.target_pay_date && (
+                <DividendStagePill
+                  exDate={prediction.target_ex_date}
+                  payDate={prediction.target_pay_date}
+                />
+              )}
+            </div>
+            <dl className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+              <div>
+                <dt className="text-[var(--gray-500)]">Expected Ex-Dividend Date</dt>
+                <dd className="font-bold mt-0.5">{prediction.target_ex_date ?? "TBD"}</dd>
+              </div>
+              <div>
+                <dt className="text-[var(--gray-500)]">Expected Payment Date</dt>
+                <dd className="font-bold mt-0.5">{prediction.target_pay_date ?? "TBD"}</dd>
+              </div>
+              <div>
+                <dt className="text-[var(--gray-500)]">Expected Dividend Amount</dt>
+                <dd className="font-bold mt-0.5 text-[var(--crady-accent)]">
+                  {fmtMoney(prediction.predicted_amount)}
+                  {changeFromLastPct != null && (
+                    <span className="ml-1.5 text-xs font-semibold text-[var(--gray-500)]">
+                      ({changeFromLastPct > 0 ? "+" : ""}
+                      {changeFromLastPct.toFixed(1)}% vs last)
+                    </span>
+                  )}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[var(--gray-500)]">Prediction Confidence</dt>
+                <dd className="font-bold mt-0.5">{fmtPct(prediction.confidence_score, 0)}</dd>
+              </div>
+              <div>
+                <dt className="text-[var(--gray-500)]">Prediction Method</dt>
+                <dd className="font-bold mt-0.5">Data-driven forecast (CRADY)</dd>
+              </div>
+              <div>
+                <dt className="text-[var(--gray-500)]">Last Updated</dt>
+                <dd className="font-bold mt-0.5">{data.risk?.calculated_at?.slice(0, 10) ?? "—"}</dd>
+              </div>
+            </dl>
+          </>
+        ) : (
+          <p className="text-sm text-[var(--gray-500)]">
+            CRADY doesn&apos;t have enough recent distribution history to generate a reliable
+            next-dividend prediction for {ticker} yet. Check the distribution history below for{" "}
+            {ticker}&apos;s past payments.
+          </p>
+        )}
+        <p className="mt-4 text-xs text-[var(--gray-400)]">
+          Estimates are based on historical distribution patterns and public dividend schedules.
+          Actual amounts and dates may change until officially declared.
+        </p>
+      </div>
+    ),
+  };
+}
+
+export function overviewSection(data: ArticleData): Section | null {
+  const { ticker, etf } = data;
+  const parts = [etf.short_description, etf.long_description].filter(Boolean);
+  if (parts.length === 0 && !etf.category && !etf.asset_class) return null;
+
+  return {
+    id: "overview",
+    heading: `${ticker} ETF Overview`,
+    body: (
+      <div>
+        {parts.length > 0 && <p>{parts[0]}</p>}
+        <ul className="mt-3 grid grid-cols-2 gap-2 text-sm not-prose">
+          <li>
+            <span className="text-[var(--gray-500)]">Provider: </span>
+            {providerLabel(etf.provider_id)}
+          </li>
+          {etf.category && etf.category.toLowerCase() !== "unknown" && (
+            <li>
+              <span className="text-[var(--gray-500)]">Category: </span>
+              {etf.category}
+            </li>
+          )}
+          {etf.asset_class && (
+            <li>
+              <span className="text-[var(--gray-500)]">Asset Class: </span>
+              {etf.asset_class}
+            </li>
+          )}
+          {etf.benchmark && (
+            <li>
+              <span className="text-[var(--gray-500)]">Benchmark: </span>
+              {etf.benchmark}
+            </li>
+          )}
+        </ul>
+      </div>
+    ),
+  };
+}
+
+export function investmentStrategySection(data: ArticleData): Section | null {
+  const { etf } = data;
+  const text = etf.investment_strategy || etf.long_description;
+  if (!text) return null;
+  return {
+    id: "investment-strategy",
+    heading: "Investment Strategy",
+    body: <p className="whitespace-pre-line">{text}</p>,
+  };
+}
+
+export function expectedNextDividendSection(data: ArticleData): Section | null {
+  const { ticker, prediction, annualYieldPct } = data;
+  if (!prediction) return null;
+  return {
+    id: "expected-next-dividend",
+    heading: `Expected Next ${ticker} Dividend`,
+    body: (
+      <ul>
+        <li>
+          Expected ex-dividend date: <strong>{prediction.target_ex_date ?? "TBD"}</strong>
+        </li>
+        <li>
+          Expected payment date: <strong>{prediction.target_pay_date ?? "TBD"}</strong>
+        </li>
+        <li>
+          Estimated dividend amount: <strong>{fmtMoney(prediction.predicted_amount)}</strong>
+        </li>
+        <li>
+          Estimated annualized distribution yield: <strong>{fmtPct(annualYieldPct)}</strong>
+        </li>
+        <li>
+          Confidence score: <strong>{fmtPct(prediction.confidence_score, 0)}</strong>
+        </li>
+      </ul>
+    ),
+  };
+}
+
+export function distributionHistorySection(data: ArticleData): Section | null {
+  const { ticker, distributions } = data;
+  if (distributions.length === 0) return null;
+  return {
+    id: "distribution-history",
+    heading: `${ticker} Distribution History`,
+    body: (
+      <div className="not-prose border border-[var(--gray-200)] rounded-xl overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-[var(--gray-50)] text-[var(--gray-500)]">
+            <tr>
+              <th className="text-left px-4 py-2 font-medium">Ex-Date</th>
+              <th className="text-left px-4 py-2 font-medium">Pay Date</th>
+              <th className="text-right px-4 py-2 font-medium">Amount</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[var(--gray-100)]">
+            {distributions.map((d, i) => (
+              <tr key={`${d.ex_date}-${i}`}>
+                <td className="px-4 py-2">{d.ex_date}</td>
+                <td className="px-4 py-2">{d.pay_date}</td>
+                <td className="px-4 py-2 text-right font-medium">{fmtMoney(d.amount)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    ),
+  };
+}
+
+export function recentTrendSection(data: ArticleData): Section | null {
+  const { ticker, distributions } = data;
+  const paid = distributions.filter((d) => d.amount != null);
+  if (paid.length < 2) return null;
+
+  const latest = paid[0].amount!;
+  const prior = paid.slice(1, 4).reduce((a, d) => a + (d.amount ?? 0), 0) / Math.min(3, paid.length - 1);
+  const changePct = prior > 0 ? ((latest - prior) / prior) * 100 : null;
+
+  return {
+    id: "recent-trend",
+    heading: `Recent ${ticker} Distribution Trend`,
+    body: (
+      <p>
+        {ticker}&apos;s most recent distribution was {fmtMoney(latest)}
+        {changePct != null && (
+          <>
+            {" "}
+            — {changePct >= 0 ? "up" : "down"} {Math.abs(changePct).toFixed(1)}% compared to its
+            trailing average of {fmtMoney(prior)}.
+          </>
+        )}{" "}
+        High-yield covered-call ETFs like {ticker} typically see distribution amounts fluctuate
+        with underlying volatility and option premium income, so month-to-month changes are
+        normal rather than a sign of a permanent cut.
+      </p>
+    ),
+  };
+}
+
+export function yieldAnalysisSection(data: ArticleData): Section | null {
+  const { ticker, annualYieldPct, price } = data;
+  if (annualYieldPct == null) return null;
+  return {
+    id: "yield-analysis",
+    heading: `${ticker} Dividend Yield Analysis`,
+    body: (
+      <p>
+        Based on {ticker}&apos;s trailing 90-day distribution run-rate and its current price of{" "}
+        {fmtMoney(price?.close_price, 2)}, CRADY estimates an annualized distribution yield of{" "}
+        <strong>{fmtPct(annualYieldPct)}</strong>. This figure reflects recent actual payments
+        extrapolated to a full year — not a guaranteed or contractual yield. High distribution
+        yields on option-income ETFs often come from a mix of option premium and return of
+        capital, which can affect the fund&apos;s share price over time.
+      </p>
+    ),
+  };
+}
+
+export function riskAnalysisSection(data: ArticleData): Section | null {
+  const { ticker, risk } = data;
+  if (!risk) return null;
+  return {
+    id: "risk-analysis",
+    heading: `${ticker} Risk Analysis`,
+    body: (
+      <ul>
+        {risk.crady_score != null && (
+          <li>
+            CRADY Score: <strong>{risk.crady_score.toFixed(1)}</strong> / 100
+          </li>
+        )}
+        {risk.risk_level && (
+          <li>
+            Risk level: <strong>{RISK_LABEL[risk.risk_level] ?? risk.risk_level}</strong>
+          </li>
+        )}
+        {risk.volatility_30d != null && (
+          <li>
+            30-day volatility: <strong>{fmtPct(risk.volatility_30d)}</strong>
+          </li>
+        )}
+        {risk.max_drawdown != null && (
+          <li>
+            Max drawdown: <strong>{fmtPct(risk.max_drawdown)}</strong>
+          </li>
+        )}
+      </ul>
+    ),
+  };
+}
+
+export function dividendStabilitySection(data: ArticleData): Section | null {
+  const { ticker, risk } = data;
+  if (risk?.dividend_stability_score == null) return null;
+  const score = risk.dividend_stability_score;
+  const tone =
+    score >= 75 ? "relatively consistent" : score >= 50 ? "moderately variable" : "quite variable";
+  return {
+    id: "dividend-stability",
+    heading: `${ticker} Dividend Stability`,
+    body: (
+      <p>
+        {ticker} has a dividend stability score of <strong>{score.toFixed(1)}</strong> out of 100,
+        meaning its distribution amount has been {tone} over its recent payment history.
+      </p>
+    ),
+  };
+}
+
+export function payoutFrequencySection(data: ArticleData): Section | null {
+  const { ticker, payoutFrequency } = data;
+  if (!payoutFrequency) return null;
+  return {
+    id: "payout-frequency",
+    heading: `${ticker} Payout Frequency`,
+    body: (
+      <p>
+        {ticker} pays distributions on a <strong>{payoutFrequency}</strong> schedule, based on its
+        recent distribution history.
+      </p>
+    ),
+  };
+}
+
+export function fundInfoSection(data: ArticleData): Section | null {
+  const { ticker, etf } = data;
+  const rows: [string, string][] = [];
+  if (etf.expense_ratio && etf.expense_ratio.toLowerCase() !== "unknown")
+    rows.push(["Expense Ratio", etf.expense_ratio]);
+  if (etf.aum && etf.aum.toLowerCase() !== "unknown") rows.push(["AUM", etf.aum]);
+  if (etf.inception_date) rows.push(["Inception Date", etf.inception_date]);
+  if (etf.holdings_count != null) rows.push(["Holdings Count", String(etf.holdings_count)]);
+  if (rows.length === 0) return null;
+
+  return {
+    id: "fund-info",
+    heading: `${ticker} Fund Information`,
+    body: (
+      <dl className="not-prose grid grid-cols-2 gap-3 text-sm">
+        {rows.map(([label, value]) => (
+          <div key={label}>
+            <dt className="text-[var(--gray-500)]">{label}</dt>
+            <dd className="font-semibold">{value}</dd>
+          </div>
+        ))}
+      </dl>
+    ),
+  };
+}
+
+export function advantagesDisadvantagesSection(data: ArticleData): Section | null {
+  const { ticker, risk, annualYieldPct, payoutFrequency } = data;
+  if (!risk && annualYieldPct == null) return null;
+
+  const advantages: string[] = [];
+  const considerations: string[] = [];
+
+  if (annualYieldPct != null && annualYieldPct >= 30) {
+    advantages.push(`High estimated distribution yield (${fmtPct(annualYieldPct)} annualized).`);
+  }
+  if (payoutFrequency === "weekly") {
+    advantages.push("Weekly payout frequency for investors who want frequent income.");
+  }
+  if (risk?.dividend_stability_score != null && risk.dividend_stability_score >= 75) {
+    advantages.push("Relatively stable distribution history compared to peers.");
+  }
+  if (risk?.crady_score != null && risk.crady_score >= 70) {
+    advantages.push(`Strong CRADY score (${risk.crady_score.toFixed(1)}/100).`);
+  }
+
+  if (risk?.volatility_30d != null && risk.volatility_30d >= 60) {
+    considerations.push(`High recent volatility (${fmtPct(risk.volatility_30d)} over 30 days).`);
+  }
+  if (risk?.max_drawdown != null && risk.max_drawdown <= -20) {
+    considerations.push(`Notable recent drawdown (${fmtPct(risk.max_drawdown)}).`);
+  }
+  if (risk?.dividend_stability_score != null && risk.dividend_stability_score < 50) {
+    considerations.push("Distribution amount has varied significantly between payments.");
+  }
+  if (annualYieldPct != null && annualYieldPct >= 80) {
+    considerations.push(
+      "Very high yields on option-income ETFs can include return of capital, which may reduce NAV over time."
+    );
+  }
+
+  if (advantages.length === 0 && considerations.length === 0) return null;
+
+  return {
+    id: "advantages-disadvantages",
+    heading: `${ticker} Advantages and Considerations`,
+    body: (
+      <div className="grid sm:grid-cols-2 gap-6 not-prose">
+        <div>
+          <div className="text-sm font-semibold text-green-700 mb-2">Advantages</div>
+          {advantages.length > 0 ? (
+            <ul className="text-sm space-y-1.5 list-disc pl-4">
+              {advantages.map((a) => (
+                <li key={a}>{a}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-[var(--gray-400)]">No standout advantages identified.</p>
+          )}
+        </div>
+        <div>
+          <div className="text-sm font-semibold text-red-700 mb-2">Considerations</div>
+          {considerations.length > 0 ? (
+            <ul className="text-sm space-y-1.5 list-disc pl-4">
+              {considerations.map((c) => (
+                <li key={c}>{c}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-[var(--gray-400)]">No major risk flags identified.</p>
+          )}
+        </div>
+      </div>
+    ),
+  };
+}
+
+export function bestForSection(data: ArticleData): Section | null {
+  const { ticker, risk, payoutFrequency } = data;
+  if (!risk?.risk_level) return null;
+
+  const level = risk.risk_level;
+  const audience =
+    level === "SAFE"
+      ? "income-focused investors who prioritize capital stability alongside distributions"
+      : level === "NORMAL"
+        ? "investors comfortable with moderate volatility in exchange for higher income"
+        : "experienced, risk-tolerant investors comfortable with significant price swings";
+
+  return {
+    id: "best-for",
+    heading: `Who Is ${ticker} Best For?`,
+    body: (
+      <p>
+        Given its {RISK_LABEL[level]?.toLowerCase() ?? level.toLowerCase()} risk profile
+        {payoutFrequency ? ` and ${payoutFrequency} payout schedule` : ""}, {ticker} may be best
+        suited for {audience}. This is not personalized investment advice — consider your own
+        risk tolerance and financial goals.
+      </p>
+    ),
+  };
+}
+
+export function faqSection(items: FaqItem[]): Section | null {
+  if (items.length === 0) return null;
+  return {
+    id: "faq",
+    heading: "Frequently Asked Questions",
+    body: (
+      <div className="not-prose divide-y divide-[var(--gray-100)]">
+        {items.map((item) => (
+          <div key={item.question} className="py-4 first:pt-0">
+            <div className="font-semibold text-sm">{item.question}</div>
+            <p className="mt-1.5 text-sm text-[var(--gray-600)]">{item.answer}</p>
+          </div>
+        ))}
+      </div>
+    ),
+  };
+}
+
+export function relatedLinksSection(data: ArticleData, links: { href: string; label: string }[]): Section | null {
+  if (links.length === 0) return null;
+  return {
+    id: "related-links",
+    heading: "Related Reading",
+    body: (
+      <div className="not-prose flex flex-wrap gap-2">
+        {links.map((l) => (
+          <Link
+            key={l.href}
+            href={l.href}
+            className="px-3 py-1.5 border border-[var(--gray-200)] rounded-full text-sm hover:border-black transition-colors"
+          >
+            {l.label}
+          </Link>
+        ))}
+      </div>
+    ),
+  };
+}

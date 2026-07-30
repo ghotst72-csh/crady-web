@@ -6,7 +6,7 @@ import Link from "next/link";
 const NAV = [
   { href: "/ranking", label: "랭킹" },
   { href: "/calendar", label: "배당 일정" },
-  { href: "/search", label: "검색" },
+  { href: "/magazine", label: "매거진" },
   { href: "/about", label: "소개" },
 ];
 
@@ -88,54 +88,11 @@ export function Header() {
           </nav>
 
           <div className="flex-1" />
-
-          <form action="/search" className="hidden sm:block">
-            <div className="flex items-center border border-[var(--gray-300)] rounded-md overflow-hidden focus-within:border-black transition-colors">
-              <input
-                type="text"
-                name="q"
-                placeholder="티커 검색"
-                className="w-32 px-3 py-1.5 text-sm outline-none"
-              />
-              <button
-                type="submit"
-                aria-label="검색"
-                className="px-2.5 py-1.5 text-[var(--gray-500)] hover:text-black"
-              >
-                <SearchIcon />
-              </button>
-            </div>
-          </form>
-          <Link
-            href="/search"
-            aria-label="검색"
-            className="sm:hidden p-2 rounded-md text-[var(--gray-600)] hover:text-black hover:bg-[var(--gray-100)]"
-          >
-            <SearchIcon />
-          </Link>
         </div>
       </header>
       {/* Spacer so fixed header doesn't overlap page content — keeps layout
           height stable regardless of hidden/shown state. */}
       <div className="h-14" />
     </>
-  );
-}
-
-function SearchIcon() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="11" cy="11" r="8" />
-      <path d="m21 21-4.3-4.3" />
-    </svg>
   );
 }

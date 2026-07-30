@@ -5,7 +5,7 @@ export const RESERVED_PATHS = new Set([
   "about",
   "ranking",
   "calendar",
-  "search",
+  "magazine",
   "privacy",
   "terms",
   "account-deletion",

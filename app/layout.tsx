@@ -34,11 +34,6 @@ const WEBSITE_JSON_LD = {
   "@type": "WebSite",
   name: "CRADY",
   url: "https://crady.net",
-  potentialAction: {
-    "@type": "SearchAction",
-    target: "https://crady.net/search?q={search_term_string}",
-    "query-input": "required name=search_term_string",
-  },
 };
 
 export default function RootLayout({
