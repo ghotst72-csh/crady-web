@@ -73,7 +73,16 @@ export function Header() {
       >
         <div className="mx-auto max-w-6xl px-4 sm:px-6 h-14 flex items-center gap-3">
           <Link href="/" className="font-bold text-lg tracking-tight shrink-0">
-            CRA<span className="text-[var(--crady-accent)]">DY</span>
+            {/* #92400e, not var(--crady-accent) (#f59e0b) — the lighter
+                accent measures 2.14:1 against white here (Lighthouse
+                accessibility audit), well under WCAG AA's 4.5:1 for
+                18px bold text. This is the one instance on every single
+                page (the header logo), so it's fixed directly rather than
+                left as a site-wide color-token change — see the CRADY
+                Authority & Google Trust Phase 1 report for the other
+                (higher-risk, unfixed) instances of the same accent color
+                used as text elsewhere on the site. */}
+            CRA<span className="text-[#92400e]">DY</span>
           </Link>
           <nav className="flex items-center gap-0.5 sm:gap-4 text-xs sm:text-sm min-w-0">
             {NAV.map((item) => (

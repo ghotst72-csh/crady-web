@@ -18,8 +18,6 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-crady-accent: var(--crady-accent);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 }
 
 body {

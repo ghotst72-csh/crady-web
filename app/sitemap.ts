@@ -60,7 +60,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "daily",
       priority: 0.8,
     },
-    { url: "https://crady.net/about", changeFrequency: "monthly", priority: 0.3 },
+    {
+      url: "https://crady.net/about",
+      lastModified: mostRecentCalculatedAt ?? undefined,
+      changeFrequency: "monthly",
+      priority: 0.3,
+    },
   ];
 
   const tickerEntries: MetadataRoute.Sitemap = snapshot.map((etf) => ({
@@ -86,6 +91,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const standaloneEntries: MetadataRoute.Sitemap = STANDALONE_PAGE_IDS.map((slug) => ({
     url: `https://crady.net/magazine/${slug}`,
+    lastModified: mostRecentCalculatedAt ?? undefined,
     changeFrequency: "monthly",
     priority: 0.5,
   }));

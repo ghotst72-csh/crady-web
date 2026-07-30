@@ -27,6 +27,23 @@ export default async function RankingPage() {
     growth: topByGrowth(snapshot, 50),
   };
 
+  // The default (CRADY score) ranking as a real ItemList — a genuine
+  // Google-recognized structured-data type for ranked content, unlike
+  // "Table" (not a standalone schema.org type Google acts on). Only the
+  // top 20 are listed: an ItemList should describe a real, curated
+  // ranking, not restate the full 50-row table verbatim in JSON-LD.
+  const itemListJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: "CRADY Score 기준 배당 ETF 랭킹",
+    itemListElement: rankings.crady.slice(0, 20).map((etf, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: etf.ticker,
+      url: `https://crady.net/${etf.ticker.toLowerCase()}`,
+    })),
+  };
+
   return (
     <div className="mx-auto max-w-4xl px-4 sm:px-6 py-10">
       <BreadcrumbJsonLd
@@ -34,6 +51,10 @@ export default async function RankingPage() {
           { name: "Home", url: "https://crady.net" },
           { name: "랭킹", url: "https://crady.net/ranking" },
         ]}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }}
       />
       <h1 className="text-2xl font-bold">배당 ETF 랭킹</h1>
       <p className="text-sm text-[var(--gray-500)] mt-1">

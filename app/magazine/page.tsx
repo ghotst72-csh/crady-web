@@ -15,7 +15,11 @@ const DESCRIPTION =
   "Data-driven ETF dividend guides, next dividend predictions, and risk analysis for YieldMax, Roundhill and Defiance covered-call ETFs — auto-generated and kept up to date by CRADY.";
 
 export const metadata: Metadata = {
-  title: TITLE,
+  // { absolute } — TITLE already starts with "CRADY", so the root
+  // layout's "%s | CRADY" template would otherwise append a second,
+  // redundant "CRADY" to the end (found in the Phase 1 GSC audit: this
+  // was the only page on the site with that pattern).
+  title: { absolute: TITLE },
   description: DESCRIPTION,
   alternates: { canonical: "https://crady.net/magazine" },
   openGraph: { title: TITLE, description: DESCRIPTION, url: "https://crady.net/magazine", type: "website" },

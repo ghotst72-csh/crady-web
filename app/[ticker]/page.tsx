@@ -20,6 +20,9 @@ import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { DividendStagePill } from "@/components/DividendLifecycle";
 import { EtfAppCta } from "@/components/EtfAppCta";
 import { EtfHero } from "@/components/EtfHero";
+import { articleSlug } from "@/lib/magazine/recipes";
+import { pickComparisonPeerTicker } from "@/lib/magazine/comparison";
+import { ARTICLE_TYPE_LABEL, type ArticleTypeId } from "@/lib/magazine/types";
 
 export const revalidate = 3600;
 
@@ -105,7 +108,7 @@ export default async function TickerPage({
   if (!found) notFound();
   const { ticker, etf } = found;
 
-  const [risk, regime, price, history, distributions, recentDistributions, rawPrediction, siblings] =
+  const [risk, regime, price, history, distributions, recentDistributions, rawPrediction, siblings, allTickers] =
     await Promise.all([
       getRiskMetrics(ticker),
       getRegimeProfile(ticker),
@@ -115,7 +118,24 @@ export default async function TickerPage({
       getDistributionsSince(ticker, 90),
       getNextPrediction(ticker),
       getSameProviderEtfs(etf.provider_id, ticker),
+      getAllTickers(),
     ]);
+
+  // The ticker profile page (what most search visitors actually land on)
+  // previously had zero links into the Magazine system — all of Magazine
+  // 2.0-4.0's depth was reachable only from the Magazine index and from
+  // other Magazine pages, so this highest-traffic page type passed no
+  // authority to it at all. comparisonPeerTicker mirrors the same
+  // round-robin pick the comparison page itself uses (lib/magazine/
+  // comparison.ts) so this link only appears when that page actually exists.
+  const comparisonPeerTicker = pickComparisonPeerTicker(ticker, etf.provider_id, allTickers);
+  const MAGAZINE_TYPES: ArticleTypeId[] = [
+    "next-dividend-prediction",
+    "dividend-guide",
+    "dividend-calendar",
+    "dividend-history",
+    "risk-analysis",
+  ];
 
   // Defense-in-depth: getNextPrediction already filters to future pay
   // dates at the query level, but a past-dated prediction must never reach
@@ -140,6 +160,13 @@ export default async function TickerPage({
         100
       : null;
 
+  // No `interestRate` field — schema.org defines it for lending/deposit
+  // products (a rate charged or paid on a loan), not an equity fund's
+  // distribution yield; using it for annualYieldPct was a semantic
+  // mismatch (found in the CRADY Authority & Google Trust Phase 1 audit).
+  // There's no dedicated schema.org property for "fund distribution
+  // yield" to substitute it with, so the figure is left to the page's own
+  // visible content and FAQ JSON-LD rather than mis-typed here.
   const financialProductJsonLd = {
     "@context": "https://schema.org",
     "@type": "FinancialProduct",
@@ -156,9 +183,6 @@ export default async function TickerPage({
             priceCurrency: "USD",
           },
         }
-      : {}),
-    ...(annualYieldPct != null
-      ? { interestRate: Number(annualYieldPct.toFixed(2)) }
       : {}),
   };
 
@@ -334,6 +358,46 @@ export default async function TickerPage({
               <p className="text-sm text-[var(--gray-700)]">{regime.description}</p>
             </div>
           )}
+        </div>
+
+        {/* Deep-dive links into the Magazine system — see comment above
+            comparisonPeerTicker. Every ticker page fans out to its full
+            Magazine coverage plus the site-wide ranking, so no page on
+            the site is a dead end and Magazine content actually receives
+            authority from the pages people land on from search. */}
+        <div className="mt-8">
+          <h2 className="text-lg font-bold mb-3">{ticker} 상세 분석</h2>
+          <div className="flex flex-wrap gap-2">
+            {MAGAZINE_TYPES.map((type) => (
+              <Link
+                key={type}
+                href={`/magazine/${articleSlug(ticker, type)}`}
+                className="px-3 py-1.5 border border-[var(--gray-200)] rounded-full text-sm hover:border-black transition-colors"
+              >
+                {ARTICLE_TYPE_LABEL[type]}
+              </Link>
+            ))}
+            {comparisonPeerTicker && (
+              <Link
+                href={`/magazine/${articleSlug(ticker, "comparison")}`}
+                className="px-3 py-1.5 border border-[var(--gray-200)] rounded-full text-sm hover:border-black transition-colors"
+              >
+                {ticker} vs {comparisonPeerTicker}
+              </Link>
+            )}
+            <Link
+              href="/ranking"
+              className="px-3 py-1.5 border border-[var(--gray-200)] rounded-full text-sm hover:border-black transition-colors"
+            >
+              전체 ETF 랭킹
+            </Link>
+            <Link
+              href="/about#methodology"
+              className="px-3 py-1.5 border border-[var(--gray-200)] rounded-full text-sm hover:border-black transition-colors"
+            >
+              예측 방법론
+            </Link>
+          </div>
         </div>
 
         <EtfAppCta ticker={ticker} />
