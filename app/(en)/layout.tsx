@@ -71,7 +71,7 @@ export default async function EnglishRootLayout({
                   A data platform for high-dividend covered-call ETFs from YieldMax, Roundhill,
                   and Defiance — dividend schedules, prices, and CRADY scores.
                 </p>
-                <p className="mt-3 text-xs text-[var(--gray-400)]">
+                <p className="mt-3 text-xs text-[var(--gray-600)]">
                   <Link href="/ko" className="hover:text-black underline">
                     한국어로 보기
                   </Link>

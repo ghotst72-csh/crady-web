@@ -71,7 +71,7 @@ export default async function KoreanRootLayout({
                   YieldMax, Roundhill, Defiance 등 고배당 커버드콜 ETF의 배당 일정, 가격, CRADY
                   점수를 데이터 기반으로 제공하는 정보 플랫폼입니다.
                 </p>
-                <p className="mt-3 text-xs text-[var(--gray-400)]">
+                <p className="mt-3 text-xs text-[var(--gray-600)]">
                   <Link href="/" className="hover:text-black underline">
                     View in English
                   </Link>
