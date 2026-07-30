@@ -52,11 +52,6 @@ export async function generateMetadata({
 
   const { ticker, etf } = found;
 
-  // Same calls the page component makes below with identical arguments —
-  // Next.js memoizes fetches within a request, so this doesn't double the
-  // Supabase round-trips. Real numbers here (not just "check the price")
-  // make each ticker's title/description genuinely unique and give search
-  // snippets an actual reason to be clicked for "high dividend ETF" queries.
   const [risk, price, recentDistributions] = await Promise.all([
     getRiskMetrics(ticker),
     getLatestPrice(ticker),
@@ -74,15 +69,25 @@ export async function generateMetadata({
     .filter(Boolean)
     .join(" ");
 
+  const url = `https://crady.net/ko/${ticker.toLowerCase()}`;
   return {
     title,
     description,
-    alternates: { canonical: `https://crady.net/${ticker.toLowerCase()}` },
+    alternates: {
+      canonical: url,
+      languages: {
+        en: `https://crady.net/${ticker.toLowerCase()}`,
+        ko: url,
+        "x-default": `https://crady.net/${ticker.toLowerCase()}`,
+      },
+    },
     openGraph: {
       title,
       description,
-      url: `https://crady.net/${ticker.toLowerCase()}`,
+      url,
       type: "website",
+      locale: "ko_KR",
+      alternateLocale: "en_US",
     },
     twitter: {
       card: "summary_large_image",
@@ -92,16 +97,15 @@ export async function generateMetadata({
   };
 }
 
-export default async function TickerPage({
+export default async function KoreanTickerPage({
   params,
 }: {
   params: Promise<Params>;
 }) {
   const { ticker: rawTicker } = await params;
 
-  // Case normalization — permanent redirect to lowercase.
   if (rawTicker !== rawTicker.toLowerCase()) {
-    permanentRedirect(`/${rawTicker.toLowerCase()}`);
+    permanentRedirect(`/ko/${rawTicker.toLowerCase()}`);
   }
 
   const found = await loadTicker(rawTicker);
@@ -121,25 +125,6 @@ export default async function TickerPage({
       getAllTickers(),
     ]);
 
-  // The ticker profile page (what most search visitors actually land on)
-  // previously had zero links into the Magazine system — all of Magazine
-  // 2.0-4.0's depth was reachable only from the Magazine index and from
-  // other Magazine pages, so this highest-traffic page type passed no
-  // authority to it at all. comparisonPeerTicker mirrors the same
-  // round-robin pick the comparison page itself uses (lib/magazine/
-  // comparison.ts) so this link only appears when that page actually exists.
-  const comparisonPeerTicker = pickComparisonPeerTicker(ticker, etf.provider_id, allTickers);
-  const MAGAZINE_TYPES: ArticleTypeId[] = [
-    "next-dividend-prediction",
-    "dividend-guide",
-    "dividend-calendar",
-    "dividend-history",
-    "risk-analysis",
-  ];
-
-  // Defense-in-depth: getNextPrediction already filters to future pay
-  // dates at the query level, but a past-dated prediction must never reach
-  // the page as "next" even if that filter is ever changed or bypassed.
   const todayStr = new Date().toISOString().slice(0, 10);
   const prediction =
     rawPrediction && rawPrediction.target_pay_date && rawPrediction.target_pay_date >= todayStr
@@ -160,21 +145,24 @@ export default async function TickerPage({
         100
       : null;
 
-  // No `interestRate` field — schema.org defines it for lending/deposit
-  // products (a rate charged or paid on a loan), not an equity fund's
-  // distribution yield; using it for annualYieldPct was a semantic
-  // mismatch (found in the CRADY Authority & Google Trust Phase 1 audit).
-  // There's no dedicated schema.org property for "fund distribution
-  // yield" to substitute it with, so the figure is left to the page's own
-  // visible content and FAQ JSON-LD rather than mis-typed here.
+  const comparisonPeerTicker = pickComparisonPeerTicker(ticker, etf.provider_id, allTickers);
+  const MAGAZINE_TYPES: ArticleTypeId[] = [
+    "next-dividend-prediction",
+    "dividend-guide",
+    "dividend-calendar",
+    "dividend-history",
+    "risk-analysis",
+  ];
+
   const financialProductJsonLd = {
     "@context": "https://schema.org",
     "@type": "FinancialProduct",
     name: etf.name ?? ticker,
+    inLanguage: "ko",
     tickerSymbol: ticker,
     provider: { "@type": "Organization", name: providerLabel(etf.provider_id) },
     category: isKnown(etf.category) ? etf.category : undefined,
-    url: `https://crady.net/${ticker.toLowerCase()}`,
+    url: `https://crady.net/ko/${ticker.toLowerCase()}`,
     ...(price?.close_price != null
       ? {
           offers: {
@@ -190,8 +178,8 @@ export default async function TickerPage({
     <div className="pb-10">
       <BreadcrumbJsonLd
         items={[
-          { name: "Home", url: "https://crady.net" },
-          { name: ticker, url: `https://crady.net/${ticker.toLowerCase()}` },
+          { name: "Home", url: "https://crady.net/ko" },
+          { name: ticker, url: `https://crady.net/ko/${ticker.toLowerCase()}` },
         ]}
       />
       <script
@@ -199,11 +187,6 @@ export default async function TickerPage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(financialProductJsonLd) }}
       />
 
-      {/* Above-the-fold Hero: identity + headline yield + KPI grid + next
-          prediction, all in one card — a "MSST ETF" search visitor should
-          be able to read what this ETF is, how much it pays, how risky it
-          is, and its CRADY score without scrolling. Same visual language as
-          the homepage Hero (components/YieldCarousel.tsx). */}
       <EtfHero
         ticker={ticker}
         name={etf.name}
@@ -231,11 +214,10 @@ export default async function TickerPage({
             : null
         }
         changeFromLastPct={changeFromLastPct}
+        lang="ko"
       />
 
       <div className="mx-auto max-w-4xl px-4 sm:px-6 mt-8">
-        {/* Price — moved above dividend history: search visitors often
-            check price before dividend detail. */}
         <div>
           <h2 className="text-lg font-bold mb-3">현재 가격</h2>
           <div className="grid sm:grid-cols-[auto_1fr] gap-3">
@@ -256,7 +238,6 @@ export default async function TickerPage({
           </div>
         </div>
 
-        {/* Recent dividend history */}
         <div id="dividend-history" className="mt-8 scroll-mt-4">
           <h2 className="text-lg font-bold mb-3">최근 배당 이력</h2>
           <div className="border border-[var(--gray-200)] rounded-xl overflow-hidden">
@@ -278,7 +259,7 @@ export default async function TickerPage({
                       {d.amount != null ? `$${d.amount.toFixed(4)}` : "예정"}
                     </td>
                     <td className="px-4 py-2 text-right">
-                      <DividendStagePill exDate={d.ex_date} payDate={d.pay_date} />
+                      <DividendStagePill exDate={d.ex_date} payDate={d.pay_date} lang="ko" />
                     </td>
                   </tr>
                 ))}
@@ -294,7 +275,6 @@ export default async function TickerPage({
           </div>
         </div>
 
-        {/* Provider / related ETFs */}
         <div className="mt-8">
           <h2 className="text-lg font-bold mb-3">운용사</h2>
           <div className="border border-[var(--gray-200)] rounded-xl p-4">
@@ -308,7 +288,7 @@ export default async function TickerPage({
                   {siblings.map((s) => (
                     <Link
                       key={s.ticker}
-                      href={`/${s.ticker.toLowerCase()}`}
+                      href={`/ko/${s.ticker.toLowerCase()}`}
                       className="px-3 py-1.5 border border-[var(--gray-200)] rounded-full text-sm hover:border-black transition-colors"
                     >
                       {s.ticker}
@@ -320,7 +300,6 @@ export default async function TickerPage({
           </div>
         </div>
 
-        {/* Basic info — strategy, regime, and reference fields */}
         <div className="mt-8">
           <h2 className="text-lg font-bold mb-3">기본 정보</h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -360,11 +339,10 @@ export default async function TickerPage({
           )}
         </div>
 
-        {/* Deep-dive links into the Magazine system — see comment above
-            comparisonPeerTicker. Every ticker page fans out to its full
-            Magazine coverage plus the site-wide ranking, so no page on
-            the site is a dead end and Magazine content actually receives
-            authority from the pages people land on from search. */}
+        {/* Deep-dive links into the Magazine system — Magazine is
+            English-only (no /ko mirror, see the International SEO report),
+            so these intentionally point to the English Magazine URLs even
+            from the Korean ticker page rather than being omitted. */}
         <div className="mt-8">
           <h2 className="text-lg font-bold mb-3">{ticker} 상세 분석</h2>
           <div className="flex flex-wrap gap-2">
@@ -386,13 +364,13 @@ export default async function TickerPage({
               </Link>
             )}
             <Link
-              href="/ranking"
+              href="/ko/ranking"
               className="px-3 py-1.5 border border-[var(--gray-200)] rounded-full text-sm hover:border-black transition-colors"
             >
               전체 ETF 랭킹
             </Link>
             <Link
-              href="/about#methodology"
+              href="/ko/about#methodology"
               className="px-3 py-1.5 border border-[var(--gray-200)] rounded-full text-sm hover:border-black transition-colors"
             >
               예측 방법론
@@ -400,36 +378,21 @@ export default async function TickerPage({
           </div>
         </div>
 
-        <EtfAppCta ticker={ticker} />
+        <EtfAppCta ticker={ticker} lang="ko" />
       </div>
     </div>
   );
 }
 
-/** Filters out pipeline placeholder values like the literal string "unknown". */
 function isKnown(v: string | null): v is string {
   return !!v && v.trim().toLowerCase() !== "unknown";
 }
 
-function Stat({
-  label,
-  value,
-  sub,
-  accent,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  accent?: boolean;
-}) {
+function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="border border-[var(--gray-200)] rounded-xl p-4">
       <div className="text-xs text-[var(--gray-500)]">{label}</div>
-      <div
-        className={`text-xl font-bold mt-1 ${accent ? "text-[var(--crady-accent)]" : ""}`}
-      >
-        {value}
-      </div>
+      <div className="text-xl font-bold mt-1">{value}</div>
       {sub && <div className="text-xs text-[var(--gray-400)] mt-0.5">{sub}</div>}
     </div>
   );

@@ -4,12 +4,30 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { providerLabel, type EtfSnapshot } from "@/lib/data";
 
-const RISK_LABEL: Record<string, string> = {
-  SAFE: "안정",
-  NORMAL: "보통",
-  RISKY: "위험",
-  EXTREME: "고위험",
+const RISK_LABEL: Record<"en" | "ko", Record<string, string>> = {
+  en: { SAFE: "Safe", NORMAL: "Normal", RISKY: "Risky", EXTREME: "Extreme" },
+  ko: { SAFE: "안정", NORMAL: "보통", RISKY: "위험", EXTREME: "고위험" },
 };
+
+const T = {
+  rankOf: { en: "Annual Distribution Yield — Rank", ko: "연환산 분배율" },
+  place: { en: "", ko: "위" },
+  top10: { en: "TOP 10 Distribution Yield", ko: "TOP 10 연환산 분배율" },
+  yieldDesc: {
+    en: "Annualized distribution yield, based on the trailing 90-day actual payment run-rate",
+    ko: "최근 90일 실지급 배당 run-rate 기준 연환산 분배율(Distribution Yield)",
+  },
+  updated: { en: "updated", ko: "업데이트" },
+  disclaimer: {
+    en: "High distribution yields carry a risk of principal loss and reduced future payments, and are not guaranteed.",
+    ko: "높은 분배율은 원금 손실 및 분배금 감소 위험을 포함하며 수익을 보장하지 않습니다.",
+  },
+  viewDetail: { en: "View ETF Details →", ko: "ETF 상세 보기 →" },
+  prev: { en: "Previous ETF", ko: "이전 ETF" },
+  next: { en: "Next ETF", ko: "다음 ETF" },
+  carouselLabel: { en: "Top 10 Annual Distribution Yield", ko: "연환산 분배율 TOP 10" },
+  rankView: { en: "View", ko: "보기" },
+} as const;
 
 // Barely-there provider tint behind the Hero — Stripe-level subtle, never a
 // branded neon glow. Falls back to no tint for unknown provider ids.
@@ -29,10 +47,10 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-function formatUpdatedAt(iso: string | null): string | null {
+function formatUpdatedAt(iso: string | null, lang: "en" | "ko"): string | null {
   if (!iso) return null;
   try {
-    return new Intl.DateTimeFormat("ko-KR", {
+    return new Intl.DateTimeFormat(lang === "ko" ? "ko-KR" : "en-US", {
       timeZone: "Asia/Seoul",
       year: "numeric",
       month: "2-digit",
@@ -122,7 +140,15 @@ function useIsMobile() {
   return isMobile;
 }
 
-export function YieldCarousel({ top10 }: { top10: EtfSnapshot[] }) {
+export function YieldCarousel({
+  top10,
+  lang = "en",
+  basePath = "",
+}: {
+  top10: EtfSnapshot[];
+  lang?: "en" | "ko";
+  basePath?: string;
+}) {
   const len = top10.length;
   // Renders a minimal, non-interactive #1 card until this flips true. This
   // guarantees the client's very first render pass (the one hydration
@@ -263,7 +289,7 @@ export function YieldCarousel({ top10 }: { top10: EtfSnapshot[] }) {
   const dragOffset = drag?.deltaX ?? 0;
   const STEP = isMobile ? 150 : 240;
   const glow = PROVIDER_GLOW[active.provider_id] ?? "none";
-  const updatedAt = formatUpdatedAt(active.calculatedAt);
+  const updatedAt = formatUpdatedAt(active.calculatedAt, lang);
 
   if (!mounted) {
     // Root cause found: Intl.DateTimeFormat("ko-KR", {timeZone:"Asia/Seoul"})
@@ -287,6 +313,8 @@ export function YieldCarousel({ top10 }: { top10: EtfSnapshot[] }) {
               pulseKey={0}
               reducedMotion
               onNavigate={() => {}}
+              lang={lang}
+              basePath={basePath}
             />
           </div>
         </div>
@@ -300,7 +328,7 @@ export function YieldCarousel({ top10 }: { top10: EtfSnapshot[] }) {
       <div
         role="region"
         aria-roledescription="carousel"
-        aria-label="연환산 분배율 TOP 10"
+        aria-label={T.carouselLabel[lang]}
         tabIndex={0}
         onKeyDown={onKeyDown}
         onMouseEnter={() => setIsHovered(true)}
@@ -365,6 +393,8 @@ export function YieldCarousel({ top10 }: { top10: EtfSnapshot[] }) {
                     pulseKey={pulseTick}
                     reducedMotion={reducedMotion}
                     onNavigate={registerInteraction}
+                    lang={lang}
+                    basePath={basePath}
                   />
                 ) : (
                   <button
@@ -392,7 +422,7 @@ export function YieldCarousel({ top10 }: { top10: EtfSnapshot[] }) {
             <>
               <button
                 type="button"
-                aria-label="이전 ETF"
+                aria-label={T.prev[lang]}
                 onClick={() => {
                   registerInteraction();
                   prev();
@@ -403,7 +433,7 @@ export function YieldCarousel({ top10 }: { top10: EtfSnapshot[] }) {
               </button>
               <button
                 type="button"
-                aria-label="다음 ETF"
+                aria-label={T.next[lang]}
                 onClick={() => {
                   registerInteraction();
                   next();
@@ -430,7 +460,9 @@ export function YieldCarousel({ top10 }: { top10: EtfSnapshot[] }) {
                 }}
                 type="button"
                 aria-current={i === activeIndex}
-                aria-label={`${i + 1}위 ${etf.ticker} 보기`}
+                aria-label={
+                  lang === "ko" ? `${i + 1}위 ${etf.ticker} 보기` : `${T.rankView[lang]} #${i + 1} ${etf.ticker}`
+                }
                 onClick={() => {
                   registerInteraction();
                   goTo(i);
@@ -452,7 +484,7 @@ export function YieldCarousel({ top10 }: { top10: EtfSnapshot[] }) {
           full ranked list at a glance instead of the mobile pill strip. */}
       <aside className="hidden xl:flex xl:flex-col border border-[var(--gray-200)] rounded-2xl overflow-hidden h-[340px]">
         <div className="px-4 py-2.5 border-b border-[var(--gray-200)] bg-[var(--gray-50)] text-xs font-semibold text-[var(--gray-500)] shrink-0">
-          TOP 10 연환산 분배율
+          {T.top10[lang]}
         </div>
         <ul className="overflow-y-auto flex-1">
           {top10.map((etf, i) => (
@@ -498,6 +530,8 @@ function CenterCard({
   pulseKey,
   reducedMotion,
   onNavigate,
+  lang,
+  basePath,
 }: {
   etf: EtfSnapshot;
   rank: number;
@@ -507,11 +541,13 @@ function CenterCard({
   pulseKey: number;
   reducedMotion: boolean;
   onNavigate: () => void;
+  lang: "en" | "ko";
+  basePath: string;
 }) {
   return (
     <div className="pointer-events-auto px-2 sm:px-4">
       <div className="text-xs font-semibold text-[var(--gray-500)] tracking-wide">
-        연환산 분배율 {rank}위
+        {lang === "ko" ? `연환산 분배율 ${rank}${T.place.ko}` : `${T.rankOf.en} #${rank}`}
       </div>
 
       <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -536,7 +572,7 @@ function CenterCard({
           <span className="text-xl sm:text-2xl font-extrabold">{etf.ticker}</span>
           {etf.riskLevel && (
             <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--gray-100)] text-[var(--gray-600)]">
-              {RISK_LABEL[etf.riskLevel] ?? etf.riskLevel}
+              {RISK_LABEL[lang][etf.riskLevel] ?? etf.riskLevel}
             </span>
           )}
         </div>
@@ -548,28 +584,28 @@ function CenterCard({
         <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-[var(--gray-600)]">
           {etf.cradyScore != null && (
             <span>
-              CRADY 점수{" "}
+              {lang === "ko" ? "CRADY 점수" : "CRADY Score"}{" "}
               <strong className="text-black tabular-nums">
                 {animatedScore.toFixed(1)}
               </strong>
             </span>
           )}
-          <span className="hidden sm:inline">
-            최근 90일 실지급 배당 run-rate 기준 연환산 분배율(Distribution Yield)
-          </span>
-          {updatedAt && <span className="hidden sm:inline">{updatedAt} KST 업데이트</span>}
+          <span className="hidden sm:inline">{T.yieldDesc[lang]}</span>
+          {updatedAt && (
+            <span className="hidden sm:inline">
+              {updatedAt} KST {T.updated[lang]}
+            </span>
+          )}
         </div>
 
-        <p className="mt-2 text-xs text-[var(--gray-400)] max-w-xl">
-          높은 분배율은 원금 손실 및 분배금 감소 위험을 포함하며 수익을 보장하지 않습니다.
-        </p>
+        <p className="mt-2 text-xs text-[var(--gray-400)] max-w-xl">{T.disclaimer[lang]}</p>
 
         <Link
-          href={`/${etf.ticker.toLowerCase()}`}
+          href={`${basePath}/${etf.ticker.toLowerCase()}`}
           onClick={onNavigate}
           className="mt-4 inline-flex items-center justify-center px-5 py-2.5 bg-black text-white rounded-lg text-sm font-semibold hover:bg-[var(--gray-900)] transition-colors"
         >
-          ETF 상세 보기 →
+          {T.viewDetail[lang]}
         </Link>
       </div>
     </div>

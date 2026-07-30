@@ -13,8 +13,20 @@ export function getDividendStage(
   return "paid";
 }
 
-export const DIVIDEND_STAGE_LABEL: Record<DividendStage, string> = {
-  "before-ex": "Ex-Date 예정",
-  "awaiting-payment": "지급 대기",
-  paid: "지급 완료",
+/** Bilingual — DividendStagePill renders on both the (en) tree, the /ko
+ * tree, AND every Magazine page (English-only, see lib/magazine/sections.tsx
+ * nextDividendHighlight). Previously hardcoded Korean text regardless of
+ * caller, which meant every English Magazine page was silently showing a
+ * Korean-language badge — found during the international SEO audit. */
+export const DIVIDEND_STAGE_LABEL: Record<"en" | "ko", Record<DividendStage, string>> = {
+  en: {
+    "before-ex": "Upcoming Ex-Date",
+    "awaiting-payment": "Awaiting Payment",
+    paid: "Paid",
+  },
+  ko: {
+    "before-ex": "Ex-Date 예정",
+    "awaiting-payment": "지급 대기",
+    paid: "지급 완료",
+  },
 };

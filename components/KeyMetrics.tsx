@@ -1,28 +1,27 @@
 import Link from "next/link";
 import type { KeyMetrics as KeyMetricsData } from "@/lib/data";
 
-export function KeyMetrics({ metrics }: { metrics: KeyMetricsData }) {
+const T = {
+  today: { en: "Paying Today", ko: "오늘 지급 예정" },
+  thisWeek: { en: "Paying This Week", ko: "이번 주 지급 예정" },
+  predictions: { en: "Next Dividends Tracked", ko: "다음 예상 배당 등록" },
+  highScore: { en: "CRADY Score 70+", ko: "CRADY 70점 이상" },
+} as const;
+
+export function KeyMetrics({
+  metrics,
+  lang = "en",
+  basePath = "",
+}: {
+  metrics: KeyMetricsData;
+  lang?: "en" | "ko";
+  basePath?: string;
+}) {
   const items = [
-    {
-      label: "오늘 지급 예정",
-      value: metrics.todayCount,
-      href: "/calendar",
-    },
-    {
-      label: "이번 주 지급 예정",
-      value: metrics.weekCount,
-      href: "/calendar",
-    },
-    {
-      label: "다음 예상 배당 등록",
-      value: metrics.nextPredictionCount,
-      href: "/ranking",
-    },
-    {
-      label: "CRADY 70점 이상",
-      value: metrics.highScoreCount,
-      href: "/ranking",
-    },
+    { label: T.today[lang], value: metrics.todayCount, href: `${basePath}/calendar` },
+    { label: T.thisWeek[lang], value: metrics.weekCount, href: `${basePath}/calendar` },
+    { label: T.predictions[lang], value: metrics.nextPredictionCount, href: `${basePath}/ranking` },
+    { label: T.highScore[lang], value: metrics.highScoreCount, href: `${basePath}/ranking` },
   ];
 
   return (

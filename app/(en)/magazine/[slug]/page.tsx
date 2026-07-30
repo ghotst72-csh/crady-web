@@ -72,7 +72,7 @@ export async function generateMetadata({
       title: def.title,
       description: def.description,
       alternates: { canonical: url },
-      openGraph: { title: def.title, description: def.description, url, type: "website" },
+      openGraph: { title: def.title, description: def.description, url, type: "website", locale: "en_US" },
       twitter: { card: "summary_large_image", title: def.title, description: def.description },
     };
   }
@@ -83,7 +83,7 @@ export async function generateMetadata({
       title: def.title,
       description: def.description,
       alternates: { canonical: url },
-      openGraph: { title: def.title, description: def.description, url, type: "website" },
+      openGraph: { title: def.title, description: def.description, url, type: "website", locale: "en_US" },
       twitter: { card: "summary_large_image", title: def.title, description: def.description },
     };
   }
@@ -94,7 +94,7 @@ export async function generateMetadata({
       title: def.title,
       description: def.description,
       alternates: { canonical: url },
-      openGraph: { title: def.title, description: def.description, url, type: "article" },
+      openGraph: { title: def.title, description: def.description, url, type: "article", locale: "en_US" },
       twitter: { card: "summary_large_image", title: def.title, description: def.description },
     };
   }
@@ -125,7 +125,7 @@ export async function generateMetadata({
     description: meta.description,
     alternates: { canonical: url },
     robots: thin ? { index: false, follow: true } : undefined,
-    openGraph: { title: meta.title, description: meta.description, url, type: "article" },
+    openGraph: { title: meta.title, description: meta.description, url, type: "article", locale: "en_US" },
     twitter: { card: "summary_large_image", title: meta.title, description: meta.description },
   };
 }

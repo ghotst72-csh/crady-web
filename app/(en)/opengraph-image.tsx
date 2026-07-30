@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt = "CRADY — 배당 ETF 정보 플랫폼";
+export const alt = "CRADY — High Dividend ETF Calendar & Distribution Tracker";
 
 export default function Image() {
   return new ImageResponse(

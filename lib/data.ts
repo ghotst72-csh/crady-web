@@ -66,15 +66,10 @@ export type NextPredictionRow = {
   prediction_method: string | null;
 };
 
-const PROVIDER_LABEL: Record<string, string> = {
-  yieldmax: "YieldMax",
-  roundhill: "Roundhill",
-  defiance: "Defiance",
-};
-
-export function providerLabel(providerId: string) {
-  return PROVIDER_LABEL[providerId] ?? providerId;
-}
+// Re-exported from lib/providers.ts (a dependency-free module — see there
+// for why) so existing `import { providerLabel } from "@/lib/data"` call
+// sites across the app don't all need updating.
+export { providerLabel } from "./providers";
 
 /** All tickers — used by generateStaticParams and sitemap.ts. */
 export async function getAllTickers(): Promise<
@@ -526,6 +521,21 @@ export async function getHomeSnapshot(): Promise<EtfSnapshot[]> {
       calculatedAt: risk?.calculated_at ?? null,
     } satisfies EtfSnapshot;
   });
+}
+
+/** Derives the header search index from the same snapshot every page
+ * already fetches — public fields only (ticker/name/provider/yield/score),
+ * nothing from the risk model internals or any private column. Not a
+ * separate query, so there's no second data source to keep in sync with
+ * the rest of the site. */
+export function toSearchIndex(rows: EtfSnapshot[]) {
+  return rows.map((r) => ({
+    ticker: r.ticker,
+    name: r.name,
+    provider_id: r.provider_id,
+    annualYieldPct: r.annualYieldPct,
+    cradyScore: r.cradyScore,
+  }));
 }
 
 export function topByAnnualYield(rows: EtfSnapshot[], limit = 8) {

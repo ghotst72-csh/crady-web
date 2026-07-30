@@ -13,6 +13,10 @@ export function buildArticleJsonLd(opts: {
     headline: opts.headline,
     description: opts.description,
     url: opts.url,
+    // Magazine has no Korean tree (see the International SEO report) —
+    // hardcoded "en" rather than a parameter, since it's never anything
+    // else.
+    inLanguage: "en",
     datePublished: opts.datePublished,
     dateModified: opts.dateModified,
     author: { "@type": "Organization", name: "CRADY" },
@@ -48,6 +52,7 @@ export function buildWebPageJsonLd(opts: {
     name: opts.name,
     description: opts.description,
     url: opts.url,
+    inLanguage: "en",
     isPartOf: { "@type": "WebSite", name: "CRADY", url: "https://crady.net" },
     ...(opts.speakableSelectors && opts.speakableSelectors.length > 0
       ? {
@@ -70,6 +75,7 @@ export function buildDatasetJsonLd(opts: { name: string; description: string; ur
     name: opts.name,
     description: opts.description,
     url: opts.url,
+    inLanguage: "en",
     creator: { "@type": "Organization", name: "CRADY" },
   };
 }

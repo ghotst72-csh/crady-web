@@ -1,11 +1,16 @@
 import { GOOGLE_PLAY_URL } from "@/lib/constants";
 
+const T = {
+  getItOn: { en: "GET IT ON", ko: "지금 다운로드" },
+  label: { en: "Google Play", ko: "Google Play" },
+} as const;
+
 export function GooglePlayButton({
   className = "",
-  label = "Google Play에서 다운로드",
+  lang = "en",
 }: {
   className?: string;
-  label?: string;
+  lang?: "en" | "ko";
 }) {
   return (
     <a
@@ -16,10 +21,8 @@ export function GooglePlayButton({
     >
       <PlayGlyph />
       <span className="flex flex-col items-start leading-tight">
-        <span className="text-[10px] font-normal text-[var(--gray-300)]">
-          지금 다운로드
-        </span>
-        <span>{label.includes("다운로드") ? "Google Play" : label}</span>
+        <span className="text-[10px] font-normal text-[var(--gray-300)]">{T.getItOn[lang]}</span>
+        <span>{T.label[lang]}</span>
       </span>
     </a>
   );

@@ -9,10 +9,17 @@ export const revalidate = 3600;
 export const metadata: Metadata = {
   title: "배당 일정",
   description: "다가오는 배당 ETF 기준일 및 지급일 일정.",
-  alternates: { canonical: "https://crady.net/calendar" },
+  alternates: {
+    canonical: "https://crady.net/ko/calendar",
+    languages: {
+      en: "https://crady.net/calendar",
+      ko: "https://crady.net/ko/calendar",
+      "x-default": "https://crady.net/calendar",
+    },
+  },
 };
 
-export default async function CalendarPage() {
+export default async function KoreanCalendarPage() {
   const upcoming = await getUpcomingDividends(60);
 
   const byDate = new Map<string, typeof upcoming>();
@@ -26,8 +33,8 @@ export default async function CalendarPage() {
     <div className="mx-auto max-w-4xl px-4 sm:px-6 py-10">
       <BreadcrumbJsonLd
         items={[
-          { name: "Home", url: "https://crady.net" },
-          { name: "배당 일정", url: "https://crady.net/calendar" },
+          { name: "Home", url: "https://crady.net/ko" },
+          { name: "배당 일정", url: "https://crady.net/ko/calendar" },
         ]}
       />
       <h1 className="text-2xl font-bold">배당 일정</h1>
@@ -54,7 +61,7 @@ export default async function CalendarPage() {
               {items.map((d, i) => (
                 <Link
                   key={`${d.ticker}-${i}`}
-                  href={`/${d.ticker.toLowerCase()}`}
+                  href={`/ko/${d.ticker.toLowerCase()}`}
                   className="flex items-center justify-between gap-2 px-4 py-3 border-b border-[var(--gray-100)] last:border-0 hover:bg-[var(--gray-50)] transition-colors"
                 >
                   <span className="font-semibold">{d.ticker}</span>
@@ -64,7 +71,7 @@ export default async function CalendarPage() {
                   <span className="text-sm">
                     {d.amount != null ? `$${d.amount.toFixed(4)}` : "예정"}
                   </span>
-                  <DividendStagePill exDate={d.ex_date} payDate={d.pay_date} />
+                  <DividendStagePill exDate={d.ex_date} payDate={d.pay_date} lang="ko" />
                 </Link>
               ))}
             </div>

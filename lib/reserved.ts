@@ -13,4 +13,9 @@ export const RESERVED_PATHS = new Set([
   "robots.txt",
   "favicon.ico",
   "api",
+  // The Korean locale prefix (app/ko/**) — Next.js's static-over-dynamic
+  // route precedence already guarantees /ko never falls through to
+  // [ticker], but this stays defensive-in-depth per this file's own
+  // original rationale above.
+  "ko",
 ]);

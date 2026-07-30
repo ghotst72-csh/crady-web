@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Header } from "@/components/Header";
-import "./globals.css";
+import { getHomeSnapshot, toSearchIndex } from "@/lib/data";
+import "../globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://crady.net"),
@@ -15,6 +16,7 @@ export const metadata: Metadata = {
     siteName: "CRADY",
     type: "website",
     locale: "ko_KR",
+    alternateLocale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
@@ -33,12 +35,16 @@ const WEBSITE_JSON_LD = {
   "@context": "https://schema.org",
   "@type": "WebSite",
   name: "CRADY",
-  url: "https://crady.net",
+  url: "https://crady.net/ko",
+  inLanguage: "ko",
 };
 
-export default function RootLayout({
+export default async function KoreanRootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const snapshot = await getHomeSnapshot();
+  const searchIndex = toSearchIndex(snapshot);
+
   return (
     <html lang="ko">
       <body className="min-h-screen flex flex-col antialiased">
@@ -50,7 +56,7 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(WEBSITE_JSON_LD) }}
         />
-        <Header />
+        <Header lang="ko" searchIndex={searchIndex} />
 
         <main className="flex-1">{children}</main>
 
@@ -59,13 +65,16 @@ export default function RootLayout({
             <div className="flex flex-col sm:flex-row sm:justify-between gap-8">
               <div className="max-w-sm">
                 <div className="font-bold text-lg tracking-tight">
-                  {/* #92400e — same WCAG AA fix as the header logo, see
-                      components/Header.tsx */}
                   CRA<span className="text-[#92400e]">DY</span>
                 </div>
                 <p className="mt-2 text-sm text-[var(--gray-600)] leading-relaxed">
                   YieldMax, Roundhill, Defiance 등 고배당 커버드콜 ETF의 배당 일정, 가격, CRADY
                   점수를 데이터 기반으로 제공하는 정보 플랫폼입니다.
+                </p>
+                <p className="mt-3 text-xs text-[var(--gray-400)]">
+                  <Link href="/" className="hover:text-black underline">
+                    View in English
+                  </Link>
                 </p>
               </div>
               <nav className="flex flex-wrap gap-x-8 gap-y-4 text-sm">
@@ -75,22 +84,22 @@ export default function RootLayout({
                   </div>
                   <ul className="space-y-1.5">
                     <li>
-                      <Link href="/ranking" className="text-[var(--gray-600)] hover:text-black">
+                      <Link href="/ko/ranking" className="text-[var(--gray-600)] hover:text-black">
                         ETF 랭킹
                       </Link>
                     </li>
                     <li>
-                      <Link href="/calendar" className="text-[var(--gray-600)] hover:text-black">
+                      <Link href="/ko/calendar" className="text-[var(--gray-600)] hover:text-black">
                         배당 일정
                       </Link>
                     </li>
                     <li>
                       <Link href="/magazine" className="text-[var(--gray-600)] hover:text-black">
-                        매거진
+                        매거진 (영문)
                       </Link>
                     </li>
                     <li>
-                      <Link href="/about" className="text-[var(--gray-600)] hover:text-black">
+                      <Link href="/ko/about" className="text-[var(--gray-600)] hover:text-black">
                         소개 &amp; 데이터 방법론
                       </Link>
                     </li>

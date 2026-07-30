@@ -2,12 +2,25 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { TickerSearch } from "./search/TickerSearch";
+import { MobileSearch } from "./search/MobileSearch";
+import type { SearchEntry } from "@/lib/search/searchTickers";
 
-const NAV = [
-  { href: "/ranking", label: "랭킹" },
-  { href: "/calendar", label: "배당 일정" },
+// Magazine is English-only (no /ko/magazine — see the CRADY International
+// SEO report), so its nav link never gets the /ko prefix even on the
+// Korean header.
+const NAV_EN = [
+  { href: "/ranking", label: "Ranking" },
+  { href: "/calendar", label: "Dividend Calendar" },
+  { href: "/magazine", label: "Magazine" },
+  { href: "/about", label: "About" },
+];
+
+const NAV_KO = [
+  { href: "/ko/ranking", label: "랭킹" },
+  { href: "/ko/calendar", label: "배당 일정" },
   { href: "/magazine", label: "매거진" },
-  { href: "/about", label: "소개" },
+  { href: "/ko/about", label: "소개" },
 ];
 
 // Scroll direction thresholds — small jitters (<10px) don't trigger a
@@ -15,11 +28,21 @@ const NAV = [
 const MOVE_THRESHOLD = 10;
 const TOP_LOCK = 20;
 
-export function Header() {
+export function Header({
+  lang = "en",
+  searchIndex,
+}: {
+  lang?: "en" | "ko";
+  searchIndex: SearchEntry[];
+}) {
   const [hidden, setHidden] = useState(false);
   const lastY = useRef(0);
   const accum = useRef(0);
   const focusLocked = useRef(false);
+
+  const nav = lang === "ko" ? NAV_KO : NAV_EN;
+  const basePath = lang === "ko" ? "/ko" : "";
+  const homeHref = lang === "ko" ? "/ko" : "/";
 
   useEffect(() => {
     lastY.current = window.scrollY;
@@ -72,20 +95,13 @@ export function Header() {
         }}
       >
         <div className="mx-auto max-w-6xl px-4 sm:px-6 h-14 flex items-center gap-3">
-          <Link href="/" className="font-bold text-lg tracking-tight shrink-0">
-            {/* #92400e, not var(--crady-accent) (#f59e0b) — the lighter
-                accent measures 2.14:1 against white here (Lighthouse
-                accessibility audit), well under WCAG AA's 4.5:1 for
-                18px bold text. This is the one instance on every single
-                page (the header logo), so it's fixed directly rather than
-                left as a site-wide color-token change — see the CRADY
-                Authority & Google Trust Phase 1 report for the other
-                (higher-risk, unfixed) instances of the same accent color
-                used as text elsewhere on the site. */}
+          <Link href={homeHref} className="font-bold text-lg tracking-tight shrink-0">
+            {/* #92400e — see the CRADY Authority & Google Trust Phase 1
+                report for the WCAG contrast fix behind this exact value. */}
             CRA<span className="text-[#92400e]">DY</span>
           </Link>
           <nav className="flex items-center gap-0.5 sm:gap-4 text-xs sm:text-sm min-w-0">
-            {NAV.map((item) => (
+            {nav.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -97,6 +113,16 @@ export function Header() {
           </nav>
 
           <div className="flex-1" />
+
+          {/* Desktop: a real, always-visible instant-search field.
+              Mobile: an icon that opens a full-width search sheet — see
+              components/search/MobileSearch.tsx. */}
+          <div className="hidden sm:block w-[260px] shrink-0">
+            <TickerSearch index={searchIndex} lang={lang} basePath={basePath} />
+          </div>
+          <div className="sm:hidden">
+            <MobileSearch index={searchIndex} lang={lang} basePath={basePath} />
+          </div>
         </div>
       </header>
       {/* Spacer so fixed header doesn't overlap page content — keeps layout

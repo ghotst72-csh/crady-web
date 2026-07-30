@@ -22,7 +22,13 @@ export const metadata: Metadata = {
   title: { absolute: TITLE },
   description: DESCRIPTION,
   alternates: { canonical: "https://crady.net/magazine" },
-  openGraph: { title: TITLE, description: DESCRIPTION, url: "https://crady.net/magazine", type: "website" },
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    url: "https://crady.net/magazine",
+    type: "website",
+    locale: "en_US",
+  },
   twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
 };
 

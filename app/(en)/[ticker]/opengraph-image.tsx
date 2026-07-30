@@ -12,10 +12,10 @@ export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
 const RISK_LABEL: Record<string, string> = {
-  SAFE: "안정",
-  NORMAL: "보통",
-  RISKY: "위험",
-  EXTREME: "고위험",
+  SAFE: "Safe",
+  NORMAL: "Normal",
+  RISKY: "Risky",
+  EXTREME: "Extreme",
 };
 
 export default async function Image({
@@ -82,13 +82,13 @@ export default async function Image({
 
         <div style={{ display: "flex", marginTop: 56, gap: 64 }}>
           <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", fontSize: 24, color: "#9e9e9e" }}>연환산 분배율</div>
+            <div style={{ display: "flex", fontSize: 24, color: "#9e9e9e" }}>Annual Yield</div>
             <div style={{ display: "flex", fontSize: 64, fontWeight: 900, color: "#f59e0b" }}>
               {annualYieldPct != null ? `${annualYieldPct.toFixed(1)}%` : "—"}
             </div>
           </div>
           <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", fontSize: 24, color: "#9e9e9e" }}>CRADY 점수</div>
+            <div style={{ display: "flex", fontSize: 24, color: "#9e9e9e" }}>CRADY Score</div>
             <div style={{ display: "flex", fontSize: 64, fontWeight: 900, color: "#111111" }}>
               {risk?.crady_score != null ? risk.crady_score.toFixed(1) : "—"}
             </div>

@@ -3,9 +3,11 @@ import { getDividendStage, DIVIDEND_STAGE_LABEL, type DividendStage } from "@/li
 export function DividendStagePill({
   exDate,
   payDate,
+  lang = "en",
 }: {
   exDate: string;
   payDate: string;
+  lang?: "en" | "ko";
 }) {
   const stage = getDividendStage(exDate, payDate);
   const color =
@@ -16,12 +18,19 @@ export function DividendStagePill({
         : "bg-blue-100 text-blue-700";
   return (
     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${color}`}>
-      {DIVIDEND_STAGE_LABEL[stage]}
+      {DIVIDEND_STAGE_LABEL[lang][stage]}
     </span>
   );
 }
 
-const STEPS: { key: DividendStage | "declaration"; label: string; hint: string }[] = [
+const STEPS_EN: { key: DividendStage | "declaration"; label: string; hint: string }[] = [
+  { key: "declaration", label: "Declared", hint: "Amount and record date announced" },
+  { key: "before-ex", label: "Ex-Date", hint: "Must hold shares before this date to qualify" },
+  { key: "awaiting-payment", label: "Awaiting Payment", hint: "Processing after the ex-date" },
+  { key: "paid", label: "Paid", hint: "Distribution deposited to your account" },
+];
+
+const STEPS_KO: { key: DividendStage | "declaration"; label: string; hint: string }[] = [
   { key: "declaration", label: "공시", hint: "배당금 및 기준일 발표" },
   { key: "before-ex", label: "Ex-Date", hint: "이 날짜 이전에 보유해야 배당 대상" },
   { key: "awaiting-payment", label: "지급 대기", hint: "기준일 이후 지급 처리 중" },
@@ -34,16 +43,19 @@ const STEPS: { key: DividendStage | "declaration"; label: string; hint: string }
 export function DividendLifecycleStepper({
   exDate,
   payDate,
+  lang = "en",
 }: {
   exDate: string;
   payDate: string;
+  lang?: "en" | "ko";
 }) {
   const stage = getDividendStage(exDate, payDate);
   const activeIndex = stage === "before-ex" ? 1 : stage === "awaiting-payment" ? 2 : 3;
+  const steps = lang === "ko" ? STEPS_KO : STEPS_EN;
 
   return (
     <div className="flex items-start">
-      {STEPS.map((step, i) => (
+      {steps.map((step, i) => (
         <div key={step.key} className="flex items-start flex-1 last:flex-none">
           <div className="flex flex-col items-center text-center w-20 sm:w-24">
             <div
@@ -66,7 +78,7 @@ export function DividendLifecycleStepper({
               {step.hint}
             </div>
           </div>
-          {i < STEPS.length - 1 && (
+          {i < steps.length - 1 && (
             <div
               className={`h-[2px] flex-1 mt-3 ${
                 i < activeIndex ? "bg-black" : "bg-[var(--gray-200)]"

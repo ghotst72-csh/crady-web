@@ -17,19 +17,28 @@ import { AppPromoSection } from "@/components/AppPromoSection";
 
 export const revalidate = 3600;
 
-const TITLE = "CRADY | High Dividend ETF Calendar & Distribution Tracker";
+const TITLE = "CRADY — 배당 ETF 정보 플랫폼";
 const DESCRIPTION =
-  "Track YieldMax, Defiance, Roundhill and other high dividend ETFs with estimated distributions, payment calendar and rankings.";
+  "YieldMax, Roundhill, Defiance 등 고배당 커버드콜 ETF의 배당 일정, 가격, CRADY 점수를 한눈에 확인하세요.";
 
 export const metadata: Metadata = {
   title: { absolute: TITLE },
   description: DESCRIPTION,
-  alternates: { canonical: "https://crady.net" },
+  alternates: {
+    canonical: "https://crady.net/ko",
+    languages: {
+      en: "https://crady.net",
+      ko: "https://crady.net/ko",
+      "x-default": "https://crady.net",
+    },
+  },
   openGraph: {
     title: TITLE,
     description: DESCRIPTION,
-    url: "https://crady.net",
+    url: "https://crady.net/ko",
     type: "website",
+    locale: "ko_KR",
+    alternateLocale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
@@ -38,7 +47,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function HomePage() {
+export default async function KoreanHomePage() {
   const [snapshot, thisWeek, keyMetrics] = await Promise.all([
     getHomeSnapshot(),
     getThisWeekDividends(5),
@@ -52,24 +61,18 @@ export default async function HomePage() {
 
   return (
     <div>
-      {/* A. Hero — one interactive carousel, #1 CRCO centered by default */}
-      <YieldCarousel top10={yieldTop10} />
-
-      {/* B. Next Estimated Distributions */}
-      <NextDistributionsRail items={nextDistributions} />
-
-      {/* C. Existing sections, repositioned below A/B */}
-      <KeyMetrics metrics={keyMetrics} />
-      <WeekSchedule items={thisWeek} />
+      <YieldCarousel top10={yieldTop10} lang="ko" basePath="/ko" />
+      <NextDistributionsRail items={nextDistributions} lang="ko" basePath="/ko" />
+      <KeyMetrics metrics={keyMetrics} lang="ko" basePath="/ko" />
+      <WeekSchedule items={thisWeek} lang="ko" basePath="/ko" />
       <RankingPreview
         cradyTop={cradyTop}
         yieldTop={yieldTop10}
         increasedTop={increasedTop}
+        lang="ko"
+        basePath="/ko"
       />
-
-      {/* D. App promotion — the web's role is discovery, the app's role is
-          ongoing management; this section hands off the funnel. */}
-      <AppPromoSection />
+      <AppPromoSection lang="ko" />
     </div>
   );
 }

@@ -2,11 +2,9 @@ import Link from "next/link";
 import { providerLabel } from "@/lib/data";
 import { DividendStagePill } from "./DividendLifecycle";
 
-const RISK_LABEL: Record<string, string> = {
-  SAFE: "안정",
-  NORMAL: "보통",
-  RISKY: "위험",
-  EXTREME: "고위험",
+const RISK_LABEL: Record<"en" | "ko", Record<string, string>> = {
+  en: { SAFE: "Safe", NORMAL: "Normal", RISKY: "Risky", EXTREME: "Extreme" },
+  ko: { SAFE: "안정", NORMAL: "보통", RISKY: "위험", EXTREME: "고위험" },
 };
 
 // Same tint map as the homepage Hero (components/YieldCarousel.tsx) — kept
@@ -19,10 +17,10 @@ const PROVIDER_GLOW: Record<string, string> = {
   defiance: "radial-gradient(60% 100% at 15% 20%, rgba(34,197,94,0.07), transparent 70%)",
 };
 
-function formatUpdatedAt(iso: string | null): string | null {
+function formatUpdatedAt(iso: string | null, lang: "en" | "ko"): string | null {
   if (!iso) return null;
   try {
-    return new Intl.DateTimeFormat("ko-KR", {
+    return new Intl.DateTimeFormat(lang === "ko" ? "ko-KR" : "en-US", {
       timeZone: "Asia/Seoul",
       year: "numeric",
       month: "2-digit",
@@ -34,6 +32,26 @@ function formatUpdatedAt(iso: string | null): string | null {
     return null;
   }
 }
+
+const T = {
+  yieldLabel: { en: "Annual Distribution Yield", ko: "연환산 분배율" },
+  updated: { en: "Updated", ko: "업데이트" },
+  cradyScore: { en: "CRADY Score", ko: "CRADY 점수" },
+  recentDividend: { en: "Recent Dividend", ko: "최근 배당금" },
+  nextPayDate: { en: "Next Dividend", ko: "다음 지급일" },
+  tbd: { en: "TBD", ko: "미정" },
+  frequency: { en: "Dividend Frequency", ko: "배당 주기" },
+  risk: { en: "Risk", ko: "위험도" },
+  stability: { en: "Dividend Stability", ko: "배당 안정성" },
+  nextExpected: { en: "Next expected dividend", ko: "다음 예상 배당" },
+  vsLast: { en: "vs last", ko: "직전 대비" },
+  confidence: { en: "confidence", ko: "신뢰도" },
+  noPrediction: {
+    en: "No prediction available yet.",
+    ko: "아직 예측 데이터가 없습니다.",
+  },
+  viewHistory: { en: "View Dividend History ↓", ko: "배당 내역 보기 ↓" },
+} as const;
 
 export function EtfHero({
   ticker,
@@ -49,6 +67,7 @@ export function EtfHero({
   latestDividend,
   prediction,
   changeFromLastPct,
+  lang = "en",
 }: {
   ticker: string;
   name: string | null;
@@ -68,12 +87,14 @@ export function EtfHero({
     confidenceScore: number | null;
   } | null;
   changeFromLastPct: number | null;
+  lang?: "en" | "ko";
 }) {
   const glow = PROVIDER_GLOW[providerId] ?? "none";
-  const updatedAtLabel = formatUpdatedAt(updatedAt);
+  const updatedAtLabel = formatUpdatedAt(updatedAt, lang);
   const hasPrediction =
     prediction != null &&
     (prediction.predictedAmount != null || prediction.targetPayDate != null);
+  const riskLabel = riskLevel ? (RISK_LABEL[lang][riskLevel] ?? riskLevel) : null;
 
   return (
     <section className="mx-auto max-w-6xl px-4 sm:px-6 pt-6">
@@ -100,14 +121,14 @@ export function EtfHero({
                 {category}
               </span>
             )}
-            {riskLevel && (
+            {riskLabel && (
               <span className="px-2 py-1 rounded-full bg-[var(--gray-100)] text-[var(--gray-600)]">
-                {RISK_LABEL[riskLevel] ?? riskLevel}
+                {riskLabel}
               </span>
             )}
             {updatedAtLabel && (
               <span className="text-[var(--gray-400)] ml-auto">
-                {updatedAtLabel} KST 업데이트
+                {updatedAtLabel} KST {T.updated[lang]}
               </span>
             )}
           </div>
@@ -118,10 +139,16 @@ export function EtfHero({
               {yieldPct != null ? `${yieldPct.toFixed(1)}%` : "—"}
             </div>
             <div className="mt-2 text-sm font-semibold text-[var(--gray-600)]">
-              연환산 분배율{" "}
-              <span className="font-normal text-[var(--gray-400)]">
-                Annual Distribution Yield
-              </span>
+              {lang === "ko" ? (
+                <>
+                  연환산 분배율{" "}
+                  <span className="font-normal text-[var(--gray-400)]">
+                    Annual Distribution Yield
+                  </span>
+                </>
+              ) : (
+                T.yieldLabel.en
+              )}
             </div>
           </div>
 
@@ -129,25 +156,25 @@ export function EtfHero({
               the fold, no scrolling required. */}
           <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             <KpiCard
-              label="CRADY 점수"
-              englishLabel="CRADY Score"
+              label={T.cradyScore[lang]}
+              englishLabel={lang === "ko" ? "CRADY Score" : undefined}
               value={cradyScore != null ? cradyScore.toFixed(1) : "—"}
               accent
             />
             <KpiCard
-              label="최근 배당금"
-              englishLabel="Recent Dividend"
+              label={T.recentDividend[lang]}
+              englishLabel={lang === "ko" ? "Recent Dividend" : undefined}
               value={latestDividend ? `$${latestDividend.amount.toFixed(4)}` : "—"}
               sub={latestDividend?.payDate}
             />
             <KpiCard
-              label="다음 지급일"
-              englishLabel="Next Dividend"
-              value={prediction?.targetPayDate ?? "미정"}
+              label={T.nextPayDate[lang]}
+              englishLabel={lang === "ko" ? "Next Dividend" : undefined}
+              value={prediction?.targetPayDate ?? T.tbd[lang]}
             />
             <KpiCard
-              label="배당 주기"
-              englishLabel="Dividend Frequency"
+              label={T.frequency[lang]}
+              englishLabel={lang === "ko" ? "Dividend Frequency" : undefined}
               value={
                 payoutFrequency && payoutFrequency.toLowerCase() !== "unknown"
                   ? payoutFrequency
@@ -155,13 +182,13 @@ export function EtfHero({
               }
             />
             <KpiCard
-              label="위험도"
-              englishLabel="Risk"
-              value={riskLevel ? RISK_LABEL[riskLevel] ?? riskLevel : "—"}
+              label={T.risk[lang]}
+              englishLabel={lang === "ko" ? "Risk" : undefined}
+              value={riskLabel ?? "—"}
             />
             <KpiCard
-              label="배당 안정성"
-              englishLabel="Dividend Stability"
+              label={T.stability[lang]}
+              englishLabel={lang === "ko" ? "Dividend Stability" : undefined}
               value={
                 dividendStabilityScore != null ? dividendStabilityScore.toFixed(1) : "—"
               }
@@ -177,10 +204,11 @@ export function EtfHero({
                   <DividendStagePill
                     exDate={prediction!.targetExDate}
                     payDate={prediction!.targetPayDate}
+                    lang={lang}
                   />
                 )}
                 <span className="text-[var(--gray-700)]">
-                  다음 예상 배당{" "}
+                  {T.nextExpected[lang]}{" "}
                   {prediction!.targetPayDate && (
                     <>
                       <strong className="font-semibold">{prediction!.targetPayDate}</strong>{" "}
@@ -193,18 +221,15 @@ export function EtfHero({
                       </strong>{" "}
                     </>
                   )}
-                  예상
+                  {lang === "ko" ? "예상" : "expected"}
                   {changeFromLastPct != null &&
-                    ` (직전 대비 ${changeFromLastPct > 0 ? "+" : ""}${changeFromLastPct.toFixed(1)}%)`}
+                    ` (${T.vsLast[lang]} ${changeFromLastPct > 0 ? "+" : ""}${changeFromLastPct.toFixed(1)}%)`}
                   {prediction!.confidenceScore != null &&
-                    ` · 신뢰도 ${prediction!.confidenceScore.toFixed(0)}%`}
+                    ` · ${T.confidence[lang]} ${prediction!.confidenceScore.toFixed(0)}%`}
                 </span>
               </div>
             ) : (
-              <p className="text-sm text-[var(--gray-400)]">
-                아직 예측 데이터가 없습니다.{" "}
-                <span className="text-[var(--gray-300)]">No prediction available yet.</span>
-              </p>
+              <p className="text-sm text-[var(--gray-400)]">{T.noPrediction[lang]}</p>
             )}
           </div>
 
@@ -212,7 +237,7 @@ export function EtfHero({
             href="#dividend-history"
             className="mt-6 inline-flex items-center justify-center px-5 py-2.5 bg-black text-white rounded-lg text-sm font-semibold hover:bg-[var(--gray-900)] transition-colors"
           >
-            배당 내역 보기 ↓
+            {T.viewHistory[lang]}
           </Link>
         </div>
       </div>
@@ -228,7 +253,7 @@ function KpiCard({
   accent,
 }: {
   label: string;
-  englishLabel: string;
+  englishLabel?: string;
   value: string;
   sub?: string | null;
   accent?: boolean;
@@ -238,7 +263,9 @@ function KpiCard({
       <div className="text-[11px] text-[var(--gray-500)] font-medium leading-tight">
         {label}
       </div>
-      <div className="text-[9px] text-[var(--gray-400)] leading-tight">{englishLabel}</div>
+      {englishLabel && (
+        <div className="text-[9px] text-[var(--gray-400)] leading-tight">{englishLabel}</div>
+      )}
       <div
         className={`mt-1 text-lg font-extrabold tabular-nums ${
           accent ? "text-[var(--crady-accent)]" : ""

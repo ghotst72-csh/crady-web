@@ -6,7 +6,14 @@ export const metadata: Metadata = {
   title: "소개 & 데이터 방법론",
   description:
     "CRADY는 고배당 커버드콜 ETF 정보를 제공하는 웹사이트입니다. 배당 예측·CRADY 점수 산출 방식, 데이터 출처, 업데이트 주기를 투명하게 공개합니다.",
-  alternates: { canonical: "https://crady.net/about" },
+  alternates: {
+    canonical: "https://crady.net/ko/about",
+    languages: {
+      en: "https://crady.net/about",
+      ko: "https://crady.net/ko/about",
+      "x-default": "https://crady.net/about",
+    },
+  },
 };
 
 const REASONS = [
@@ -33,13 +40,13 @@ const COMPARISON: { item: string; web: string; app: string }[] = [
   { item: "개인 리포트", web: "—", app: "가능" },
 ];
 
-export default function AboutPage() {
+export default function KoreanAboutPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 sm:px-6 py-10">
       <BreadcrumbJsonLd
         items={[
-          { name: "Home", url: "https://crady.net" },
-          { name: "소개", url: "https://crady.net/about" },
+          { name: "Home", url: "https://crady.net/ko" },
+          { name: "소개", url: "https://crady.net/ko/about" },
         ]}
       />
       <h1 className="text-2xl font-bold">CRADY 소개</h1>
@@ -97,7 +104,7 @@ export default function AboutPage() {
           관심 ETF 등록, 배당 알림, 포트폴리오 관리까지 CRADY 앱에서 무료로
           이용할 수 있습니다.
         </p>
-        <GooglePlayButton className="mt-4" />
+        <GooglePlayButton className="mt-4" lang="ko" />
       </div>
 
       <div id="methodology" className="mt-12 pt-2 scroll-mt-20">

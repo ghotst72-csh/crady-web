@@ -35,24 +35,90 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     return !latest || d > latest ? d : latest;
   }, null);
 
+  // Every EN/KO pair below carries reciprocal `alternates.languages` (the
+  // Next.js sitemap API's hreflang mechanism) — each entry declares both
+  // its own URL and its counterpart's, plus x-default pointing at the
+  // English (root) version per the international SEO spec. Magazine has no
+  // Korean tree (see the report), so its entries carry no language
+  // alternates at all — that's correct, not an omission.
   const staticEntries: MetadataRoute.Sitemap = [
     {
       url: "https://crady.net",
       lastModified: mostRecentCalculatedAt ?? undefined,
       changeFrequency: "daily",
       priority: 1,
+      alternates: {
+        languages: {
+          en: "https://crady.net",
+          ko: "https://crady.net/ko",
+          "x-default": "https://crady.net",
+        },
+      },
+    },
+    {
+      url: "https://crady.net/ko",
+      lastModified: mostRecentCalculatedAt ?? undefined,
+      changeFrequency: "daily",
+      priority: 1,
+      alternates: {
+        languages: {
+          en: "https://crady.net",
+          ko: "https://crady.net/ko",
+          "x-default": "https://crady.net",
+        },
+      },
     },
     {
       url: "https://crady.net/ranking",
       lastModified: mostRecentCalculatedAt ?? undefined,
       changeFrequency: "daily",
       priority: 0.8,
+      alternates: {
+        languages: {
+          en: "https://crady.net/ranking",
+          ko: "https://crady.net/ko/ranking",
+          "x-default": "https://crady.net/ranking",
+        },
+      },
+    },
+    {
+      url: "https://crady.net/ko/ranking",
+      lastModified: mostRecentCalculatedAt ?? undefined,
+      changeFrequency: "daily",
+      priority: 0.8,
+      alternates: {
+        languages: {
+          en: "https://crady.net/ranking",
+          ko: "https://crady.net/ko/ranking",
+          "x-default": "https://crady.net/ranking",
+        },
+      },
     },
     {
       url: "https://crady.net/calendar",
       lastModified: mostRecentCalculatedAt ?? undefined,
       changeFrequency: "daily",
       priority: 0.8,
+      alternates: {
+        languages: {
+          en: "https://crady.net/calendar",
+          ko: "https://crady.net/ko/calendar",
+          "x-default": "https://crady.net/calendar",
+        },
+      },
+    },
+    {
+      url: "https://crady.net/ko/calendar",
+      lastModified: mostRecentCalculatedAt ?? undefined,
+      changeFrequency: "daily",
+      priority: 0.8,
+      alternates: {
+        languages: {
+          en: "https://crady.net/calendar",
+          ko: "https://crady.net/ko/calendar",
+          "x-default": "https://crady.net/calendar",
+        },
+      },
     },
     {
       url: "https://crady.net/magazine",
@@ -65,15 +131,50 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: mostRecentCalculatedAt ?? undefined,
       changeFrequency: "monthly",
       priority: 0.3,
+      alternates: {
+        languages: {
+          en: "https://crady.net/about",
+          ko: "https://crady.net/ko/about",
+          "x-default": "https://crady.net/about",
+        },
+      },
+    },
+    {
+      url: "https://crady.net/ko/about",
+      lastModified: mostRecentCalculatedAt ?? undefined,
+      changeFrequency: "monthly",
+      priority: 0.3,
+      alternates: {
+        languages: {
+          en: "https://crady.net/about",
+          ko: "https://crady.net/ko/about",
+          "x-default": "https://crady.net/about",
+        },
+      },
     },
   ];
 
-  const tickerEntries: MetadataRoute.Sitemap = snapshot.map((etf) => ({
-    url: `https://crady.net/${etf.ticker.toLowerCase()}`,
-    lastModified: etf.calculatedAt ? new Date(etf.calculatedAt) : undefined,
-    changeFrequency: "daily",
-    priority: 0.9,
-  }));
+  const tickerEntries: MetadataRoute.Sitemap = snapshot.flatMap((etf) => {
+    const enUrl = `https://crady.net/${etf.ticker.toLowerCase()}`;
+    const koUrl = `https://crady.net/ko/${etf.ticker.toLowerCase()}`;
+    const languages = { en: enUrl, ko: koUrl, "x-default": enUrl };
+    return [
+      {
+        url: enUrl,
+        lastModified: etf.calculatedAt ? new Date(etf.calculatedAt) : undefined,
+        changeFrequency: "daily" as const,
+        priority: 0.9,
+        alternates: { languages },
+      },
+      {
+        url: koUrl,
+        lastModified: etf.calculatedAt ? new Date(etf.calculatedAt) : undefined,
+        changeFrequency: "daily" as const,
+        priority: 0.9,
+        alternates: { languages },
+      },
+    ];
+  });
 
   const hubEntries: MetadataRoute.Sitemap = HUB_IDS.map((slug) => ({
     url: `https://crady.net/magazine/${slug}`,
