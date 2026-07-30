@@ -1,6 +1,7 @@
 import { providerLabel, type ComparisonPeer } from "@/lib/data";
 import type { ArticleData } from "./data";
 import type { ArticleTypeId, FaqItem } from "./types";
+import { describeTiming, describeTimingKo } from "./timing";
 
 function fmtMoney(n: number | null | undefined, digits = 4): string {
   return n != null ? `$${n.toFixed(digits)}` : "not yet available";
@@ -83,9 +84,9 @@ export function buildFaqItems(
           : `${ticker}'s payout cadence hasn't been determined yet from its distribution history.`,
       },
       {
-        question: `Is ${ticker}'s next dividend expected this week or next week?`,
+        question: `Is ${ticker}'s next dividend expected this week, next week, this month, or next month?`,
         answer: prediction?.target_pay_date
-          ? `Based on CRADY's forecast, ${ticker}'s next payment date is ${prediction.target_pay_date} — see the highlight box above for exactly how soon that is.`
+          ? `${ticker}'s next dividend is expected ${describeTiming(prediction.target_pay_date) ?? "soon"}, on ${prediction.target_pay_date}.`
           : `CRADY doesn't have a forecast date for ${ticker} yet.`,
       },
       {
@@ -306,9 +307,9 @@ export function buildFaqItemsKo(
           : `${ticker}의 배당 주기가 아직 확인되지 않았습니다.`,
       },
       {
-        question: `${ticker} 배당은 이번 주인가요, 다음 주인가요?`,
+        question: `${ticker} 배당은 이번 주, 다음 주, 이번 달, 다음 달 중 언제인가요?`,
         answer: prediction?.target_pay_date
-          ? `CRADY 예측 기준 ${ticker}의 다음 지급일은 ${prediction.target_pay_date}입니다 — 위 요약에서 정확한 시점을 확인하세요.`
+          ? `${ticker}의 다음 배당은 ${describeTimingKo(prediction.target_pay_date) ?? "곧"} (${prediction.target_pay_date}) 지급될 것으로 예상됩니다.`
           : `${ticker}의 다음 지급 예측 데이터가 아직 없습니다.`,
       },
       {

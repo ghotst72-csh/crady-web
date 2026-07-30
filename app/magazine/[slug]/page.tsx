@@ -183,7 +183,13 @@ export default async function MagazinePage({
     dateModified: lastUpdated,
   });
   const faqJsonLd = buildFaqJsonLd([...faqItems, ...faqItemsKo]);
-  const webPageJsonLd = buildWebPageJsonLd({ name: meta.h1, description: meta.description, url });
+  const webPageJsonLd = buildWebPageJsonLd({
+    name: meta.h1,
+    description: meta.description,
+    url,
+    speakableSelectors:
+      type === "next-dividend-prediction" ? ["#featured-snippet", "#ai-summary"] : undefined,
+  });
   // Dataset schema for the real historical distribution table this page
   // shows (next-dividend-prediction's row table) — only when there's
   // actual tabular data behind it, not a generic Dataset stub.
@@ -243,7 +249,7 @@ export default async function MagazinePage({
 
       <div id="magazine-article-body" className="mt-8 space-y-10">
         {sections.map((section) => (
-          <section key={section.id}>
+          <section key={section.id} id={section.id}>
             {section.id !== "next-dividend-highlight" && section.id !== "featured-snippet" && (
               <h2 className="text-lg sm:text-xl font-bold mb-3">{section.heading}</h2>
             )}

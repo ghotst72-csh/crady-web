@@ -21,22 +21,34 @@ const BASE_URL = process.argv[2] ?? "http://localhost:3000";
 // ANY of its variant substrings (checked case-insensitively) appears in the
 // page's visible text. No "record date" intent — CRADY doesn't track that
 // field, so nothing claims to answer it (see lib/magazine/sections.tsx
-// dividendTimelineSection).
+// dividendTimelineSection). The first 15 are the exact Magazine 4.0 target
+// list; the rest carry over from 3.0's broader coverage tracking.
 const EN_INTENTS = [
-  { label: "dividend", variants: ["{t} dividend"] },
-  { label: "dividend date", variants: ["{t} dividend date", "dividend date"] },
-  { label: "next dividend", variants: ["next {t} dividend", "{t}'s next dividend", "next dividend"] },
-  { label: "dividend prediction/forecast", variants: ["dividend prediction", "dividend forecast", "predicted"] },
-  { label: "ex-dividend", variants: ["ex-dividend", "ex dividend"] },
-  { label: "payment date", variants: ["payment date"] },
+  { label: "TSLY dividend", variants: ["{t} dividend"] },
+  { label: "TSLY next dividend", variants: ["next {t} dividend", "{t}'s next dividend", "next dividend"] },
+  { label: "TSLY dividend prediction", variants: ["dividend prediction"] },
+  { label: "TSLY dividend forecast", variants: ["dividend forecast"] },
+  { label: "TSLY ex dividend date", variants: ["ex-dividend date", "ex dividend date"] },
+  { label: "TSLY payment date", variants: ["payment date"] },
+  { label: "TSLY dividend calendar", variants: ["dividend calendar"] },
+  { label: "TSLY monthly dividend", variants: ["monthly dividend"] },
+  { label: "TSLY dividend history", variants: ["dividend history"] },
+  { label: "TSLY expected dividend", variants: ["expected dividend", "expected {t} dividend"] },
+  // Month+year is date-relative (the page freshens automatically rather
+  // than minting a URL per month — see describeTiming/monthYearLabel in
+  // lib/magazine/timing.ts), so this checks the PATTERN via regex against
+  // the current month/year rather than a hardcoded "August 2026".
+  { label: "TSLY dividend {current Month Year}", regex: true },
+  { label: "TSLY dividend this month", variants: ["later this month", "this month"] },
+  { label: "TSLY dividend next month", variants: ["next month"] },
+  { label: "TSLY dividend this week", variants: ["this week"] },
+  { label: "TSLY dividend next week", variants: ["next week"] },
+  { label: "ex-dividend (general)", variants: ["ex-dividend", "ex dividend"] },
   { label: "distribution", variants: ["distribution"] },
-  { label: "dividend calendar", variants: ["dividend calendar"] },
   { label: "dividend yield", variants: ["dividend yield", "annualized yield"] },
-  { label: "dividend history", variants: ["dividend history"] },
   { label: "dividend safety", variants: ["dividend safe", "dividend safety", "is risky"] },
-  { label: "monthly/weekly dividend", variants: ["monthly dividend", "weekly dividend"] },
+  { label: "weekly dividend", variants: ["weekly dividend"] },
   { label: "announcement/declared", variants: ["announce", "declared"] },
-  { label: "this week/next week", variants: ["this week", "next week"] },
   { label: "trend (increase/decrease)", variants: ["increase", "decrease", "trend"] },
   { label: "confidence", variants: ["confidence"] },
   { label: "comparison", variants: [" vs ", "compare"] },
@@ -99,6 +111,70 @@ function stripTags(html) {
     .trim();
 }
 
+const MONTH_NAMES = [
+  "january", "february", "march", "april", "may", "june",
+  "july", "august", "september", "october", "november", "december",
+];
+
+/** "dividend" and ANY "{Month} {Year}" pattern appearing within ~40
+ * characters of each other — close enough to read as one natural
+ * phrase/clause ("CRADY's TSLY dividend forecast for August 2026 is...")
+ * without requiring an exact contiguous substring, which real prose rarely
+ * is. NOT pinned to the current calendar month: a ticker's next predicted
+ * payment can fall in a later month than "now" (e.g. a monthly payer whose
+ * next date is 5 weeks out), and the page correctly shows THAT payment's
+ * month — checking only against today's month penalized every ticker
+ * whose forecast wasn't due this exact month, which was a bug in the
+ * check, not the content. */
+function hasMonthYearDividendMention(bodyText) {
+  const monthYearRe = new RegExp(`\\b(${MONTH_NAMES.join("|")}) (20\\d{2})\\b`, "g");
+  let m;
+  while ((m = monthYearRe.exec(bodyText))) {
+    const windowStart = Math.max(0, m.index - 40);
+    const window = bodyText.slice(windowStart, m.index + 20);
+    if (window.includes("dividend")) return true;
+  }
+  return false;
+}
+
+/** FAQ answers that point to "above"/"below" WITHOUT having said much of
+ * anything first aren't self-contained — they read as incomplete out of
+ * context, which is exactly how Featured Snippet / AI Overview extraction
+ * shows them. Catches regressions of the bug fixed in Magazine 4.0 (see
+ * lib/magazine/faq.ts — the "this week or next week" question used to
+ * answer only "see the highlight box above", no data of its own).
+ *
+ * A digit-presence check was tried first and produced false positives:
+ * "TSMY, ULTY, WNTR are other YieldMax funds tracked by CRADY. See the
+ * comparison ... below" names three real tickers — genuinely substantive
+ * — but has no digits. A minimum-length check on the text before the
+ * pointer is the more reliable signal: it's language- and
+ * punctuation-agnostic (works whether the transition is ". ", " — ", or
+ * nothing at all) and only flags answers that are ACTUALLY thin before
+ * the pointer, not ones that happen to lack numerals. */
+function extractFaqSelfContainment(html) {
+  const scripts = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)];
+  const issues = [];
+  const MIN_SUBSTANTIVE_CHARS = 25;
+  for (const [, json] of scripts) {
+    let parsed;
+    try {
+      parsed = JSON.parse(json);
+    } catch {
+      continue;
+    }
+    if (parsed["@type"] !== "FAQPage") continue;
+    for (const entry of parsed.mainEntity ?? []) {
+      const answer = (entry.acceptedAnswer?.text ?? "").toLowerCase();
+      const pointerMatch = answer.match(/above|below|위 |아래/);
+      if (!pointerMatch) continue;
+      const before = answer.slice(0, pointerMatch.index).trim();
+      if (before.length < MIN_SUBSTANTIVE_CHARS) issues.push(entry.name);
+    }
+  }
+  return issues;
+}
+
 async function auditTicker(ticker) {
   const url = `${BASE_URL}/magazine/${ticker.toLowerCase()}-next-dividend-prediction`;
   const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
@@ -108,12 +184,15 @@ async function auditTicker(ticker) {
   const bodyHtml = extractBalancedDivContent(html, "magazine-article-body");
   const bodyText = normalize(stripTags(bodyHtml));
   const sectionCount = (bodyHtml.match(/<h2[^>]*>/g) ?? []).length + 1; // +1 for the headingless featured snippet
+  const faqIssues = extractFaqSelfContainment(html);
 
   function checkIntents(intents) {
     const covered = [];
     const missing = [];
     for (const intent of intents) {
-      const hit = intent.variants.some((v) => bodyText.includes(normalize(v.replace("{t}", ticker))));
+      const hit = intent.regex
+        ? hasMonthYearDividendMention(bodyText)
+        : intent.variants.some((v) => bodyText.includes(normalize(v.replace("{t}", ticker))));
       (hit ? covered : missing).push(intent.label);
     }
     return { covered, missing };
@@ -153,6 +232,7 @@ async function auditTicker(ticker) {
     koCovered: ko.covered.length,
     koMissing: ko.missing,
     stuffed,
+    faqIssues,
   };
 }
 
@@ -210,6 +290,15 @@ async function main() {
   console.log(`\nLowest-coverage tickers:`);
   for (const w of worst) {
     console.log(`  ${w.ticker}: ${w.total}/${w.max} intents covered`);
+  }
+
+  const withFaqIssues = results.filter((r) => r.faqIssues.length > 0);
+  console.log(
+    `\nFAQ answers that lean on "see above/below" instead of stating the fact ` +
+      `(hurts Featured Snippet / AI Overview extraction): ${withFaqIssues.length} ticker(s)`
+  );
+  for (const r of withFaqIssues) {
+    console.log(`  ${r.ticker}: ${r.faqIssues.join(" | ")}`);
   }
 
   console.log("\nDone.");

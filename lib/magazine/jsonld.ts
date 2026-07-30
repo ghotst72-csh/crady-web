@@ -28,8 +28,20 @@ export function buildArticleJsonLd(opts: {
 /** A real, correct schema.org type (unlike "Table", which isn't a
  * standalone type Google acts on, or "FinancialService", which would
  * misrepresent CRADY as a financial-services provider rather than an
- * information site — neither is added; see the Magazine 3.0 report). */
-export function buildWebPageJsonLd(opts: { name: string; description: string; url: string }) {
+ * information site — neither is added; see the Magazine 3.0 report).
+ * `speakableSelectors` (Magazine 4.0), when given, adds a
+ * SpeakableSpecification pointing at the page's self-contained,
+ * factual passages (the featured-snippet lead and the rule-based AI
+ * summary) — the two blocks written specifically to stand alone out of
+ * context, which is what both voice/speakable extraction and Featured
+ * Snippet / AI Overview selection need. Never pointed at FAQ or table
+ * markup, which read poorly out of context. */
+export function buildWebPageJsonLd(opts: {
+  name: string;
+  description: string;
+  url: string;
+  speakableSelectors?: string[];
+}) {
   return {
     "@context": "https://schema.org",
     "@type": "WebPage",
@@ -37,6 +49,14 @@ export function buildWebPageJsonLd(opts: { name: string; description: string; ur
     description: opts.description,
     url: opts.url,
     isPartOf: { "@type": "WebSite", name: "CRADY", url: "https://crady.net" },
+    ...(opts.speakableSelectors && opts.speakableSelectors.length > 0
+      ? {
+          speakable: {
+            "@type": "SpeakableSpecification",
+            cssSelector: opts.speakableSelectors,
+          },
+        }
+      : {}),
   };
 }
 
