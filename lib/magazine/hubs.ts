@@ -6,7 +6,10 @@ export type HubId =
   | "yieldmax-etfs"
   | "roundhill-etfs"
   | "defiance-etfs"
-  | "highest-dividend-etfs";
+  | "highest-dividend-etfs"
+  | "etf-dividend-forecast"
+  | "best-covered-call-etfs"
+  | "upcoming-dividend-etfs";
 
 export type HubDefinition = {
   slug: HubId;
@@ -74,6 +77,33 @@ export const HUB_DEFINITIONS: Record<HubId, HubDefinition> = {
       "The highest-yielding dividend ETFs tracked by CRADY, ranked by estimated annualized distribution yield.",
     filter: (e) => e.annualYieldPct != null,
     sort: byYieldDesc,
+  },
+  "etf-dividend-forecast": {
+    slug: "etf-dividend-forecast",
+    title: "ETF Dividend Forecast (2026) | Highest-Confidence Predictions",
+    h1: "ETF Dividend Forecast",
+    description:
+      "ETFs with CRADY's highest-confidence next-dividend predictions, ranked by prediction confidence score rather than yield — the funds whose next payment date and amount are most reliably forecastable right now.",
+    filter: (e) => e.nextPredictedConfidence != null,
+    sort: (a, b) => (b.nextPredictedConfidence ?? -1) - (a.nextPredictedConfidence ?? -1),
+  },
+  "best-covered-call-etfs": {
+    slug: "best-covered-call-etfs",
+    title: "Best Covered Call ETFs (2026) | Ranked by CRADY Score",
+    h1: "Best Covered Call ETFs",
+    description:
+      "Covered-call and options-income ETFs ranked by CRADY score — a safety-adjusted quality measure that weighs volatility and dividend stability alongside yield, not raw yield alone.",
+    filter: (e) => e.cradyScore != null,
+    sort: (a, b) => (b.cradyScore ?? -1) - (a.cradyScore ?? -1),
+  },
+  "upcoming-dividend-etfs": {
+    slug: "upcoming-dividend-etfs",
+    title: "Upcoming Dividend ETFs | Sorted by Next Payment Date",
+    h1: "Upcoming Dividend ETFs",
+    description:
+      "ETFs with a registered next-dividend prediction, sorted by the soonest upcoming payment date — which funds are paying next, not which pay the most.",
+    filter: (e) => e.nextPredictedDate != null,
+    sort: (a, b) => (a.nextPredictedDate! < b.nextPredictedDate! ? -1 : 1),
   },
 };
 

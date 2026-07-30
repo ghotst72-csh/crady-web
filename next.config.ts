@@ -28,6 +28,19 @@ const nextConfig: NextConfig = {
               destination: "/magazine",
               permanent: true,
             },
+            // Magazine 2.0 keyword-variant aliases: these all describe the
+            // exact same ranked-list content as an existing hub. Rather than
+            // rendering a second near-identical page per synonym (a doorway-
+            // page pattern), each variant 308s to the one real hub page —
+            // consolidating ranking signal onto a single canonical URL while
+            // still matching the search phrase.
+            { source: "/magazine/highest-yield-etfs", destination: "/magazine/highest-dividend-etfs", permanent: true },
+            { source: "/magazine/top-dividend-etfs-2026", destination: "/magazine/highest-dividend-etfs", permanent: true },
+            { source: "/magazine/monthly-income-etfs", destination: "/magazine/monthly-dividend-etfs", permanent: true },
+            { source: "/magazine/weekly-income-etfs", destination: "/magazine/weekly-dividend-etfs", permanent: true },
+            { source: "/magazine/yieldmax-dividend-predictions", destination: "/magazine/yieldmax-etfs", permanent: true },
+            { source: "/magazine/roundhill-dividend-predictions", destination: "/magazine/roundhill-etfs", permanent: true },
+            { source: "/magazine/defiance-dividend-predictions", destination: "/magazine/defiance-etfs", permanent: true },
           ];
         },
       }),

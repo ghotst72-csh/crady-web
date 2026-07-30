@@ -8,6 +8,8 @@ import {
   getDistributionsSince,
   getNextPrediction,
   getSameProviderEtfs,
+  getFutureSchedule,
+  getComparisonPeer,
   computeRunRateAnnualYieldPct,
   type EtfRow,
   type RiskMetricsRow,
@@ -15,6 +17,7 @@ import {
   type PriceHistoryRow,
   type DistributionRow,
   type NextPredictionRow,
+  type ComparisonPeer,
 } from "@/lib/data";
 
 /** Everything a magazine section might need for one ticker, fetched once
@@ -28,6 +31,13 @@ export type ArticleData = {
   price: PriceHistoryRow | null;
   priceHistory: PriceHistoryRow[];
   distributions: DistributionRow[];
+  /** Longer paid-distribution window for dividend-history's year-by-year
+   * breakdown — kept separate from `distributions` (12 rows) so the
+   * existing next-dividend-prediction table doesn't silently grow. */
+  distributionsExtended: DistributionRow[];
+  /** Scraped future pay/ex dates with no amount yet — the provider's
+   * published schedule, distinct from the single predicted next payment. */
+  futureSchedule: { ex_date: string; pay_date: string }[];
   prediction: NextPredictionRow | null;
   siblings: { ticker: string; name: string | null }[];
   annualYieldPct: number | null;
@@ -45,17 +55,29 @@ export async function getArticleData(rawTicker: string): Promise<ArticleData | n
   const etf = await getEtf(ticker);
   if (!etf) return null;
 
-  const [risk, regime, price, priceHistory, distributions, recentDistributions, prediction, siblings] =
-    await Promise.all([
-      getRiskMetrics(ticker),
-      getRegimeProfile(ticker),
-      getLatestPrice(ticker),
-      getPriceHistory(ticker, 30),
-      getDistributions(ticker, 12),
-      getDistributionsSince(ticker, 90),
-      getNextPrediction(ticker),
-      getSameProviderEtfs(etf.provider_id, ticker, 6),
-    ]);
+  const [
+    risk,
+    regime,
+    price,
+    priceHistory,
+    distributions,
+    distributionsExtended,
+    futureSchedule,
+    recentDistributions,
+    prediction,
+    siblings,
+  ] = await Promise.all([
+    getRiskMetrics(ticker),
+    getRegimeProfile(ticker),
+    getLatestPrice(ticker),
+    getPriceHistory(ticker, 30),
+    getDistributions(ticker, 12),
+    getDistributions(ticker, 40),
+    getFutureSchedule(ticker, 30),
+    getDistributionsSince(ticker, 90),
+    getNextPrediction(ticker),
+    getSameProviderEtfs(etf.provider_id, ticker, 6),
+  ]);
 
   const annualYieldPct = computeRunRateAnnualYieldPct(
     recentDistributions,
@@ -79,6 +101,8 @@ export async function getArticleData(rawTicker: string): Promise<ArticleData | n
     price,
     priceHistory,
     distributions,
+    distributionsExtended,
+    futureSchedule,
     prediction,
     siblings,
     annualYieldPct,
@@ -86,4 +110,11 @@ export async function getArticleData(rawTicker: string): Promise<ArticleData | n
     changeFromLastPct,
     payoutFrequency: isKnown(etf.payout_frequency) ? etf.payout_frequency : null,
   };
+}
+
+/** Fetched only for comparison-type pages — a same-provider sibling isn't
+ * always present, so callers should treat a null return as "no comparison
+ * page for this ticker" rather than rendering a thin one. */
+export async function getComparisonPeerData(ticker: string): Promise<ComparisonPeer | null> {
+  return getComparisonPeer(ticker);
 }

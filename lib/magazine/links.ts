@@ -3,12 +3,26 @@ import type { ArticleData } from "./data";
 import type { ArticleTypeId } from "./types";
 import { articleSlug } from "./recipes";
 import { HUB_DEFINITIONS, type HubId } from "./hubs";
+import type { CalendarHubId } from "./calendarHubs";
+import type { StandalonePageId } from "./standalone";
 
-const ALL_TYPES: ArticleTypeId[] = ["next-dividend-prediction", "dividend-guide", "risk-analysis"];
+// dividend-calendar/dividend-history are safe to always link to (they exist
+// for every ticker, only gated indexable-vs-noindex like risk-analysis, not
+// gated present-vs-absent). "comparison" is deliberately excluded here — it
+// only exists for tickers with a same-provider peer, and is linked
+// separately below only when one was actually resolved for this page.
+const ALL_TYPES: ArticleTypeId[] = [
+  "next-dividend-prediction",
+  "dividend-guide",
+  "risk-analysis",
+  "dividend-calendar",
+  "dividend-history",
+];
 
 export function buildInternalLinks(
   data: ArticleData,
-  currentType: ArticleTypeId
+  currentType: ArticleTypeId,
+  extra?: { comparisonPeerTicker?: string | null }
 ): { href: string; label: string }[] {
   const links: { href: string; label: string }[] = [];
 
@@ -17,6 +31,13 @@ export function buildInternalLinks(
     links.push({
       href: `/magazine/${articleSlug(data.ticker, type)}`,
       label: `${data.ticker} ${ARTICLE_TYPE_LABEL[type]}`,
+    });
+  }
+
+  if (currentType !== "comparison" && extra?.comparisonPeerTicker) {
+    links.push({
+      href: `/magazine/${articleSlug(data.ticker, "comparison")}`,
+      label: `${data.ticker} vs ${extra.comparisonPeerTicker}`,
     });
   }
 
@@ -33,11 +54,29 @@ export function buildInternalLinks(
   if (data.etf.provider_id === "yieldmax") hubCandidates.push("yieldmax-etfs");
   if (data.etf.provider_id === "roundhill") hubCandidates.push("roundhill-etfs");
   if (data.etf.provider_id === "defiance") hubCandidates.push("defiance-etfs");
-  hubCandidates.push("highest-dividend-etfs");
+  hubCandidates.push("highest-dividend-etfs", "best-covered-call-etfs", "etf-dividend-forecast");
 
   for (const hub of hubCandidates) {
     const def = HUB_DEFINITIONS[hub];
     links.push({ href: `/magazine/${hub}`, label: def.h1 });
+  }
+
+  const calendarHubCandidates: { slug: CalendarHubId; label: string }[] = [
+    { slug: "dividend-calendar-this-week", label: "Dividend Calendar — This Week" },
+  ];
+  if (data.etf.provider_id === "yieldmax") {
+    calendarHubCandidates.push({ slug: "yieldmax-dividend-calendar", label: "YieldMax Dividend Calendar" });
+  }
+  for (const hub of calendarHubCandidates) {
+    links.push({ href: `/magazine/${hub.slug}`, label: hub.label });
+  }
+
+  const standalonePages: { slug: StandalonePageId; label: string }[] = [
+    { slug: "tax-guide", label: "Covered Call ETF Dividend Tax Guide" },
+    { slug: "how-to-buy", label: "How to Buy Dividend ETFs" },
+  ];
+  for (const page of standalonePages) {
+    links.push({ href: `/magazine/${page.slug}`, label: page.label });
   }
 
   links.push({ href: `/${data.ticker.toLowerCase()}`, label: `${data.ticker} Full ETF Profile` });

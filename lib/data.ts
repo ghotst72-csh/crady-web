@@ -236,6 +236,98 @@ export async function getDistributionsSince(
   return data ?? [];
 }
 
+/** Scraped future payment dates with no amount yet (the provider's published
+ * schedule, before CRADY estimates a dollar figure) — the real, non-guessed
+ * data source behind a "dividend calendar" page, distinct from the single
+ * next-payment prediction shown elsewhere. */
+export async function getFutureSchedule(
+  ticker: string,
+  limit = 30
+): Promise<{ ex_date: string; pay_date: string }[]> {
+  const today = new Date().toISOString().slice(0, 10);
+  const { data, error } = await supabase
+    .from("distributions")
+    .select("ex_date, pay_date")
+    .eq("ticker", ticker)
+    .is("amount", null)
+    .gte("pay_date", today)
+    .order("pay_date", { ascending: true })
+    .limit(limit);
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Bulk equivalent of hasDistributionOrStrategyContent (lib/magazine/
+ * quality.ts) — which tickers have EITHER a real paid-distribution record
+ * OR real strategy/description copy, used by sitemap.ts to gate
+ * dividend-guide/dividend-history the same way generateMetadata gates them,
+ * without a per-ticker query. */
+export async function getTickersWithDistributionOrStrategyContent(): Promise<Set<string>> {
+  const [distRes, etfRes] = await Promise.all([
+    supabase.from("distributions").select("ticker").not("amount", "is", null),
+    supabase.from("etfs").select("ticker, investment_strategy, long_description"),
+  ]);
+  if (distRes.error) throw distRes.error;
+  if (etfRes.error) throw etfRes.error;
+
+  const result = new Set<string>((distRes.data ?? []).map((r) => r.ticker));
+  for (const e of etfRes.data ?? []) {
+    if (e.investment_strategy || e.long_description) result.add(e.ticker);
+  }
+  return result;
+}
+
+/** Which tickers have at least one scraped future payment date — the bulk
+ * equivalent of getFutureSchedule, used by sitemap.ts to gate
+ * dividend-calendar URLs the same way generateMetadata gates them (see
+ * lib/magazine/quality.ts hasFutureSchedule) without a per-ticker query. */
+export async function getTickersWithFutureSchedule(): Promise<Set<string>> {
+  const today = new Date().toISOString().slice(0, 10);
+  const { data, error } = await supabase
+    .from("distributions")
+    .select("ticker")
+    .is("amount", null)
+    .gte("pay_date", today);
+  if (error) throw error;
+  return new Set((data ?? []).map((r) => r.ticker));
+}
+
+export type ComparisonPeer = {
+  ticker: string;
+  name: string | null;
+  provider_id: string;
+  payoutFrequency: string | null;
+  annualYieldPct: number | null;
+  cradyScore: number | null;
+  riskLevel: string | null;
+};
+
+/** A lean, single-ticker fetch for the "other side" of a comparison page —
+ * only the fields a comparison table actually shows, instead of the full
+ * ArticleData bundle (price history, distributions, prediction, etc.) that
+ * the primary ticker needs. */
+export async function getComparisonPeer(ticker: string): Promise<ComparisonPeer | null> {
+  const [etf, risk, price, distributions] = await Promise.all([
+    getEtf(ticker),
+    getRiskMetrics(ticker),
+    getLatestPrice(ticker),
+    getDistributionsSince(ticker, 90),
+  ]);
+  if (!etf) return null;
+  return {
+    ticker,
+    name: etf.name,
+    provider_id: etf.provider_id,
+    payoutFrequency:
+      etf.payout_frequency && etf.payout_frequency.toLowerCase() !== "unknown"
+        ? etf.payout_frequency
+        : null,
+    annualYieldPct: computeRunRateAnnualYieldPct(distributions, price?.close_price ?? null),
+    cradyScore: risk?.crady_score ?? null,
+    riskLevel: risk?.risk_level ?? null,
+  };
+}
+
 /** Run-rate annualized yield: trailing `windowDays` of payments extrapolated
  * to a full year. Same methodology as getHomeSnapshot below, so a ticker
  * never shows two different "annual yield" numbers depending on the page. */
@@ -500,18 +592,33 @@ export type WeeklyDividend = {
 
 /** Distributions (paid or scheduled) with pay_date in the next 7 days. */
 export async function getThisWeekDividends(limit = 12): Promise<WeeklyDividend[]> {
-  const today = new Date();
-  const in7days = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-  const todayStr = today.toISOString().slice(0, 10);
-  const in7Str = in7days.toISOString().slice(0, 10);
+  return getUpcomingDividendsInRange(7, limit);
+}
 
-  const { data, error } = await supabase
+/** Distributions (paid or scheduled) with pay_date in the next `days` days —
+ * the shared engine behind both "this month" and provider-wide calendar
+ * pages (getThisWeekDividends' 7-day case stays a thin wrapper for
+ * call-site clarity). */
+async function getUpcomingDividendsInRange(
+  days: number,
+  limit: number,
+  providerId?: string
+): Promise<WeeklyDividend[]> {
+  const today = new Date();
+  const until = new Date(today.getTime() + days * 24 * 60 * 60 * 1000);
+  const todayStr = today.toISOString().slice(0, 10);
+  const untilStr = until.toISOString().slice(0, 10);
+
+  let query = supabase
     .from("distributions")
     .select("ticker, provider_id, ex_date, pay_date, amount")
     .gte("pay_date", todayStr)
-    .lte("pay_date", in7Str)
+    .lte("pay_date", untilStr)
     .order("pay_date", { ascending: true })
     .limit(limit * 3);
+  if (providerId) query = query.eq("provider_id", providerId);
+
+  const { data, error } = await query;
   if (error) throw error;
 
   const rows = data ?? [];
@@ -532,6 +639,24 @@ export async function getThisWeekDividends(limit = 12): Promise<WeeklyDividend[]
     pay_date: r.pay_date,
     amount: r.amount,
   }));
+}
+
+/** Distributions (paid or scheduled) with pay_date in the next ~31 days —
+ * a genuinely different date window from getThisWeekDividends, not a
+ * reskinned copy (its member list changes week to week as dates roll off). */
+export async function getThisMonthDividends(limit = 60): Promise<WeeklyDividend[]> {
+  return getUpcomingDividendsInRange(31, limit);
+}
+
+/** Every upcoming (paid-or-scheduled) distribution for one provider, sorted
+ * chronologically — the "calendar" framing (grouped by date) as opposed to
+ * the existing per-provider hub's "ranked by yield" framing of the same
+ * ticker universe. */
+export async function getUpcomingDividendsByProvider(
+  providerId: string,
+  limit = 40
+): Promise<WeeklyDividend[]> {
+  return getUpcomingDividendsInRange(120, limit, providerId);
 }
 
 // ── 핵심 지표 요약 (4 number cards) ────────────────────────────────────────────

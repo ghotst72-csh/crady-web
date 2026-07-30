@@ -14,10 +14,19 @@ export type FaqItem = {
   answer: string;
 };
 
-export type ArticleTypeId = "next-dividend-prediction" | "dividend-guide" | "risk-analysis";
+export type ArticleTypeId =
+  | "next-dividend-prediction"
+  | "dividend-guide"
+  | "risk-analysis"
+  | "dividend-calendar"
+  | "dividend-history"
+  | "comparison";
 
 export const ARTICLE_TYPE_LABEL: Record<ArticleTypeId, string> = {
   "next-dividend-prediction": "Next Dividend Prediction",
   "dividend-guide": "Dividend Guide",
   "risk-analysis": "Risk Analysis",
+  "dividend-calendar": "Dividend Calendar",
+  "dividend-history": "Dividend History",
+  comparison: "Comparison",
 };

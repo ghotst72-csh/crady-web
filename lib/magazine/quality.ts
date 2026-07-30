@@ -15,3 +15,30 @@ export function hasRiskContent(risk: RiskMetricsRow | null): boolean {
 export function hasRiskContentFromSnapshot(e: EtfSnapshot): boolean {
   return e.cradyScore != null || e.riskLevel != null || e.dividendStabilityScore != null;
 }
+
+/** A dividend-calendar page for a ticker with no published future schedule
+ * renders as FAQ-only boilerplate — same thin-content shape as the
+ * risk-analysis case above, gated the same way (generateMetadata +
+ * sitemap.ts both call this so they can never disagree). */
+export function hasFutureSchedule(futureSchedule: { pay_date: string }[]): boolean {
+  return futureSchedule.length > 0;
+}
+
+/** dividend-guide and dividend-history both collapse to near-identical FAQ
+ * boilerplate for a ticker with zero recorded paid distributions and no
+ * strategy text (found via the expanded uniqueness audit: MDTE's guide and
+ * history pages hit 38.7% overlap — both pages had nothing to say beyond
+ * "no data yet" in slightly different words). A ticker with real
+ * distribution history OR real investment-strategy copy has enough
+ * genuinely different material for both pages to stay distinct; one with
+ * neither doesn't, regardless of word count. */
+export function hasDistributionOrStrategyContent(data: {
+  distributions: { amount: number | null }[];
+  etf: { investment_strategy: string | null; long_description: string | null };
+}): boolean {
+  return (
+    data.distributions.some((d) => d.amount != null) ||
+    !!data.etf.investment_strategy ||
+    !!data.etf.long_description
+  );
+}

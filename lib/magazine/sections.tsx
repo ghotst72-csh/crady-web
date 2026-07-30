@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { providerLabel } from "@/lib/data";
+import { providerLabel, type ComparisonPeer } from "@/lib/data";
 import { DividendStagePill } from "@/components/DividendLifecycle";
 import type { ArticleData } from "./data";
 import type { FaqItem, Section } from "./types";
@@ -525,6 +525,242 @@ export function faqSection(items: FaqItem[]): Section | null {
   return {
     id: "faq",
     heading: "Frequently Asked Questions",
+    body: (
+      <div className="not-prose divide-y divide-[var(--gray-100)]">
+        {items.map((item) => (
+          <div key={item.question} className="py-4 first:pt-0">
+            <div className="font-semibold text-sm">{item.question}</div>
+            <p className="mt-1.5 text-sm text-[var(--gray-600)]">{item.answer}</p>
+          </div>
+        ))}
+      </div>
+    ),
+  };
+}
+
+/** dividend-calendar's own content: the provider's published future
+ * pay/ex-date schedule as a forward-looking table. Deliberately NOT the
+ * amount-focused single-event highlight box on next-dividend-prediction —
+ * this shows however many dates are already scheduled, with no dollar
+ * figures (those aren't known yet for scraped-schedule rows), framed around
+ * "how many payments are already on the calendar." */
+export function upcomingScheduleSection(data: ArticleData): Section | null {
+  const { ticker, futureSchedule, etf } = data;
+  if (futureSchedule.length === 0) return null;
+
+  return {
+    id: "upcoming-schedule",
+    heading: `${ticker} Upcoming Dividend Calendar`,
+    body: (
+      <div>
+        <p>
+          {providerLabel(etf.provider_id)} has already published{" "}
+          {futureSchedule.length === 1 ? "one upcoming payment date" : `${futureSchedule.length} upcoming payment dates`}{" "}
+          for {ticker}. Exact per-payment amounts aren&apos;t announced this far ahead — see the{" "}
+          <Link href={`/magazine/${ticker.toLowerCase()}-next-dividend-prediction`} className="underline hover:text-black">
+            {ticker} Next Dividend Prediction
+          </Link>{" "}
+          for CRADY&apos;s estimate of the very next one.
+        </p>
+        <div className="not-prose border border-[var(--gray-200)] rounded-xl overflow-hidden mt-4">
+          <table className="w-full text-sm">
+            <thead className="bg-[var(--gray-50)] text-[var(--gray-500)]">
+              <tr>
+                <th className="text-left px-4 py-2 font-medium">Ex-Dividend Date</th>
+                <th className="text-left px-4 py-2 font-medium">Payment Date</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--gray-100)]">
+              {futureSchedule.map((s, i) => (
+                <tr key={`${s.ex_date}-${i}`}>
+                  <td className="px-4 py-2">{s.ex_date}</td>
+                  <td className="px-4 py-2">{s.pay_date}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    ),
+  };
+}
+
+/** dividend-history's year-by-year breakdown — a genuinely different
+ * presentation from the flat row table (next-dividend-prediction) and the
+ * single-paragraph aggregate (dividend-guide): grouped totals per calendar
+ * year, so a reader can see growth/decline across years rather than a list
+ * of individual payments. */
+export function yearlyBreakdownSection(data: ArticleData): Section | null {
+  const { ticker, distributionsExtended } = data;
+  const paid = distributionsExtended.filter((d) => d.amount != null);
+  if (paid.length === 0) return null;
+
+  const byYear = new Map<string, { total: number; count: number }>();
+  for (const d of paid) {
+    const year = d.pay_date.slice(0, 4);
+    const bucket = byYear.get(year) ?? { total: 0, count: 0 };
+    bucket.total += d.amount!;
+    bucket.count += 1;
+    byYear.set(year, bucket);
+  }
+  const years = [...byYear.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1));
+  const lifetimeTotal = paid.reduce((a, d) => a + d.amount!, 0);
+
+  return {
+    id: "yearly-breakdown",
+    heading: `${ticker} Dividend History by Year`,
+    body: (
+      <div>
+        <p>
+          Across {paid.length} recorded payments, {ticker} has paid a combined{" "}
+          <strong>${lifetimeTotal.toFixed(2)}</strong> per share on CRADY&apos;s record.
+        </p>
+        <div className="not-prose border border-[var(--gray-200)] rounded-xl overflow-hidden mt-4">
+          <table className="w-full text-sm">
+            <thead className="bg-[var(--gray-50)] text-[var(--gray-500)]">
+              <tr>
+                <th className="text-left px-4 py-2 font-medium">Year</th>
+                <th className="text-right px-4 py-2 font-medium">Payments</th>
+                <th className="text-right px-4 py-2 font-medium">Total Paid</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--gray-100)]">
+              {years.map(([year, bucket]) => (
+                <tr key={year}>
+                  <td className="px-4 py-2">{year}</td>
+                  <td className="px-4 py-2 text-right">{bucket.count}</td>
+                  <td className="px-4 py-2 text-right font-medium">${bucket.total.toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    ),
+  };
+}
+
+/** dividend-history's consistency angle — computed from the actual gaps
+ * between payment dates, not the DB's dividend_stability_score (that's
+ * riskAnalysisSection/dividendStabilitySection's own metric, on a different
+ * page, framed around risk rather than payment cadence). */
+export function paymentPatternSection(data: ArticleData): Section | null {
+  const { ticker, distributionsExtended, payoutFrequency } = data;
+  const paid = distributionsExtended.filter((d) => d.amount != null).slice().reverse();
+  if (paid.length < 3) return null;
+
+  const gaps: number[] = [];
+  for (let i = 1; i < paid.length; i++) {
+    const days = Math.round(
+      (new Date(paid[i].pay_date).getTime() - new Date(paid[i - 1].pay_date).getTime()) /
+        (1000 * 60 * 60 * 24)
+    );
+    if (days > 0) gaps.push(days);
+  }
+  if (gaps.length === 0) return null;
+
+  const avgGap = gaps.reduce((a, b) => a + b, 0) / gaps.length;
+  const maxGap = Math.max(...gaps);
+  const minGap = Math.min(...gaps);
+  const consistent = maxGap - minGap <= avgGap * 0.3;
+
+  return {
+    id: "payment-pattern",
+    heading: `How Consistent Is ${ticker}'s Payment Schedule?`,
+    body: (
+      <p>
+        Based on its last {paid.length} payments, {ticker} has paid out roughly every{" "}
+        <strong>{avgGap.toFixed(0)} days</strong> on average
+        {payoutFrequency ? ` (consistent with its ${payoutFrequency} schedule)` : ""}, ranging
+        from {minGap} to {maxGap} days between payments. {consistent
+          ? "That's a fairly tight, predictable cadence."
+          : "That's a wider range than a perfectly regular schedule, so exact timing can shift from cycle to cycle."}
+      </p>
+    ),
+  };
+}
+
+/** comparison's side-by-side data table — only rendered when a real
+ * same-provider peer with fetched data exists (getComparisonPeerData
+ * returning null means no comparison page is generated at all, see
+ * recipes.ts / quality.ts). */
+export function comparisonTableSection(data: ArticleData, peer: ComparisonPeer): Section | null {
+  const { ticker, annualYieldPct, risk, payoutFrequency } = data;
+
+  const rows: [string, string, string][] = [
+    ["Provider", providerLabel(data.etf.provider_id), providerLabel(peer.provider_id)],
+    ["Est. Annualized Yield", fmtPct(annualYieldPct), fmtPct(peer.annualYieldPct)],
+    ["CRADY Score", risk?.crady_score != null ? `${risk.crady_score.toFixed(1)}/100` : "—", peer.cradyScore != null ? `${peer.cradyScore.toFixed(1)}/100` : "—"],
+    ["Risk Level", risk?.risk_level ? (RISK_LABEL[risk.risk_level] ?? risk.risk_level) : "—", peer.riskLevel ? (RISK_LABEL[peer.riskLevel] ?? peer.riskLevel) : "—"],
+    ["Payout Frequency", payoutFrequency ?? "—", peer.payoutFrequency ?? "—"],
+  ];
+
+  return {
+    id: "comparison-table",
+    heading: `${ticker} vs ${peer.ticker}: Side-by-Side`,
+    body: (
+      <div className="not-prose border border-[var(--gray-200)] rounded-xl overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-[var(--gray-50)] text-[var(--gray-500)]">
+            <tr>
+              <th className="text-left px-4 py-2 font-medium">Metric</th>
+              <th className="text-right px-4 py-2 font-medium">{ticker}</th>
+              <th className="text-right px-4 py-2 font-medium">{peer.ticker}</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[var(--gray-100)]">
+            {rows.map(([label, a, b]) => (
+              <tr key={label}>
+                <td className="px-4 py-2 text-[var(--gray-500)]">{label}</td>
+                <td className="px-4 py-2 text-right font-medium">{a}</td>
+                <td className="px-4 py-2 text-right font-medium">{b}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    ),
+  };
+}
+
+/** comparison's editorial takeaway — computed from whichever data is
+ * actually available for both sides, not a fixed template sentence. */
+export function comparisonVerdictSection(data: ArticleData, peer: ComparisonPeer): Section | null {
+  const { ticker, annualYieldPct, risk } = data;
+  if (annualYieldPct == null && peer.annualYieldPct == null) return null;
+
+  const points: string[] = [];
+  if (annualYieldPct != null && peer.annualYieldPct != null) {
+    const higher = annualYieldPct > peer.annualYieldPct ? ticker : peer.ticker;
+    const diff = Math.abs(annualYieldPct - peer.annualYieldPct);
+    points.push(
+      `${higher} currently has the higher estimated yield, by about ${diff.toFixed(1)} percentage points.`
+    );
+  }
+  if (risk?.crady_score != null && peer.cradyScore != null) {
+    const better = risk.crady_score > peer.cradyScore ? ticker : peer.ticker;
+    points.push(`${better} carries the stronger CRADY score of the two.`);
+  }
+
+  return {
+    id: "comparison-verdict",
+    heading: `${ticker} or ${peer.ticker}: Which Should You Buy?`,
+    body: (
+      <p>
+        {points.join(" ")} Both funds are {providerLabel(data.etf.provider_id)} products in the
+        same category, so the choice usually comes down to whether you prioritize a higher
+        current yield or a more favorable risk profile — not personalized investment advice,
+        consider your own goals and risk tolerance.
+      </p>
+    ),
+  };
+}
+
+export function faqSectionKo(items: FaqItem[]): Section | null {
+  if (items.length === 0) return null;
+  return {
+    id: "faq-ko",
+    heading: "자주 묻는 질문",
     body: (
       <div className="not-prose divide-y divide-[var(--gray-100)]">
         {items.map((item) => (

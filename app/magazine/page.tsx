@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { getHomeSnapshot, providerLabel, type EtfSnapshot } from "@/lib/data";
 import { articleSlug } from "@/lib/magazine/recipes";
 import { HUB_DEFINITIONS } from "@/lib/magazine/hubs";
+import { CALENDAR_HUB_DEFINITIONS } from "@/lib/magazine/calendarHubs";
+import { STANDALONE_PAGES } from "@/lib/magazine/standalone";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { ArticleCard } from "@/components/magazine/ArticleCard";
 
@@ -140,17 +142,56 @@ export default async function MagazineIndexPage() {
         <CategorySection title="ETF Guides" items={guides.map(dividendGuideCard)} />
       )}
 
-      <div className="mt-10 flex flex-wrap gap-2">
-        {Object.values(HUB_DEFINITIONS).map((def) => (
-          <Link
-            key={def.slug}
-            href={`/magazine/${def.slug}`}
-            className="px-3 py-1.5 border border-[var(--gray-200)] rounded-full text-sm hover:border-black transition-colors"
-          >
-            {def.h1}
-          </Link>
-        ))}
-      </div>
+      <section className="mt-10 pt-8 border-t border-[var(--gray-200)]">
+        <h2 className="text-xs font-semibold text-[var(--gray-500)] uppercase tracking-wide mb-3">
+          Rankings
+        </h2>
+        <div className="flex flex-wrap gap-2">
+          {Object.values(HUB_DEFINITIONS).map((def) => (
+            <Link
+              key={def.slug}
+              href={`/magazine/${def.slug}`}
+              className="px-3 py-1.5 border border-[var(--gray-200)] rounded-full text-sm hover:border-black transition-colors"
+            >
+              {def.h1}
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-6">
+        <h2 className="text-xs font-semibold text-[var(--gray-500)] uppercase tracking-wide mb-3">
+          Calendars
+        </h2>
+        <div className="flex flex-wrap gap-2">
+          {Object.values(CALENDAR_HUB_DEFINITIONS).map((def) => (
+            <Link
+              key={def.slug}
+              href={`/magazine/${def.slug}`}
+              className="px-3 py-1.5 border border-[var(--gray-200)] rounded-full text-sm hover:border-black transition-colors"
+            >
+              {def.h1}
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-6">
+        <h2 className="text-xs font-semibold text-[var(--gray-500)] uppercase tracking-wide mb-3">
+          Guides
+        </h2>
+        <div className="flex flex-wrap gap-2">
+          {Object.values(STANDALONE_PAGES).map((def) => (
+            <Link
+              key={def.slug}
+              href={`/magazine/${def.slug}`}
+              className="px-3 py-1.5 border border-[var(--gray-200)] rounded-full text-sm hover:border-black transition-colors"
+            >
+              {def.h1}
+            </Link>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
