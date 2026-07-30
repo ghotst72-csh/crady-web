@@ -9,12 +9,30 @@ export function pickComparisonPeerTicker(
   providerId: string,
   allTickers: { ticker: string; provider_id: string }[]
 ): string | null {
+  const peers = pickComparisonPeerTickers(ticker, providerId, allTickers, 1);
+  return peers[0] ?? null;
+}
+
+/** Same round-robin idea, extended to up to `n` peers — the next `n`
+ * tickers after this one in the sorted, same-provider list (wrapping,
+ * de-duplicated, excluding self). Used by the comparison page's multi-peer
+ * table and the next-dividend-prediction quick-compare teaser. */
+export function pickComparisonPeerTickers(
+  ticker: string,
+  providerId: string,
+  allTickers: { ticker: string; provider_id: string }[],
+  n: number
+): string[] {
   const sameProvider = allTickers
     .filter((t) => t.provider_id === providerId)
     .map((t) => t.ticker)
     .sort();
-  if (sameProvider.length < 2) return null;
+  if (sameProvider.length < 2) return [];
   const index = sameProvider.indexOf(ticker);
-  if (index === -1) return null;
-  return sameProvider[(index + 1) % sameProvider.length];
+  if (index === -1) return [];
+  const out: string[] = [];
+  for (let i = 1; i <= Math.min(n, sameProvider.length - 1); i++) {
+    out.push(sameProvider[(index + i) % sameProvider.length]);
+  }
+  return out;
 }

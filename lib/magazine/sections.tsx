@@ -3,6 +3,7 @@ import { providerLabel, type ComparisonPeer } from "@/lib/data";
 import { DividendStagePill } from "@/components/DividendLifecycle";
 import type { ArticleData } from "./data";
 import type { FaqItem, Section } from "./types";
+import type { TrendWindow } from "./trend";
 
 const RISK_LABEL: Record<string, string> = {
   SAFE: "Safe",
@@ -16,6 +17,45 @@ function fmtMoney(n: number | null | undefined, digits = 4): string {
 }
 function fmtPct(n: number | null | undefined, digits = 1): string {
   return n != null ? `${n.toFixed(digits)}%` : "—";
+}
+
+/** "this week" / "next week" / "in about N weeks" framing for a future
+ * date — real, computed timing (not a fabricated countdown), the concrete
+ * answer to "이번주 배당" / "다음주 배당" / "TSLY dividend this week"-style
+ * queries without minting a separate page per week (see Magazine 3.0 scope
+ * notes: freshening one URL's content beats new URLs per week). */
+function describeTiming(dateStr: string | null | undefined): string | null {
+  if (!dateStr) return null;
+  const target = new Date(dateStr);
+  if (Number.isNaN(target.getTime())) return null;
+  const today = new Date();
+  const todayUTC = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+  const targetUTC = Date.UTC(target.getUTCFullYear(), target.getUTCMonth(), target.getUTCDate());
+  const diffDays = Math.round((targetUTC - todayUTC) / 86400000);
+  if (diffDays < 0) return null;
+  if (diffDays === 0) return "today";
+  if (diffDays === 1) return "tomorrow";
+  if (diffDays <= 7) return "this week";
+  if (diffDays <= 14) return "next week";
+  if (diffDays <= 31) return `in about ${Math.round(diffDays / 7)} weeks`;
+  return `in about ${Math.round(diffDays / 30)} months`;
+}
+
+function describeTimingKo(dateStr: string | null | undefined): string | null {
+  if (!dateStr) return null;
+  const target = new Date(dateStr);
+  if (Number.isNaN(target.getTime())) return null;
+  const today = new Date();
+  const todayUTC = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+  const targetUTC = Date.UTC(target.getUTCFullYear(), target.getUTCMonth(), target.getUTCDate());
+  const diffDays = Math.round((targetUTC - todayUTC) / 86400000);
+  if (diffDays < 0) return null;
+  if (diffDays === 0) return "오늘";
+  if (diffDays === 1) return "내일";
+  if (diffDays <= 7) return "이번 주";
+  if (diffDays <= 14) return "다음 주";
+  if (diffDays <= 31) return `약 ${Math.round(diffDays / 7)}주 후`;
+  return `약 ${Math.round(diffDays / 30)}개월 후`;
 }
 
 /** Turns generate_next_predictions.py's machine-readable prediction_method
@@ -680,40 +720,267 @@ export function paymentPatternSection(data: ArticleData): Section | null {
   };
 }
 
-/** comparison's side-by-side data table — only rendered when a real
- * same-provider peer with fetched data exists (getComparisonPeerData
- * returning null means no comparison page is generated at all, see
- * recipes.ts / quality.ts). */
-export function comparisonTableSection(data: ArticleData, peer: ComparisonPeer): Section | null {
+/** comparison's side-by-side data table — up to 3 peers (Magazine 3.0:
+ * "TSLY vs MSTY vs CONY vs NVDY", not just one). Only rendered when at
+ * least one real same-provider peer with fetched data exists
+ * (getComparisonPeersData returning empty means no comparison page is
+ * generated at all, see recipes.ts / quality.ts). */
+export function comparisonTableSection(data: ArticleData, peers: ComparisonPeer[]): Section | null {
+  if (peers.length === 0) return null;
   const { ticker, annualYieldPct, risk, payoutFrequency } = data;
 
-  const rows: [string, string, string][] = [
-    ["Provider", providerLabel(data.etf.provider_id), providerLabel(peer.provider_id)],
-    ["Est. Annualized Yield", fmtPct(annualYieldPct), fmtPct(peer.annualYieldPct)],
-    ["CRADY Score", risk?.crady_score != null ? `${risk.crady_score.toFixed(1)}/100` : "—", peer.cradyScore != null ? `${peer.cradyScore.toFixed(1)}/100` : "—"],
-    ["Risk Level", risk?.risk_level ? (RISK_LABEL[risk.risk_level] ?? risk.risk_level) : "—", peer.riskLevel ? (RISK_LABEL[peer.riskLevel] ?? peer.riskLevel) : "—"],
-    ["Payout Frequency", payoutFrequency ?? "—", peer.payoutFrequency ?? "—"],
+  const columns = [
+    { ticker, provider: data.etf.provider_id, yield: annualYieldPct, score: risk?.crady_score ?? null, riskLevel: risk?.risk_level ?? null, freq: payoutFrequency, self: true },
+    ...peers.map((p) => ({ ticker: p.ticker, provider: p.provider_id, yield: p.annualYieldPct, score: p.cradyScore, riskLevel: p.riskLevel, freq: p.payoutFrequency, self: false })),
   ];
+
+  const heading = peers.length === 1 ? `${ticker} vs ${peers[0].ticker}: Side-by-Side` : `${ticker} vs ${peers.map((p) => p.ticker).join(" vs ")}: Side-by-Side`;
 
   return {
     id: "comparison-table",
-    heading: `${ticker} vs ${peer.ticker}: Side-by-Side`,
+    heading,
+    body: (
+      <div className="not-prose border border-[var(--gray-200)] rounded-xl overflow-hidden overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-[var(--gray-50)] text-[var(--gray-500)]">
+            <tr>
+              <th className="text-left px-4 py-2 font-medium">Metric</th>
+              {columns.map((c) => (
+                <th key={c.ticker} className="text-right px-4 py-2 font-medium whitespace-nowrap">{c.ticker}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[var(--gray-100)]">
+            <tr>
+              <td className="px-4 py-2 text-[var(--gray-500)]">Provider</td>
+              {columns.map((c) => <td key={c.ticker} className="px-4 py-2 text-right font-medium">{providerLabel(c.provider)}</td>)}
+            </tr>
+            <tr>
+              <td className="px-4 py-2 text-[var(--gray-500)]">Est. Annualized Yield</td>
+              {columns.map((c) => <td key={c.ticker} className="px-4 py-2 text-right font-medium">{fmtPct(c.yield)}</td>)}
+            </tr>
+            <tr>
+              <td className="px-4 py-2 text-[var(--gray-500)]">CRADY Score</td>
+              {columns.map((c) => <td key={c.ticker} className="px-4 py-2 text-right font-medium">{c.score != null ? `${c.score.toFixed(1)}/100` : "—"}</td>)}
+            </tr>
+            <tr>
+              <td className="px-4 py-2 text-[var(--gray-500)]">Risk Level</td>
+              {columns.map((c) => <td key={c.ticker} className="px-4 py-2 text-right font-medium">{c.riskLevel ? (RISK_LABEL[c.riskLevel] ?? c.riskLevel) : "—"}</td>)}
+            </tr>
+            <tr>
+              <td className="px-4 py-2 text-[var(--gray-500)]">Payout Frequency</td>
+              {columns.map((c) => <td key={c.ticker} className="px-4 py-2 text-right font-medium capitalize">{c.freq ?? "—"}</td>)}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    ),
+  };
+}
+
+/** comparison's editorial takeaway — computed from whichever data is
+ * actually available, not a fixed template sentence. With multiple peers,
+ * names the single best-yield and best-score ticker across the whole set
+ * rather than a pairwise verdict. */
+export function comparisonVerdictSection(data: ArticleData, peers: ComparisonPeer[]): Section | null {
+  const { ticker, annualYieldPct, risk } = data;
+  if (peers.length === 0) return null;
+
+  const yieldCandidates: [string, number][] = [
+    ...(annualYieldPct != null ? [[ticker, annualYieldPct] as [string, number]] : []),
+    ...peers.filter((p) => p.annualYieldPct != null).map((p) => [p.ticker, p.annualYieldPct!] as [string, number]),
+  ];
+  const scoreCandidates: [string, number][] = [
+    ...(risk?.crady_score != null ? [[ticker, risk.crady_score] as [string, number]] : []),
+    ...peers.filter((p) => p.cradyScore != null).map((p) => [p.ticker, p.cradyScore!] as [string, number]),
+  ];
+
+  if (yieldCandidates.length === 0 && scoreCandidates.length === 0) return null;
+
+  const points: string[] = [];
+  if (yieldCandidates.length > 1) {
+    const [topTicker] = yieldCandidates.reduce((a, b) => (b[1] > a[1] ? b : a));
+    points.push(`${topTicker} currently has the highest estimated yield of the group.`);
+  }
+  if (scoreCandidates.length > 1) {
+    const [topTicker] = scoreCandidates.reduce((a, b) => (b[1] > a[1] ? b : a));
+    points.push(`${topTicker} carries the strongest CRADY score of the group.`);
+  }
+
+  const peerNames = peers.map((p) => p.ticker).join(", ");
+  const heading = peers.length === 1 ? `${ticker} or ${peers[0].ticker}: Which Should You Buy?` : `${ticker}, ${peerNames}: Which Should You Buy?`;
+
+  return {
+    id: "comparison-verdict",
+    heading,
+    body: (
+      <p>
+        {points.join(" ")} All funds shown are {providerLabel(data.etf.provider_id)} products in
+        the same category, so the choice usually comes down to whether you prioritize a higher
+        current yield or a more favorable risk profile — not personalized investment advice,
+        consider your own goals and risk tolerance.
+      </p>
+    ),
+  };
+}
+
+/** A 40-60 word, snippet-formatted lead paragraph — deliberately the FIRST
+ * thing on the page (rendered before nextDividendHighlight, no heading),
+ * written as a plain, self-contained answer for Google's featured-snippet
+ * extraction rather than a stat grid. Rule-based from the same data the
+ * highlight box uses; falls back to a factual "not enough data yet"
+ * statement rather than fabricating a forecast. */
+export function featuredSnippetSection(data: ArticleData): Section | null {
+  const { ticker, prediction, annualYieldPct, payoutFrequency, latestPaidDistribution } = data;
+
+  if (prediction?.target_pay_date && prediction.predicted_amount != null) {
+    const timing = describeTiming(prediction.target_pay_date);
+    return {
+      id: "featured-snippet",
+      heading: "",
+      body: (
+        <p className="text-[15px] sm:text-base leading-relaxed font-medium border-l-4 border-[var(--crady-accent)] pl-4">
+          {ticker}&apos;s next dividend is expected {timing ? `${timing}, around` : "around"}{" "}
+          {prediction.target_pay_date}, with an estimated payment of{" "}
+          {fmtMoney(prediction.predicted_amount)} per share
+          {payoutFrequency ? ` on its ${payoutFrequency} schedule` : ""}, based on{" "}
+          {providerLabel(data.etf.provider_id)}&apos;s published dividend schedule and recent
+          payment history.
+          {prediction.confidence_score != null && (
+            <> CRADY&apos;s prediction confidence is {fmtPct(prediction.confidence_score, 0)}.</>
+          )}
+          {annualYieldPct != null && (
+            <> Its estimated annualized dividend yield is {fmtPct(annualYieldPct)}.</>
+          )}
+        </p>
+      ),
+    };
+  }
+
+  if (latestPaidDistribution?.amount != null) {
+    return {
+      id: "featured-snippet",
+      heading: "",
+      body: (
+        <p className="text-[15px] sm:text-base leading-relaxed font-medium border-l-4 border-[var(--crady-accent)] pl-4">
+          {ticker} is a{payoutFrequency ? ` ${payoutFrequency}` : ""} dividend ETF
+          {annualYieldPct != null && <> with an estimated annualized yield of {fmtPct(annualYieldPct)}</>}.
+          Its most recent payment was {fmtMoney(latestPaidDistribution.amount)} per share on{" "}
+          {latestPaidDistribution.pay_date}. CRADY doesn&apos;t have enough recent data yet for a
+          reliable next-dividend forecast.
+        </p>
+      ),
+    };
+  }
+
+  return null;
+}
+
+type TimelineStage = { label: string; date: string; estimated?: boolean };
+
+function Timeline({ title, stages }: { title: string; stages: TimelineStage[] }) {
+  if (stages.length === 0) return null;
+  return (
+    <div className="not-prose">
+      <div className="text-xs font-semibold text-[var(--gray-500)] uppercase tracking-wide mb-2">
+        {title}
+      </div>
+      <div className="flex items-start">
+        {stages.map((stage, i) => (
+          <div key={stage.label} className="flex items-start flex-1 last:flex-none">
+            <div className="flex flex-col items-center text-center min-w-[90px]">
+              <div
+                className={`w-3 h-3 rounded-full ${stage.estimated ? "bg-[var(--gray-300)] border-2 border-[var(--gray-400)]" : "bg-[var(--crady-accent)]"}`}
+              />
+              <div className="mt-2 text-xs font-semibold">{stage.label}</div>
+              <div className="text-xs text-[var(--gray-500)]">{stage.date}</div>
+              {stage.estimated && <div className="text-[10px] text-[var(--gray-400)]">estimated</div>}
+            </div>
+            {i < stages.length - 1 && (
+              <div className="flex-1 h-px bg-[var(--gray-200)] mt-1.5 mx-1" />
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Announcement → Ex-Dividend → Payment, for both the most recent actual
+ * payment and the next predicted one. No "Record Date" stage — CRADY's
+ * schema doesn't track it (only declaration_date/ex_date/pay_date), and a
+ * guessed record date (commonly ex-date +1 under T+1 settlement, but not
+ * universal) isn't something to state as fact without real data behind it. */
+export function dividendTimelineSection(data: ArticleData): Section | null {
+  const { ticker, latestPaidDistribution, prediction } = data;
+
+  const recentStages: TimelineStage[] = [];
+  if (latestPaidDistribution) {
+    if (latestPaidDistribution.declaration_date) {
+      recentStages.push({ label: "Announced", date: latestPaidDistribution.declaration_date });
+    }
+    recentStages.push({ label: "Ex-Dividend", date: latestPaidDistribution.ex_date });
+    recentStages.push({ label: "Payment", date: latestPaidDistribution.pay_date });
+  }
+
+  const nextStages: TimelineStage[] = [];
+  if (prediction?.target_ex_date) {
+    nextStages.push({ label: "Ex-Dividend", date: prediction.target_ex_date, estimated: true });
+  }
+  if (prediction?.target_pay_date) {
+    nextStages.push({ label: "Payment", date: prediction.target_pay_date, estimated: true });
+  }
+
+  if (recentStages.length === 0 && nextStages.length === 0) return null;
+
+  return {
+    id: "dividend-timeline",
+    heading: `${ticker} Dividend Timeline`,
+    body: (
+      <div className="space-y-6">
+        {nextStages.length > 0 && <Timeline title="Next Predicted Payment" stages={nextStages} />}
+        {recentStages.length > 0 && <Timeline title="Most Recent Payment" stages={recentStages} />}
+      </div>
+    ),
+  };
+}
+
+/** 3/6/12-month trailing payment-momentum table — distinct granularity and
+ * purpose from dividend-history's year-by-year breakdown (that page looks
+ * back across the fund's full record; this looks at short/medium-term
+ * momentum specifically to contextualize the next-payment forecast). */
+export function dividendTrendSection(data: ArticleData): Section | null {
+  const { ticker, trend } = data;
+  const withData = trend.filter((w) => w.count > 0);
+  if (withData.length === 0) return null;
+
+  return {
+    id: "dividend-trend",
+    heading: `${ticker} Dividend Trend`,
     body: (
       <div className="not-prose border border-[var(--gray-200)] rounded-xl overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-[var(--gray-50)] text-[var(--gray-500)]">
             <tr>
-              <th className="text-left px-4 py-2 font-medium">Metric</th>
-              <th className="text-right px-4 py-2 font-medium">{ticker}</th>
-              <th className="text-right px-4 py-2 font-medium">{peer.ticker}</th>
+              <th className="text-left px-4 py-2 font-medium">Window</th>
+              <th className="text-right px-4 py-2 font-medium">Payments</th>
+              <th className="text-right px-4 py-2 font-medium">Average</th>
+              <th className="text-right px-4 py-2 font-medium">High</th>
+              <th className="text-right px-4 py-2 font-medium">Low</th>
+              <th className="text-right px-4 py-2 font-medium">Up / Down</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--gray-100)]">
-            {rows.map(([label, a, b]) => (
-              <tr key={label}>
-                <td className="px-4 py-2 text-[var(--gray-500)]">{label}</td>
-                <td className="px-4 py-2 text-right font-medium">{a}</td>
-                <td className="px-4 py-2 text-right font-medium">{b}</td>
+            {trend.map((w) => (
+              <tr key={w.days}>
+                <td className="px-4 py-2">{w.label}</td>
+                <td className="px-4 py-2 text-right">{w.count}</td>
+                <td className="px-4 py-2 text-right font-medium">{fmtMoney(w.avg)}</td>
+                <td className="px-4 py-2 text-right">{fmtMoney(w.max)}</td>
+                <td className="px-4 py-2 text-right">{fmtMoney(w.min)}</td>
+                <td className="px-4 py-2 text-right">
+                  {w.count > 0 ? `${w.increases}↑ / ${w.decreases}↓` : "—"}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -723,35 +990,142 @@ export function comparisonTableSection(data: ArticleData, peer: ComparisonPeer):
   };
 }
 
-/** comparison's editorial takeaway — computed from whichever data is
- * actually available for both sides, not a fixed template sentence. */
-export function comparisonVerdictSection(data: ArticleData, peer: ComparisonPeer): Section | null {
-  const { ticker, annualYieldPct, risk } = data;
-  if (annualYieldPct == null && peer.annualYieldPct == null) return null;
+function trendDescriptor(window: TrendWindow | undefined): string {
+  if (!window || window.avgChangePct == null) return "a relatively stable pattern";
+  if (window.avgChangePct >= 2) return "a gradual upward trend";
+  if (window.avgChangePct <= -2) return "a gradual downward trend";
+  return "a relatively stable pattern";
+}
 
-  const points: string[] = [];
-  if (annualYieldPct != null && peer.annualYieldPct != null) {
-    const higher = annualYieldPct > peer.annualYieldPct ? ticker : peer.ticker;
-    const diff = Math.abs(annualYieldPct - peer.annualYieldPct);
-    points.push(
-      `${higher} currently has the higher estimated yield, by about ${diff.toFixed(1)} percentage points.`
-    );
-  }
-  if (risk?.crady_score != null && peer.cradyScore != null) {
-    const better = risk.crady_score > peer.cradyScore ? ticker : peer.ticker;
-    points.push(`${better} carries the stronger CRADY score of the two.`);
-  }
+/** Rule-based narrative summary — template logic over already-computed
+ * fields (trend windows + prediction), NOT an LLM call, per the Magazine
+ * 3.0 spec. The one place on the page where several query phrasings
+ * (dividend, payment, forecast, schedule) appear together naturally, since
+ * it's synthesizing a real computed conclusion rather than listing terms. */
+export function aiSummarySection(data: ArticleData): Section | null {
+  const { ticker, trend, prediction, latestPaidDistribution, payoutFrequency } = data;
+  const sixMo = trend.find((w) => w.days === 180);
+  if (!sixMo || sixMo.count === 0) return null;
+
+  const timing = describeTiming(prediction?.target_pay_date);
 
   return {
-    id: "comparison-verdict",
-    heading: `${ticker} or ${peer.ticker}: Which Should You Buy?`,
+    id: "ai-summary",
+    heading: `${ticker} Dividend Summary`,
     body: (
       <p>
-        {points.join(" ")} Both funds are {providerLabel(data.etf.provider_id)} products in the
-        same category, so the choice usually comes down to whether you prioritize a higher
-        current yield or a more favorable risk profile — not personalized investment advice,
-        consider your own goals and risk tolerance.
+        Over the last 6 months, {ticker} has made {sixMo.count} payment{sixMo.count === 1 ? "" : "s"},
+        averaging {fmtMoney(sixMo.avg)} per share with {sixMo.increases} increase
+        {sixMo.increases === 1 ? "" : "s"} and {sixMo.decreases} decrease{sixMo.decreases === 1 ? "" : "s"}{" "}
+        — {trendDescriptor(sixMo)}.{" "}
+        {latestPaidDistribution?.amount != null && (
+          <>Its most recent payment was {fmtMoney(latestPaidDistribution.amount)} on {latestPaidDistribution.pay_date}. </>
+        )}
+        {prediction?.target_pay_date && prediction.predicted_amount != null ? (
+          <>
+            Based on this pattern{payoutFrequency ? ` and its ${payoutFrequency} schedule` : ""}, CRADY
+            forecasts the next {ticker} dividend at {fmtMoney(prediction.predicted_amount)}
+            {timing ? `, ${timing}` : ""} ({prediction.target_pay_date})
+            {prediction.confidence_score != null && <> with {fmtPct(prediction.confidence_score, 0)} confidence</>}.
+          </>
+        ) : (
+          <>CRADY doesn&apos;t have enough data yet for a reliable next-dividend forecast.</>
+        )}
       </p>
+    ),
+  };
+}
+
+export function aiSummarySectionKo(data: ArticleData): Section | null {
+  const { ticker, trend, prediction, payoutFrequency, annualYieldPct } = data;
+  const sixMo = trend.find((w) => w.days === 180);
+  if (!sixMo || sixMo.count === 0) return null;
+
+  const timing = describeTimingKo(prediction?.target_pay_date);
+  const freqKo = payoutFrequency === "weekly" ? "주간" : payoutFrequency === "monthly" ? "월간" : payoutFrequency;
+  const trendKo =
+    sixMo.avgChangePct == null
+      ? "비교적 안정적인 흐름을"
+      : sixMo.avgChangePct >= 2
+        ? "완만한 상승 추세를"
+        : sixMo.avgChangePct <= -2
+          ? "완만한 하락 추세를"
+          : "비교적 안정적인 흐름을";
+
+  return {
+    id: "ai-summary-ko",
+    heading: `${ticker} 배당 요약`,
+    body: (
+      <p>
+        최근 6개월간 {ticker}는 {sixMo.count}회 배당을 지급했으며, 평균 {fmtMoney(sixMo.avg)}로{" "}
+        {trendKo} 보이고 있습니다 (상승 {sixMo.increases}회, 하락 {sixMo.decreases}회).{" "}
+        {annualYieldPct != null && (
+          <>{ticker}의 예상 연환산 배당 수익률(배당률)은 약 {fmtPct(annualYieldPct)}입니다. </>
+        )}
+        {prediction?.target_pay_date && prediction.predicted_amount != null ? (
+          <>
+            {freqKo ? `${freqKo} 지급 주기를 반영해` : ""} CRADY는 다음 {ticker} 배당을{" "}
+            {fmtMoney(prediction.predicted_amount)}
+            {timing ? `, ${timing}` : ""}({prediction.target_pay_date}) 지급될 것으로 예상합니다
+            {prediction.confidence_score != null && ` (신뢰도 ${fmtPct(prediction.confidence_score, 0)})`}.
+          </>
+        ) : (
+          <>다음 배당을 예측할 만큼 충분한 데이터가 아직 없습니다.</>
+        )}
+      </p>
+    ),
+  };
+}
+
+/** A condensed multi-peer teaser (not the full comparison table) — links
+ * out to the full 1-on-1 comparison page rather than duplicating its
+ * table, so the two pages stay distinct (this is 2-3 rows of quick
+ * context; the comparison page is the full side-by-side breakdown). */
+export function quickCompareSection(data: ArticleData, peers: ComparisonPeer[]): Section | null {
+  if (peers.length === 0) return null;
+  const { ticker, annualYieldPct, risk } = data;
+
+  return {
+    id: "quick-compare",
+    heading: `How Does ${ticker} Compare?`,
+    body: (
+      <div className="not-prose border border-[var(--gray-200)] rounded-xl overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-[var(--gray-50)] text-[var(--gray-500)]">
+            <tr>
+              <th className="text-left px-4 py-2 font-medium">Ticker</th>
+              <th className="text-right px-4 py-2 font-medium">Est. Yield</th>
+              <th className="text-right px-4 py-2 font-medium">CRADY Score</th>
+              <th className="text-right px-4 py-2 font-medium">Frequency</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[var(--gray-100)]">
+            <tr className="bg-amber-50/40">
+              <td className="px-4 py-2 font-semibold">{ticker}</td>
+              <td className="px-4 py-2 text-right">{fmtPct(annualYieldPct)}</td>
+              <td className="px-4 py-2 text-right">{risk?.crady_score != null ? risk.crady_score.toFixed(1) : "—"}</td>
+              <td className="px-4 py-2 text-right capitalize">{data.payoutFrequency ?? "—"}</td>
+            </tr>
+            {peers.map((peer) => (
+              <tr key={peer.ticker}>
+                <td className="px-4 py-2">
+                  <Link href={`/magazine/${peer.ticker.toLowerCase()}-next-dividend-prediction`} className="hover:underline">
+                    {peer.ticker}
+                  </Link>
+                </td>
+                <td className="px-4 py-2 text-right">{fmtPct(peer.annualYieldPct)}</td>
+                <td className="px-4 py-2 text-right">{peer.cradyScore != null ? peer.cradyScore.toFixed(1) : "—"}</td>
+                <td className="px-4 py-2 text-right capitalize">{peer.payoutFrequency ?? "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="px-4 py-2.5 bg-[var(--gray-50)] text-xs">
+          <Link href={`/magazine/${ticker.toLowerCase()}-comparison`} className="underline hover:text-black">
+            See the full {ticker} comparison →
+          </Link>
+        </div>
+      </div>
     ),
   };
 }

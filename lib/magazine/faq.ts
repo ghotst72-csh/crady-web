@@ -22,11 +22,13 @@ function fmtPct(n: number | null | undefined, digits = 1): string {
 export function buildFaqItems(
   data: ArticleData,
   type: ArticleTypeId,
-  extra?: { peer?: ComparisonPeer | null }
+  extra?: { peers?: ComparisonPeer[] }
 ): FaqItem[] {
   const { ticker, prediction, annualYieldPct, risk, payoutFrequency, etf, changeFromLastPct } = data;
 
   if (type === "next-dividend-prediction") {
+    const sixMo = data.trend.find((w) => w.days === 180);
+    const twelveMo = data.trend.find((w) => w.days === 365);
     return [
       {
         question: `When is the next ${ticker} dividend?`,
@@ -55,6 +57,68 @@ export function buildFaqItems(
         answer: prediction?.predicted_amount != null && changeFromLastPct != null
           ? `${ticker}'s currently predicted amount is ${changeFromLastPct >= 0 ? "up" : "down"} ${Math.abs(changeFromLastPct).toFixed(1)}% compared to its last actual payment.`
           : `There isn't enough data yet to compare ${ticker}'s predicted amount to its payment trend.`,
+      },
+      {
+        question: `When did ${ticker} last announce a dividend?`,
+        answer: data.latestPaidDistribution?.declaration_date
+          ? `${ticker}'s most recent dividend was announced on ${data.latestPaidDistribution.declaration_date}. See the timeline above for how that led to its ex-dividend and payment dates.`
+          : `${ticker}'s issuer doesn't always publish a separate announcement date — see the timeline above for its ex-dividend and payment dates instead.`,
+      },
+      {
+        question: `What is ${ticker}'s ex-dividend date?`,
+        answer: prediction?.target_ex_date
+          ? `${ticker}'s next expected ex-dividend date is ${prediction.target_ex_date}. You must own shares before this date to receive the upcoming payment.`
+          : `${ticker}'s next ex-dividend date isn't estimated yet — see the distribution history above for its past ex-dividend dates.`,
+      },
+      {
+        question: `What is ${ticker}'s payment date?`,
+        answer: prediction?.target_pay_date
+          ? `${ticker}'s next expected payment date is ${prediction.target_pay_date}.`
+          : `${ticker}'s next payment date isn't estimated yet.`,
+      },
+      {
+        question: `Is ${ticker} a monthly or weekly dividend ETF?`,
+        answer: payoutFrequency
+          ? `${ticker} is a ${payoutFrequency} dividend ETF, based on its recent payment cadence.`
+          : `${ticker}'s payout cadence hasn't been determined yet from its distribution history.`,
+      },
+      {
+        question: `Is ${ticker}'s next dividend expected this week or next week?`,
+        answer: prediction?.target_pay_date
+          ? `Based on CRADY's forecast, ${ticker}'s next payment date is ${prediction.target_pay_date} — see the highlight box above for exactly how soon that is.`
+          : `CRADY doesn't have a forecast date for ${ticker} yet.`,
+      },
+      {
+        question: `What is ${ticker}'s average dividend over the last 6 months?`,
+        answer: sixMo && sixMo.count > 0
+          ? `${ticker} has made ${sixMo.count} payments over the last 6 months, averaging ${fmtMoney(sixMo.avg)} per share.`
+          : `${ticker} doesn't have enough recent payment history for a 6-month average yet.`,
+      },
+      {
+        question: `Has ${ticker}'s dividend increased or decreased over the last year?`,
+        answer: twelveMo && twelveMo.count > 1
+          ? `Over the last 12 months, ${ticker}'s dividend increased ${twelveMo.increases} time${twelveMo.increases === 1 ? "" : "s"} and decreased ${twelveMo.decreases} time${twelveMo.decreases === 1 ? "" : "s"} across ${twelveMo.count} payments. See the trend table above for the full breakdown.`
+          : `${ticker} doesn't have enough payment history over the last 12 months for a trend comparison yet.`,
+      },
+      {
+        question: `Where can I see ${ticker}'s full dividend calendar?`,
+        answer: `See the ${ticker} Dividend Calendar for its full published schedule of upcoming ex-dividend and payment dates.`,
+      },
+      {
+        question: `Where can I see ${ticker}'s full dividend history?`,
+        answer: `See the ${ticker} Dividend History for a year-by-year breakdown of every recorded payment.`,
+      },
+      {
+        question: `Is ${ticker}'s dividend safe?`,
+        answer: risk?.risk_level
+          ? `CRADY classifies ${ticker} as ${risk.risk_level.toLowerCase()} risk. See the ${ticker} Risk Analysis for the full breakdown of volatility and dividend stability behind that rating.`
+          : `See the ${ticker} Risk Analysis for CRADY's risk assessment once enough data is available.`,
+      },
+      {
+        question: `What ETFs are similar to ${ticker}?`,
+        answer: data.siblings.length > 0
+          ? `${data.siblings.slice(0, 3).map((s) => s.ticker).join(", ")} are other ${providerLabel(etf.provider_id)} funds tracked by CRADY. See the comparison and related links below for a direct side-by-side.`
+          : `See the related links below for other funds tracked by CRADY.`,
       },
     ];
   }
@@ -154,14 +218,18 @@ export function buildFaqItems(
   }
 
   // comparison
-  const peer = extra?.peer;
-  if (!peer) return [];
+  const peers = extra?.peers ?? [];
+  if (peers.length === 0) return [];
+  const peer = peers[0];
+  const groupLabel = peers.map((p) => p.ticker).join(", ");
   return [
     {
-      question: `Is ${ticker} or ${peer.ticker} the better dividend ETF?`,
+      question: peers.length === 1
+        ? `Is ${ticker} or ${peer.ticker} the better dividend ETF?`
+        : `Which is the better dividend ETF: ${ticker}, ${groupLabel}?`,
       answer: annualYieldPct != null && peer.annualYieldPct != null
-        ? `${annualYieldPct > peer.annualYieldPct ? ticker : peer.ticker} currently has the higher estimated yield. See the side-by-side comparison above for yield, CRADY score, and risk level.`
-        : `Compare ${ticker} and ${peer.ticker} side-by-side above — "better" depends on whether you prioritize yield or risk profile.`,
+        ? `See the side-by-side comparison above for yield, CRADY score, and risk level across all funds shown — "better" depends on whether you prioritize yield or risk profile.`
+        : `Compare ${ticker} and ${groupLabel} side-by-side above — "better" depends on whether you prioritize yield or risk profile.`,
     },
     {
       question: `Do ${ticker} and ${peer.ticker} pay on the same schedule?`,
@@ -172,8 +240,8 @@ export function buildFaqItems(
         : `Payout frequency data isn't fully available for both funds yet.`,
     },
     {
-      question: `Are ${ticker} and ${peer.ticker} from the same provider?`,
-      answer: `Yes, both are ${providerLabel(etf.provider_id)} funds, which means they share a similar options-income strategy applied to different underlying exposure.`,
+      question: `Are ${ticker} and ${groupLabel} from the same provider?`,
+      answer: `Yes, all are ${providerLabel(etf.provider_id)} funds, which means they share a similar options-income strategy applied to different underlying exposure.`,
     },
   ];
 }
@@ -193,12 +261,13 @@ const KO_RISK_LABEL: Record<string, string> = {
 export function buildFaqItemsKo(
   data: ArticleData,
   type: ArticleTypeId,
-  extra?: { peer?: ComparisonPeer | null }
+  extra?: { peers?: ComparisonPeer[] }
 ): FaqItem[] {
   const { ticker, prediction, annualYieldPct, risk, payoutFrequency, etf } = data;
   const freqKo = payoutFrequency === "weekly" ? "주간" : payoutFrequency === "monthly" ? "월간" : payoutFrequency;
 
   if (type === "next-dividend-prediction") {
+    const sixMo = data.trend.find((w) => w.days === 180);
     return [
       {
         question: `${ticker} 다음 배당일은 언제인가요?`,
@@ -211,6 +280,52 @@ export function buildFaqItemsKo(
         answer: prediction?.predicted_amount != null
           ? `CRADY가 예측한 ${ticker}의 다음 배당금은 주당 ${fmtMoney(prediction.predicted_amount)}입니다.`
           : `${ticker}의 예상 배당금 데이터가 아직 준비되지 않았습니다.`,
+      },
+      {
+        question: `${ticker}는 언제 배당을 선언(발표)하나요?`,
+        answer: data.latestPaidDistribution?.declaration_date
+          ? `${ticker}의 최근 배당 선언일은 ${data.latestPaidDistribution.declaration_date}입니다. 위 타임라인에서 배당락일·지급일로 이어지는 흐름을 확인하세요.`
+          : `${ticker}의 발행사는 별도의 선언일을 항상 공개하지는 않습니다 — 위 타임라인의 배당락일·지급일을 참고하세요.`,
+      },
+      {
+        question: `${ticker} 배당락일은 언제인가요?`,
+        answer: prediction?.target_ex_date
+          ? `${ticker}의 다음 예상 배당락일은 ${prediction.target_ex_date}입니다. 이 날짜 이전에 주식을 보유해야 다음 배당을 받을 수 있습니다.`
+          : `${ticker}의 다음 배당락일이 아직 예측되지 않았습니다.`,
+      },
+      {
+        question: `${ticker} 지급일은 언제인가요?`,
+        answer: prediction?.target_pay_date
+          ? `${ticker}의 다음 예상 지급일은 ${prediction.target_pay_date}입니다.`
+          : `${ticker}의 다음 지급일이 아직 예측되지 않았습니다.`,
+      },
+      {
+        question: `${ticker}는 월배당인가요, 주배당인가요?`,
+        answer: freqKo
+          ? `${ticker}는 최근 지급 주기를 기준으로 ${freqKo} 배당 ETF입니다.`
+          : `${ticker}의 배당 주기가 아직 확인되지 않았습니다.`,
+      },
+      {
+        question: `${ticker} 배당은 이번 주인가요, 다음 주인가요?`,
+        answer: prediction?.target_pay_date
+          ? `CRADY 예측 기준 ${ticker}의 다음 지급일은 ${prediction.target_pay_date}입니다 — 위 요약에서 정확한 시점을 확인하세요.`
+          : `${ticker}의 다음 지급 예측 데이터가 아직 없습니다.`,
+      },
+      {
+        question: `${ticker}의 최근 6개월 평균 배당금은 얼마인가요?`,
+        answer: sixMo && sixMo.count > 0
+          ? `${ticker}는 최근 6개월간 ${sixMo.count}회 배당을 지급했으며, 평균 ${fmtMoney(sixMo.avg)}입니다.`
+          : `${ticker}의 최근 6개월 배당 데이터가 충분하지 않습니다.`,
+      },
+      {
+        question: `${ticker}와 비슷한 ETF는 무엇인가요?`,
+        answer: data.siblings.length > 0
+          ? `${data.siblings.slice(0, 3).map((s) => s.ticker).join(", ")} 등이 CRADY가 추적하는 같은 운용사의 ETF입니다. 아래 비교 및 관련 링크를 참고하세요.`
+          : `아래 관련 링크에서 CRADY가 추적하는 다른 ETF를 확인하세요.`,
+      },
+      {
+        question: `${ticker} 배당 캘린더는 어디서 볼 수 있나요?`,
+        answer: `${ticker}의 전체 예정 배당락일·지급일 일정은 ${ticker} 배당 캘린더 페이지에서 확인할 수 있습니다.`,
       },
     ];
   }
@@ -269,14 +384,13 @@ export function buildFaqItemsKo(
   }
 
   // comparison
-  const peer = extra?.peer;
-  if (!peer) return [];
+  const peers = extra?.peers ?? [];
+  if (peers.length === 0) return [];
+  const groupLabel = peers.map((p) => p.ticker).join(", ");
   return [
     {
-      question: `${ticker}와 ${peer.ticker} 중 어느 쪽 배당 수익률이 더 높나요?`,
-      answer: annualYieldPct != null && peer.annualYieldPct != null
-        ? `${annualYieldPct > peer.annualYieldPct ? ticker : peer.ticker}의 예상 배당 수익률이 더 높습니다. 자세한 비교는 위 표를 참고하세요.`
-        : `두 종목의 배당 수익률 비교는 위 표를 참고하세요.`,
+      question: `${ticker}와 ${groupLabel} 중 어느 쪽 배당 수익률이 더 높나요?`,
+      answer: `예상 배당 수익률, CRADY 점수, 위험도 비교는 위 표를 참고하세요.`,
     },
   ];
 }

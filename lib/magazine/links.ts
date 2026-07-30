@@ -41,7 +41,18 @@ export function buildInternalLinks(
     });
   }
 
-  for (const sibling of data.siblings.slice(0, 3)) {
+  // Same-payout-frequency siblings surfaced first ("같은 지급일 ETF" —
+  // same cadence, so their next-payment timing is directly comparable to
+  // this ticker's) before other same-provider siblings. "같은 선언일 ETF" /
+  // "같은 Risk ETF" / "같은 Sector ETF" from the Magazine 3.0 request aren't
+  // built as their own dedicated hub URLs — declaration dates aren't
+  // tracked reliably enough to group by, and per-dimension hubs risk
+  // thin/near-empty pages at this ticker count; the risk/yield angle is
+  // instead served by next-dividend-prediction's quick-compare teaser,
+  // which already pulls real risk data for its peers.
+  const sameFrequency = data.siblings.filter((s) => s.payout_frequency === data.payoutFrequency);
+  const otherSiblings = data.siblings.filter((s) => s.payout_frequency !== data.payoutFrequency);
+  for (const sibling of [...sameFrequency, ...otherSiblings].slice(0, 3)) {
     links.push({
       href: `/magazine/${articleSlug(sibling.ticker, "next-dividend-prediction")}`,
       label: `Compare with ${sibling.ticker}`,
@@ -63,6 +74,7 @@ export function buildInternalLinks(
 
   const calendarHubCandidates: { slug: CalendarHubId; label: string }[] = [
     { slug: "dividend-calendar-this-week", label: "Dividend Calendar — This Week" },
+    { slug: "dividend-calendar-this-month", label: "Dividend Calendar — This Month" },
   ];
   if (data.etf.provider_id === "yieldmax") {
     calendarHubCandidates.push({ slug: "yieldmax-dividend-calendar", label: "YieldMax Dividend Calendar" });

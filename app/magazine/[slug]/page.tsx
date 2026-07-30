@@ -2,14 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getAllTickers, providerLabel } from "@/lib/data";
-import { getArticleData, getComparisonPeerData } from "@/lib/magazine/data";
+import { getArticleData, getComparisonPeersData } from "@/lib/magazine/data";
 import { buildArticleMeta, buildSections } from "@/lib/magazine/recipes";
 import { buildFaqItems, buildFaqItemsKo } from "@/lib/magazine/faq";
 import { buildInternalLinks } from "@/lib/magazine/links";
-import { buildArticleJsonLd, buildFaqJsonLd } from "@/lib/magazine/jsonld";
+import { buildArticleJsonLd, buildFaqJsonLd, buildWebPageJsonLd, buildDatasetJsonLd } from "@/lib/magazine/jsonld";
 import { relatedLinksSection } from "@/lib/magazine/sections";
 import { hasRiskContent, hasFutureSchedule, hasDistributionOrStrategyContent } from "@/lib/magazine/quality";
-import { pickComparisonPeerTicker } from "@/lib/magazine/comparison";
+import { pickComparisonPeerTicker, pickComparisonPeerTickers } from "@/lib/magazine/comparison";
 import { resolveSlug } from "@/lib/magazine/slugs";
 import { HUB_DEFINITIONS, HUB_IDS } from "@/lib/magazine/hubs";
 import { CALENDAR_HUB_DEFINITIONS, CALENDAR_HUB_IDS, type CalendarHubId } from "@/lib/magazine/calendarHubs";
@@ -42,14 +42,17 @@ export async function generateStaticParams() {
   return [...hubSlugs, ...calendarHubSlugs, ...standaloneSlugs, ...articleSlugs, ...comparisonSlugs];
 }
 
-async function resolveComparisonPeer(ticker: string) {
+/** Up to 3 same-provider peers, round-robin-picked (lib/magazine/
+ * comparison.ts) — feeds both the full comparison page's table and
+ * next-dividend-prediction's quick-compare teaser (a shorter slice of the
+ * same list, not a separately-fetched set). */
+async function resolveComparisonPeers(ticker: string) {
   const tickers = await getAllTickers();
   const self = tickers.find((t) => t.ticker === ticker);
-  if (!self) return null;
-  const peerTicker = pickComparisonPeerTicker(ticker, self.provider_id, tickers);
-  if (!peerTicker) return null;
-  const peer = await getComparisonPeerData(peerTicker);
-  return peer;
+  if (!self) return [];
+  const peerTickers = pickComparisonPeerTickers(ticker, self.provider_id, tickers, 3);
+  if (peerTickers.length === 0) return [];
+  return getComparisonPeersData(peerTickers);
 }
 
 export async function generateMetadata({
@@ -99,10 +102,10 @@ export async function generateMetadata({
   const data = await getArticleData(resolved.ticker);
   if (!data) return {};
 
-  const peer = resolved.type === "comparison" ? await resolveComparisonPeer(data.ticker) : undefined;
-  if (resolved.type === "comparison" && !peer) return {};
+  const peers = resolved.type === "comparison" ? await resolveComparisonPeers(data.ticker) : undefined;
+  if (resolved.type === "comparison" && (!peers || peers.length === 0)) return {};
 
-  const meta = buildArticleMeta(data, resolved.type, { peer });
+  const meta = buildArticleMeta(data, resolved.type, { peers });
 
   // A risk-analysis page for a ticker with zero risk data, a
   // dividend-calendar page with no published future schedule, or a
@@ -155,17 +158,18 @@ export default async function MagazinePage({
   const type = resolved.type;
 
   // Independent of `type` (only depends on the ticker), so fetched once and
-  // reused both to render the comparison page itself and to decide whether
-  // OTHER pages for this ticker should link to it.
-  const comparisonPeer = await resolveComparisonPeer(ticker);
-  if (type === "comparison" && !comparisonPeer) notFound();
+  // reused to render the comparison page's table, next-dividend-prediction's
+  // quick-compare teaser, and to decide whether OTHER pages for this ticker
+  // should link to a comparison page at all.
+  const comparisonPeers = await resolveComparisonPeers(ticker);
+  if (type === "comparison" && comparisonPeers.length === 0) notFound();
 
-  const meta = buildArticleMeta(data, type, { peer: comparisonPeer });
-  const sections = buildSections(data, type, { peer: comparisonPeer });
-  const faqItems = buildFaqItems(data, type, { peer: comparisonPeer });
-  const faqItemsKo = buildFaqItemsKo(data, type, { peer: comparisonPeer });
+  const meta = buildArticleMeta(data, type, { peers: comparisonPeers });
+  const sections = buildSections(data, type, { peers: comparisonPeers });
+  const faqItems = buildFaqItems(data, type, { peers: comparisonPeers });
+  const faqItemsKo = buildFaqItemsKo(data, type, { peers: comparisonPeers });
   const links = buildInternalLinks(data, type, {
-    comparisonPeerTicker: comparisonPeer?.ticker ?? null,
+    comparisonPeerTicker: comparisonPeers[0]?.ticker ?? null,
   });
   const relatedSection = relatedLinksSection(data, links);
   const url = `https://crady.net/magazine/${slug}`;
@@ -179,6 +183,18 @@ export default async function MagazinePage({
     dateModified: lastUpdated,
   });
   const faqJsonLd = buildFaqJsonLd([...faqItems, ...faqItemsKo]);
+  const webPageJsonLd = buildWebPageJsonLd({ name: meta.h1, description: meta.description, url });
+  // Dataset schema for the real historical distribution table this page
+  // shows (next-dividend-prediction's row table) — only when there's
+  // actual tabular data behind it, not a generic Dataset stub.
+  const datasetJsonLd =
+    type === "next-dividend-prediction" && data.distributions.length > 0
+      ? buildDatasetJsonLd({
+          name: `${ticker} Dividend Distribution History`,
+          description: `Historical ex-dividend dates, payment dates, and per-share amounts for ${ticker}.`,
+          url,
+        })
+      : null;
 
   return (
     <div className="mx-auto max-w-2xl px-4 sm:px-6 py-10">
@@ -197,6 +213,16 @@ export default async function MagazinePage({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+        />
+      )}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }}
+      />
+      {datasetJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(datasetJsonLd) }}
         />
       )}
 
@@ -218,7 +244,7 @@ export default async function MagazinePage({
       <div id="magazine-article-body" className="mt-8 space-y-10">
         {sections.map((section) => (
           <section key={section.id}>
-            {section.id !== "next-dividend-highlight" && (
+            {section.id !== "next-dividend-highlight" && section.id !== "featured-snippet" && (
               <h2 className="text-lg sm:text-xl font-bold mb-3">{section.heading}</h2>
             )}
             <div className="text-[15px] leading-relaxed text-[var(--gray-700)] space-y-3">

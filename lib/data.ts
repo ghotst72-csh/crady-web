@@ -202,10 +202,10 @@ export async function getSameProviderEtfs(
   providerId: string,
   excludeTicker: string,
   limit = 8
-): Promise<{ ticker: string; name: string | null }[]> {
+): Promise<{ ticker: string; name: string | null; payout_frequency: string | null }[]> {
   const { data, error } = await supabase
     .from("etfs")
-    .select("ticker, name")
+    .select("ticker, name, payout_frequency")
     .eq("provider_id", providerId)
     .neq("ticker", excludeTicker)
     .order("ticker", { ascending: true })

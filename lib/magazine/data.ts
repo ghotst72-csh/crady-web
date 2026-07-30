@@ -19,6 +19,7 @@ import {
   type NextPredictionRow,
   type ComparisonPeer,
 } from "@/lib/data";
+import { computeDividendTrend, type TrendWindow } from "./trend";
 
 /** Everything a magazine section might need for one ticker, fetched once
  * per article render. Separate from app/[ticker]/page.tsx's own fetch —
@@ -38,8 +39,11 @@ export type ArticleData = {
   /** Scraped future pay/ex dates with no amount yet — the provider's
    * published schedule, distinct from the single predicted next payment. */
   futureSchedule: { ex_date: string; pay_date: string }[];
+  /** 90/180/365-day trailing payment-momentum windows, bucketed from one
+   * ~13-month fetch — see lib/magazine/trend.ts. */
+  trend: TrendWindow[];
   prediction: NextPredictionRow | null;
-  siblings: { ticker: string; name: string | null }[];
+  siblings: { ticker: string; name: string | null; payout_frequency: string | null }[];
   annualYieldPct: number | null;
   latestPaidDistribution: DistributionRow | null;
   changeFromLastPct: number | null;
@@ -64,6 +68,7 @@ export async function getArticleData(rawTicker: string): Promise<ArticleData | n
     distributionsExtended,
     futureSchedule,
     recentDistributions,
+    trendDistributions,
     prediction,
     siblings,
   ] = await Promise.all([
@@ -75,9 +80,12 @@ export async function getArticleData(rawTicker: string): Promise<ArticleData | n
     getDistributions(ticker, 40),
     getFutureSchedule(ticker, 30),
     getDistributionsSince(ticker, 90),
+    getDistributionsSince(ticker, 395),
     getNextPrediction(ticker),
     getSameProviderEtfs(etf.provider_id, ticker, 6),
   ]);
+
+  const trend = computeDividendTrend(trendDistributions);
 
   const annualYieldPct = computeRunRateAnnualYieldPct(
     recentDistributions,
@@ -103,6 +111,7 @@ export async function getArticleData(rawTicker: string): Promise<ArticleData | n
     distributions,
     distributionsExtended,
     futureSchedule,
+    trend,
     prediction,
     siblings,
     annualYieldPct,
@@ -117,4 +126,12 @@ export async function getArticleData(rawTicker: string): Promise<ArticleData | n
  * page for this ticker" rather than rendering a thin one. */
 export async function getComparisonPeerData(ticker: string): Promise<ComparisonPeer | null> {
   return getComparisonPeer(ticker);
+}
+
+/** Fetches multiple peers in parallel (comparison page's multi-peer table,
+ * next-dividend-prediction's quick-compare teaser). Nulls from individual
+ * lookups are filtered out rather than failing the whole page. */
+export async function getComparisonPeersData(tickers: string[]): Promise<ComparisonPeer[]> {
+  const peers = await Promise.all(tickers.map((t) => getComparisonPeer(t)));
+  return peers.filter((p): p is ComparisonPeer => p != null);
 }

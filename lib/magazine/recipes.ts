@@ -4,14 +4,19 @@ import { buildFaqItems, buildFaqItemsKo } from "./faq";
 import type { ComparisonPeer } from "@/lib/data";
 import {
   advantagesDisadvantagesSection,
+  aiSummarySection,
+  aiSummarySectionKo,
   bestForSection,
   comparisonTableSection,
   comparisonVerdictSection,
   distributionHistorySection,
   distributionSummarySection,
   dividendStabilitySection,
+  dividendTimelineSection,
+  dividendTrendSection,
   faqSection,
   faqSectionKo,
+  featuredSnippetSection,
   fundInfoSection,
   investmentStrategySection,
   nextDividendHighlight,
@@ -19,6 +24,7 @@ import {
   paymentPatternSection,
   payoutFrequencySection,
   predictionReliabilityNote,
+  quickCompareSection,
   recentTrendSection,
   riskAnalysisSection,
   upcomingScheduleSection,
@@ -49,7 +55,7 @@ export function articleSlug(ticker: string, type: ArticleTypeId): string {
 export function buildArticleMeta(
   data: ArticleData,
   type: ArticleTypeId,
-  extra?: { peer?: ComparisonPeer | null }
+  extra?: { peers?: ComparisonPeer[] }
 ) {
   const { ticker, prediction, annualYieldPct } = data;
   const year = new Date().getUTCFullYear();
@@ -98,12 +104,12 @@ export function buildArticleMeta(
   }
 
   // comparison
-  const peer = extra?.peer;
-  const peerTicker = peer?.ticker ?? "Similar ETFs";
+  const peers = extra?.peers ?? [];
+  const peerLabel = peers.length > 0 ? peers.map((p) => p.ticker).join(" vs ") : "Similar ETFs";
   return {
-    title: `${ticker} vs ${peerTicker} (${year}) | Dividend ETF Comparison`,
-    h1: `${ticker} vs ${peerTicker}`,
-    description: `A side-by-side comparison of ${ticker} and ${peerTicker} covering estimated dividend yield, CRADY score, risk level, and payout frequency to help you decide between the two.`,
+    title: `${ticker} vs ${peerLabel} (${year}) | Dividend ETF Comparison`,
+    h1: `${ticker} vs ${peerLabel}`,
+    description: `A side-by-side comparison of ${ticker} and ${peerLabel} covering estimated dividend yield, CRADY score, risk level, and payout frequency to help you decide between them.`,
   };
 }
 
@@ -113,10 +119,11 @@ export function buildArticleMeta(
 export function buildSections(
   data: ArticleData,
   type: ArticleTypeId,
-  extra?: { peer?: ComparisonPeer | null }
+  extra?: { peers?: ComparisonPeer[] }
 ): Section[] {
   const faqItems = buildFaqItems(data, type, extra);
   const faqItemsKo = buildFaqItemsKo(data, type, extra);
+  const peers = extra?.peers ?? [];
 
   // Each section appears on exactly one article type — where a topic (risk,
   // yield, distribution history) is legitimately required on more than one
@@ -126,12 +133,25 @@ export function buildSections(
   // distributionSummarySection's aggregate view vs yearlyBreakdownSection's
   // per-year table) rather than reusing the same rendered block, so no two
   // of a ticker's pages ever share verbatim text.
+  //
+  // next-dividend-prediction is deliberately the flagship, most-complete
+  // page (Magazine 3.0): featured-snippet lead, highlight box, timeline,
+  // 3/6/12mo trend, rule-based summary (EN+KO), quick-compare teaser, then
+  // the (now 18-item) FAQ bank — rather than spreading this depth thinly
+  // across all 6 types, which would just recreate the duplicate-content
+  // problem Magazine 2.0 fixed.
   const bySlug: Record<ArticleTypeId, (Section | null)[]> = {
     "next-dividend-prediction": [
+      featuredSnippetSection(data),
       nextDividendHighlight(data),
+      dividendTimelineSection(data),
       distributionHistorySection(data),
+      dividendTrendSection(data),
       recentTrendSection(data),
+      aiSummarySection(data),
+      aiSummarySectionKo(data),
       predictionReliabilityNote(data),
+      quickCompareSection(data, peers.slice(0, 2)),
       faqSection(faqItems),
       faqSectionKo(faqItemsKo),
     ],
@@ -164,10 +184,10 @@ export function buildSections(
       faqSection(faqItems),
       faqSectionKo(faqItemsKo),
     ],
-    comparison: extra?.peer
+    comparison: peers.length > 0
       ? [
-          comparisonTableSection(data, extra.peer),
-          comparisonVerdictSection(data, extra.peer),
+          comparisonTableSection(data, peers),
+          comparisonVerdictSection(data, peers),
           faqSection(faqItems),
           faqSectionKo(faqItemsKo),
         ]
