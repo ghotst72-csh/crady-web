@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { getHomeSnapshot } from "@/lib/data";
 import { ARTICLE_TYPE_SLUG } from "@/lib/magazine/recipes";
 import { HUB_IDS } from "@/lib/magazine/hubs";
+import { hasRiskContentFromSnapshot } from "@/lib/magazine/quality";
 import type { ArticleTypeId } from "@/lib/magazine/types";
 
 export const dynamic = "force-static";
@@ -62,13 +63,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
+  // A risk-analysis page for a ticker with zero risk data renders as pure
+  // FAQ boilerplate (see lib/magazine/quality.ts + scripts/audit-magazine-
+  // uniqueness.mjs) — excluded here to match the noindex directive
+  // generateMetadata sets on that same page, instead of submitting a URL
+  // to Google that says "don't index me."
   const magazineEntries: MetadataRoute.Sitemap = snapshot.flatMap((etf) =>
-    ARTICLE_TYPES.map((type) => ({
-      url: `https://crady.net/magazine/${etf.ticker.toLowerCase()}-${ARTICLE_TYPE_SLUG[type]}`,
-      lastModified: etf.calculatedAt ? new Date(etf.calculatedAt) : undefined,
-      changeFrequency: "daily" as const,
-      priority: type === "next-dividend-prediction" ? 0.85 : 0.7,
-    }))
+    ARTICLE_TYPES.filter((type) => type !== "risk-analysis" || hasRiskContentFromSnapshot(etf)).map(
+      (type) => ({
+        url: `https://crady.net/magazine/${etf.ticker.toLowerCase()}-${ARTICLE_TYPE_SLUG[type]}`,
+        lastModified: etf.calculatedAt ? new Date(etf.calculatedAt) : undefined,
+        changeFrequency: "daily" as const,
+        priority: type === "next-dividend-prediction" ? 0.85 : 0.7,
+      })
+    )
   );
 
   return [...staticEntries, ...tickerEntries, ...hubEntries, ...magazineEntries];

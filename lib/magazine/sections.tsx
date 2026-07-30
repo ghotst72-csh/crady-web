@@ -18,6 +18,29 @@ function fmtPct(n: number | null | undefined, digits = 1): string {
   return n != null ? `${n.toFixed(digits)}%` : "—";
 }
 
+/** Turns generate_next_predictions.py's machine-readable prediction_method
+ * string (e.g. "scraped_schedule(n_actual=67)" or
+ * "interval_estimate_weekly(n=12,median=7.0d)") into a plain-language
+ * sentence, instead of a hardcoded generic phrase. */
+function humanizePredictionMethod(method: string | null): string {
+  if (!method) return "Estimated from recent distribution history.";
+  if (method.startsWith("scraped_schedule")) {
+    const n = method.match(/n_actual=(\d+)/)?.[1];
+    return `Based on the officially published distribution schedule${
+      n ? `, with the amount estimated from the last ${n} actual payments` : ""
+    }.`;
+  }
+  if (method.startsWith("interval_estimate")) {
+    const freq = method.match(/interval_estimate_(\w+)/)?.[1];
+    const n = method.match(/n=(\d+)/)?.[1];
+    const median = method.match(/median=([\d.]+)d/)?.[1];
+    return `Estimated from a ${freq ?? "recurring"} payout pattern${
+      n ? ` observed over ${n} payments` : ""
+    }${median ? ` (~${median}-day interval)` : ""}.`;
+  }
+  return "Estimated from recent distribution history.";
+}
+
 // ── Section Library ──────────────────────────────────────────────────────────
 // Every function here takes the same ArticleData bundle and returns a
 // Section (heading + body) or null when there's nothing honest to say.
@@ -26,7 +49,7 @@ function fmtPct(n: number | null | undefined, digits = 1): string {
 // rendering code.
 
 export function nextDividendHighlight(data: ArticleData): Section | null {
-  const { ticker, prediction, changeFromLastPct } = data;
+  const { ticker, prediction, changeFromLastPct, annualYieldPct, risk, payoutFrequency } = data;
 
   return {
     id: "next-dividend-highlight",
@@ -72,12 +95,22 @@ export function nextDividendHighlight(data: ArticleData): Section | null {
                 <dd className="font-bold mt-0.5">{fmtPct(prediction.confidence_score, 0)}</dd>
               </div>
               <div>
+                <dt className="text-[var(--gray-500)]">Estimated Dividend Yield</dt>
+                <dd className="font-bold mt-0.5">{fmtPct(annualYieldPct)}</dd>
+              </div>
+              <div>
+                <dt className="text-[var(--gray-500)]">Payout Frequency</dt>
+                <dd className="font-bold mt-0.5 capitalize">{payoutFrequency ?? "—"}</dd>
+              </div>
+              <div className="col-span-2 sm:col-span-3">
                 <dt className="text-[var(--gray-500)]">Prediction Method</dt>
-                <dd className="font-bold mt-0.5">Data-driven forecast (CRADY)</dd>
+                <dd className="font-semibold mt-0.5 text-[13px]">
+                  {humanizePredictionMethod(prediction.prediction_method)}
+                </dd>
               </div>
               <div>
                 <dt className="text-[var(--gray-500)]">Last Updated</dt>
-                <dd className="font-bold mt-0.5">{data.risk?.calculated_at?.slice(0, 10) ?? "—"}</dd>
+                <dd className="font-bold mt-0.5">{risk?.calculated_at?.slice(0, 10) ?? "—"}</dd>
               </div>
             </dl>
           </>
@@ -91,6 +124,76 @@ export function nextDividendHighlight(data: ArticleData): Section | null {
         <p className="mt-4 text-xs text-[var(--gray-400)]">
           Estimates are based on historical distribution patterns and public dividend schedules.
           Actual amounts and dates may change until officially declared.
+        </p>
+      </div>
+    ),
+  };
+}
+
+/** The prediction page's own take on risk — framed around how it affects
+ * confidence in THIS forecast, in prose. Deliberately not the same
+ * bullet-list format as riskAnalysisSection (which is risk-analysis's own,
+ * general-purpose treatment) so the two pages never share duplicate text
+ * even though both legitimately discuss the same underlying risk data. */
+export function predictionReliabilityNote(data: ArticleData): Section | null {
+  const { ticker, risk } = data;
+  if (!risk?.risk_level) return null;
+
+  const level = risk.risk_level;
+  const volatility = risk.volatility_30d;
+  const sensitivity =
+    level === "SAFE"
+      ? "tends to have relatively consistent payouts, so this estimate is less likely to be far off"
+      : level === "NORMAL"
+        ? "sees moderate swings in its underlying option income, so the actual amount could land somewhat above or below this estimate"
+        : "carries high volatility, so the actual payout can deviate more than usual from this estimate";
+
+  return {
+    id: "prediction-reliability",
+    heading: "How Reliable Is This Estimate?",
+    body: (
+      <p>
+        {ticker} is classified as {RISK_LABEL[level]?.toLowerCase() ?? level.toLowerCase()} risk
+        {volatility != null ? ` (${fmtPct(volatility)} 30-day volatility)` : ""} by CRADY, and{" "}
+        {sensitivity}. Treat this forecast as a directional estimate rather than a guaranteed
+        figure — see the full {ticker} Risk Analysis for a complete risk breakdown.
+      </p>
+    ),
+  };
+}
+
+/** Aggregate view of distribution history for the guide page — deliberately
+ * NOT the row-by-row table (that table is next-dividend-prediction's own,
+ * evidence-for-the-forecast presentation of the same underlying rows). */
+export function distributionSummarySection(data: ArticleData): Section | null {
+  const { ticker, distributions } = data;
+  const paid = distributions.filter((d) => d.amount != null);
+  if (paid.length === 0) return null;
+
+  const amounts = paid.map((d) => d.amount!);
+  const total = amounts.reduce((a, b) => a + b, 0);
+  const avg = total / amounts.length;
+  const min = Math.min(...amounts);
+  const max = Math.max(...amounts);
+  const oldestDate = paid[paid.length - 1].pay_date;
+  const newestDate = paid[0].pay_date;
+
+  return {
+    id: "distribution-summary",
+    heading: `${ticker} Distribution Summary`,
+    body: (
+      <div>
+        <p>
+          Over its last {paid.length} payments ({oldestDate} to {newestDate}), {ticker} paid a
+          combined {fmtMoney(total, 2)} per share, averaging {fmtMoney(avg)} per distribution
+          (ranging from {fmtMoney(min)} to {fmtMoney(max)}).
+        </p>
+        <p className="mt-2 text-sm text-[var(--gray-500)]">
+          For the full payment-by-payment history and CRADY&apos;s next-payment forecast, see the{" "}
+          <Link href={`/magazine/${ticker.toLowerCase()}-next-dividend-prediction`} className="underline hover:text-black">
+            {ticker} Next Dividend Prediction
+          </Link>
+          .
         </p>
       </div>
     ),
@@ -145,34 +248,6 @@ export function investmentStrategySection(data: ArticleData): Section | null {
     id: "investment-strategy",
     heading: "Investment Strategy",
     body: <p className="whitespace-pre-line">{text}</p>,
-  };
-}
-
-export function expectedNextDividendSection(data: ArticleData): Section | null {
-  const { ticker, prediction, annualYieldPct } = data;
-  if (!prediction) return null;
-  return {
-    id: "expected-next-dividend",
-    heading: `Expected Next ${ticker} Dividend`,
-    body: (
-      <ul>
-        <li>
-          Expected ex-dividend date: <strong>{prediction.target_ex_date ?? "TBD"}</strong>
-        </li>
-        <li>
-          Expected payment date: <strong>{prediction.target_pay_date ?? "TBD"}</strong>
-        </li>
-        <li>
-          Estimated dividend amount: <strong>{fmtMoney(prediction.predicted_amount)}</strong>
-        </li>
-        <li>
-          Estimated annualized distribution yield: <strong>{fmtPct(annualYieldPct)}</strong>
-        </li>
-        <li>
-          Confidence score: <strong>{fmtPct(prediction.confidence_score, 0)}</strong>
-        </li>
-      </ul>
-    ),
   };
 }
 

@@ -5,14 +5,15 @@ import {
   advantagesDisadvantagesSection,
   bestForSection,
   distributionHistorySection,
+  distributionSummarySection,
   dividendStabilitySection,
-  expectedNextDividendSection,
   faqSection,
   fundInfoSection,
   investmentStrategySection,
   nextDividendHighlight,
   overviewSection,
   payoutFrequencySection,
+  predictionReliabilityNote,
   recentTrendSection,
   riskAnalysisSection,
   yieldAnalysisSection,
@@ -71,22 +72,27 @@ export function buildArticleMeta(data: ArticleData, type: ArticleTypeId) {
 export function buildSections(data: ArticleData, type: ArticleTypeId): Section[] {
   const faqItems = buildFaqItems(data, type);
 
+  // Each section appears on exactly one article type — where a topic (risk,
+  // yield, distribution history) is legitimately required on more than one
+  // page, it gets a distinct presentation per page (predictionReliabilityNote
+  // vs riskAnalysisSection; the highlight box's yield stat vs
+  // yieldAnalysisSection's prose; distributionHistorySection's row table vs
+  // distributionSummarySection's aggregate view) rather than reusing the same
+  // rendered block, so no two of a ticker's three pages ever share verbatim
+  // text.
   const bySlug: Record<ArticleTypeId, (Section | null)[]> = {
     "next-dividend-prediction": [
       nextDividendHighlight(data),
       distributionHistorySection(data),
       recentTrendSection(data),
-      yieldAnalysisSection(data),
-      riskAnalysisSection(data),
-      payoutFrequencySection(data),
+      predictionReliabilityNote(data),
       faqSection(faqItems),
     ],
     "dividend-guide": [
       overviewSection(data),
       investmentStrategySection(data),
-      expectedNextDividendSection(data),
-      distributionHistorySection(data),
       yieldAnalysisSection(data),
+      distributionSummarySection(data),
       payoutFrequencySection(data),
       fundInfoSection(data),
       faqSection(faqItems),
@@ -96,7 +102,6 @@ export function buildSections(data: ArticleData, type: ArticleTypeId): Section[]
       dividendStabilitySection(data),
       advantagesDisadvantagesSection(data),
       bestForSection(data),
-      expectedNextDividendSection(data),
       faqSection(faqItems),
     ],
   };

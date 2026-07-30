@@ -12,7 +12,25 @@ const nextConfig: NextConfig = {
         basePath: "/crady-web",
         images: { unoptimized: true },
       }
-    : {}),
+    : {
+        // redirects() isn't supported with output:"export", so it's only
+        // wired up for the normal (Vercel) build.
+        async redirects() {
+          return [
+            // /search was a real, indexed URL (Google Search Console) whose
+            // role — finding an ETF by name — is now served by /magazine.
+            // Query strings (e.g. ?q=...) are preserved and forwarded by
+            // Next's redirect handling by default; the magazine index
+            // ignores unknown params so that's harmless rather than a
+            // second redirect.
+            {
+              source: "/search",
+              destination: "/magazine",
+              permanent: true,
+            },
+          ];
+        },
+      }),
 };
 
 export default nextConfig;

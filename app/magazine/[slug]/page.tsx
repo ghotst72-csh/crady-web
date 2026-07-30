@@ -8,6 +8,7 @@ import { buildFaqItems } from "@/lib/magazine/faq";
 import { buildInternalLinks } from "@/lib/magazine/links";
 import { buildArticleJsonLd, buildFaqJsonLd } from "@/lib/magazine/jsonld";
 import { relatedLinksSection } from "@/lib/magazine/sections";
+import { hasRiskContent } from "@/lib/magazine/quality";
 import { resolveSlug } from "@/lib/magazine/slugs";
 import { HUB_DEFINITIONS, HUB_IDS } from "@/lib/magazine/hubs";
 import { ARTICLE_TYPE_SLUG } from "@/lib/magazine/recipes";
@@ -55,10 +56,18 @@ export async function generateMetadata({
   if (!data) return {};
   const meta = buildArticleMeta(data, resolved.type);
 
+  // A risk-analysis page for a ticker with zero risk data is nothing but
+  // FAQ boilerplate ("data isn't available yet" x3) — thin, not indexable,
+  // even though the URL itself stays live (see scripts/audit-magazine-
+  // uniqueness.mjs, which flags exactly this pattern). sitemap.ts applies
+  // the same rule from the bulk snapshot so the URL isn't submitted either.
+  const thin = resolved.type === "risk-analysis" && !hasRiskContent(data.risk);
+
   return {
     title: meta.title,
     description: meta.description,
     alternates: { canonical: url },
+    robots: thin ? { index: false, follow: true } : undefined,
     openGraph: { title: meta.title, description: meta.description, url, type: "article" },
     twitter: { card: "summary_large_image", title: meta.title, description: meta.description },
   };
@@ -134,7 +143,7 @@ export default async function MagazinePage({
         </Link>
       </p>
 
-      <div className="mt-8 space-y-10">
+      <div id="magazine-article-body" className="mt-8 space-y-10">
         {sections.map((section) => (
           <section key={section.id}>
             {section.id !== "next-dividend-highlight" && (

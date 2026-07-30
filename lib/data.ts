@@ -63,6 +63,7 @@ export type NextPredictionRow = {
   target_pay_date: string | null;
   predicted_amount: number | null;
   confidence_score: number | null;
+  prediction_method: string | null;
 };
 
 const PROVIDER_LABEL: Record<string, string> = {
@@ -185,7 +186,9 @@ export async function getNextPrediction(
   // one — filter to future pay dates and take the soonest.
   const { data, error } = await supabase
     .from("next_predictions")
-    .select("ticker, target_ex_date, target_pay_date, predicted_amount, confidence_score")
+    .select(
+      "ticker, target_ex_date, target_pay_date, predicted_amount, confidence_score, prediction_method"
+    )
     .eq("ticker", ticker)
     .gte("target_pay_date", today)
     .order("target_pay_date", { ascending: true })
