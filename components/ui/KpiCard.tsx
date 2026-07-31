@@ -15,8 +15,8 @@ export type KpiItem = {
   size?: KpiSize;
 };
 
-/** The KPI-card pattern already proven on the homepage (components/
- * KeyMetrics.tsx) — generalized so every page's "answer the question in 3
+/** The KPI-card pattern already proven on the homepage's stat cards —
+ * generalized so every page's "answer the question in 3
  * seconds" dashboard uses the exact same visual language instead of each
  * page inventing its own stat-card style. */
 export function KpiGrid({ items, columns = 4 }: { items: KpiItem[]; columns?: 2 | 3 | 4 }) {

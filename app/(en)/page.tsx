@@ -1,19 +1,21 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import {
   getHomeSnapshot,
-  getThisWeekDividends,
   getKeyMetrics,
   topByAnnualYield,
   topByCradyScoreSnapshot,
   topRecentlyIncreased,
   nextDistributionsTimeline,
 } from "@/lib/data";
-import { YieldCarousel } from "@/components/YieldCarousel";
+import { getLatestAnnouncement, getDistributionRowsForAnnouncement, getDistributionTrustStats } from "@/lib/distributions/data";
+import { HeroSection } from "@/components/home/Hero";
+import { TrustBar } from "@/components/home/TrustBar";
+import { TodaysHighlights } from "@/components/home/TodaysHighlights";
+import { MarketSummary } from "@/components/home/MarketSummary";
 import { NextDistributionsRail } from "@/components/NextDistributionsRail";
-import { KeyMetrics } from "@/components/KeyMetrics";
-import { WeekSchedule } from "@/components/WeekSchedule";
+import { OfficialAnnouncementsPreview } from "@/components/home/OfficialAnnouncementsPreview";
 import { RankingPreview } from "@/components/RankingPreview";
+import { MagazineTeaser } from "@/components/home/MagazineTeaser";
 import { AppPromoSection } from "@/components/AppPromoSection";
 
 export const revalidate = 3600;
@@ -49,43 +51,68 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const [snapshot, thisWeek, keyMetrics] = await Promise.all([
+  const [snapshot, keyMetrics, announcement, trustStats] = await Promise.all([
     getHomeSnapshot(),
-    getThisWeekDividends(5),
     getKeyMetrics(),
+    getLatestAnnouncement(),
+    getDistributionTrustStats(),
   ]);
+  const announcementRows = announcement ? await getDistributionRowsForAnnouncement(announcement.id) : [];
 
   const yieldTop10 = topByAnnualYield(snapshot, 10);
   const nextDistributions = nextDistributionsTimeline(snapshot, 10);
   const cradyTop = topByCradyScoreSnapshot(snapshot, 6);
   const increasedTop = topRecentlyIncreased(snapshot, 6);
+  const risingCount = snapshot.filter((e) => e.dividendTrend === "up").length;
+  const lastUpdatedIso = snapshot.reduce<string | null>(
+    (max, e) => (e.calculatedAt && (!max || e.calculatedAt > max) ? e.calculatedAt : max),
+    null
+  );
 
   return (
     <div>
-      {/* A. Hero — one interactive carousel, #1 CRCO centered by default */}
-      <YieldCarousel top10={yieldTop10} lang="en" />
-
-      {/* B. Next Estimated Distributions */}
-      <NextDistributionsRail items={nextDistributions} lang="en" />
-
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 -mt-2 pb-2">
-        <Link href="/distributions" className="text-sm text-[#92400e] hover:underline font-medium">
-          See the latest officially announced distributions →
-        </Link>
-      </div>
-
-      {/* C. Existing sections, repositioned below A/B */}
-      <KeyMetrics metrics={keyMetrics} lang="en" />
-      <WeekSchedule items={thisWeek} lang="en" />
-      <RankingPreview
-        cradyTop={cradyTop}
-        yieldTop={yieldTop10}
-        increasedTop={increasedTop}
+      {/* Hero — one ETF, Bloomberg/FT-style, no carousel */}
+      <HeroSection top10={yieldTop10} lang="en" />
+      <TrustBar
+        etfsTracked={snapshot.length}
+        distributionRecords={trustStats.distributionRecords}
+        announcementsTracked={trustStats.announcementsTracked}
+        predictionCount={keyMetrics.nextPredictionCount}
+        lastUpdatedIso={lastUpdatedIso}
         lang="en"
       />
 
-      {/* D. App promotion — the web's role is discovery, the app's role is
-          ongoing management; this section hands off the funnel. */}
+      <TodaysHighlights
+        data={{
+          announcementCount: announcement?.etf_count ?? null,
+          announcementDate: announcement?.announcement_date ?? null,
+          todayCount: keyMetrics.todayCount,
+          weekCount: keyMetrics.weekCount,
+          highestYieldTicker: yieldTop10[0]?.ticker ?? null,
+          highestYieldPct: yieldTop10[0]?.annualYieldPct ?? null,
+          risingCount,
+        }}
+        lang="en"
+      />
+
+      <MarketSummary
+        announcementRows={announcementRows}
+        announcementCount={announcement?.etf_count ?? null}
+        todayCount={keyMetrics.todayCount}
+        weekCount={keyMetrics.weekCount}
+        lang="en"
+      />
+
+      <NextDistributionsRail items={nextDistributions} lang="en" />
+
+      {announcement && (
+        <OfficialAnnouncementsPreview announcement={announcement} rows={announcementRows} lang="en" />
+      )}
+
+      <RankingPreview cradyTop={cradyTop} yieldTop={yieldTop10} increasedTop={increasedTop} lang="en" />
+
+      <MagazineTeaser snapshot={snapshot} lang="en" />
+
       <AppPromoSection lang="en" />
     </div>
   );

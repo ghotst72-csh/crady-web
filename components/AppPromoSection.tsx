@@ -62,7 +62,8 @@ export function AppPromoSection({ lang = "en" }: { lang?: "en" | "ko" }) {
       <div className="mx-auto max-w-6xl px-4 sm:px-6 py-12 sm:py-16">
         <div className="grid lg:grid-cols-[1fr_auto] gap-10 lg:gap-16 items-center">
           <div>
-            <div className="text-xs font-semibold text-[var(--crady-accent)] tracking-wide">
+            {/* #92400e, not --crady-accent — see components/ui/KpiCard.tsx for why. */}
+            <div className="text-xs font-semibold text-[#92400e] tracking-wide">
               {T.eyebrow[lang]}
             </div>
             <h2 className="mt-2 text-2xl sm:text-3xl font-black leading-tight">

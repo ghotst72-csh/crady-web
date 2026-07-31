@@ -18,6 +18,7 @@ const TAB_LABEL: Record<Tab, { en: string; ko: string }> = {
 };
 
 const T = {
+  heading: { en: "Top Rankings", ko: "TOP 랭킹" },
   viewAll: { en: "View Full Ranking →", ko: "전체 랭킹 보기 →" },
   empty: { en: "No ETFs match this criteria yet.", ko: "해당 조건의 ETF가 아직 없습니다." },
   price: { en: "Price", ko: "현재가" },
@@ -48,6 +49,7 @@ export function RankingPreview({
 
   return (
     <section className="mx-auto max-w-6xl px-4 sm:px-6 py-8 border-t border-[var(--gray-200)]">
+      <h2 className="text-lg font-bold mb-4">{T.heading[lang]}</h2>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         {/* w-full + flex-wrap on mobile: at 320px three tab labels ("CRADY
             Score" / "Distribution Yield" / "Rising Dividends") don't fit on
@@ -135,7 +137,8 @@ function RankPreviewCard({
       </div>
       <div className="mt-2">
         <div className="text-xs text-[var(--gray-500)]">{metric.label}</div>
-        <div className="text-xl font-extrabold text-[var(--crady-accent)]">
+        {/* #92400e, not --crady-accent — see components/ui/KpiCard.tsx for why. */}
+        <div className="text-xl font-extrabold text-[#92400e]">
           {metric.value}
         </div>
       </div>

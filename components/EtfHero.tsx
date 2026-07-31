@@ -7,7 +7,7 @@ const RISK_LABEL: Record<"en" | "ko", Record<string, string>> = {
   ko: { SAFE: "안정", NORMAL: "보통", RISKY: "위험", EXTREME: "고위험" },
 };
 
-// Same tint map as the homepage Hero (components/YieldCarousel.tsx) — kept
+// Same tint map as the homepage Hero (components/home/Hero.tsx) — kept
 // as a small local copy rather than a shared import since it's 3 lines and
 // pulling in the client Hero component here would drag its "use client"
 // boundary into this server component for no reason.

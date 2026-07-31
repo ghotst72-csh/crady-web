@@ -220,6 +220,30 @@ export async function getAnnouncementChanges(
   return changes;
 }
 
+export type DistributionTrustStats = {
+  distributionRecords: number;
+  announcementsTracked: number;
+};
+
+/** Homepage trust-strip numbers (Homepage Phase 4, Part 6) — two plain
+ * COUNT(*) queries via head:true (same zero-payload pattern getKeyMetrics
+ * already uses in lib/data.ts), never a derived or estimated figure. */
+export async function getDistributionTrustStats(): Promise<DistributionTrustStats> {
+  const [distRes, annRes] = await Promise.all([
+    supabase.from("distributions").select("ticker", { count: "exact", head: true }).not("amount", "is", null),
+    supabase
+      .from("distribution_announcements")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "published"),
+  ]);
+  if (distRes.error) throw distRes.error;
+  if (annRes.error) throw annRes.error;
+  return {
+    distributionRecords: distRes.count ?? 0,
+    announcementsTracked: annRes.count ?? 0,
+  };
+}
+
 export type PredictionVsOfficial = {
   predictedAmount: number;
   actualAmount: number;

@@ -1,19 +1,21 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import {
   getHomeSnapshot,
-  getThisWeekDividends,
   getKeyMetrics,
   topByAnnualYield,
   topByCradyScoreSnapshot,
   topRecentlyIncreased,
   nextDistributionsTimeline,
 } from "@/lib/data";
-import { YieldCarousel } from "@/components/YieldCarousel";
+import { getLatestAnnouncement, getDistributionRowsForAnnouncement, getDistributionTrustStats } from "@/lib/distributions/data";
+import { HeroSection } from "@/components/home/Hero";
+import { TrustBar } from "@/components/home/TrustBar";
+import { TodaysHighlights } from "@/components/home/TodaysHighlights";
+import { MarketSummary } from "@/components/home/MarketSummary";
 import { NextDistributionsRail } from "@/components/NextDistributionsRail";
-import { KeyMetrics } from "@/components/KeyMetrics";
-import { WeekSchedule } from "@/components/WeekSchedule";
+import { OfficialAnnouncementsPreview } from "@/components/home/OfficialAnnouncementsPreview";
 import { RankingPreview } from "@/components/RankingPreview";
+import { MagazineTeaser } from "@/components/home/MagazineTeaser";
 import { AppPromoSection } from "@/components/AppPromoSection";
 
 export const revalidate = 3600;
@@ -49,28 +51,70 @@ export const metadata: Metadata = {
 };
 
 export default async function KoreanHomePage() {
-  const [snapshot, thisWeek, keyMetrics] = await Promise.all([
+  const [snapshot, keyMetrics, announcement, trustStats] = await Promise.all([
     getHomeSnapshot(),
-    getThisWeekDividends(5),
     getKeyMetrics(),
+    getLatestAnnouncement(),
+    getDistributionTrustStats(),
   ]);
+  const announcementRows = announcement ? await getDistributionRowsForAnnouncement(announcement.id) : [];
 
   const yieldTop10 = topByAnnualYield(snapshot, 10);
   const nextDistributions = nextDistributionsTimeline(snapshot, 10);
   const cradyTop = topByCradyScoreSnapshot(snapshot, 6);
   const increasedTop = topRecentlyIncreased(snapshot, 6);
+  const risingCount = snapshot.filter((e) => e.dividendTrend === "up").length;
+  const lastUpdatedIso = snapshot.reduce<string | null>(
+    (max, e) => (e.calculatedAt && (!max || e.calculatedAt > max) ? e.calculatedAt : max),
+    null
+  );
 
   return (
     <div>
-      <YieldCarousel top10={yieldTop10} lang="ko" basePath="/ko" />
+      <HeroSection top10={yieldTop10} lang="ko" basePath="/ko" />
+      <TrustBar
+        etfsTracked={snapshot.length}
+        distributionRecords={trustStats.distributionRecords}
+        announcementsTracked={trustStats.announcementsTracked}
+        predictionCount={keyMetrics.nextPredictionCount}
+        lastUpdatedIso={lastUpdatedIso}
+        lang="ko"
+      />
+
+      <TodaysHighlights
+        data={{
+          announcementCount: announcement?.etf_count ?? null,
+          announcementDate: announcement?.announcement_date ?? null,
+          todayCount: keyMetrics.todayCount,
+          weekCount: keyMetrics.weekCount,
+          highestYieldTicker: yieldTop10[0]?.ticker ?? null,
+          highestYieldPct: yieldTop10[0]?.annualYieldPct ?? null,
+          risingCount,
+        }}
+        lang="ko"
+        basePath="/ko"
+      />
+
+      <MarketSummary
+        announcementRows={announcementRows}
+        announcementCount={announcement?.etf_count ?? null}
+        todayCount={keyMetrics.todayCount}
+        weekCount={keyMetrics.weekCount}
+        lang="ko"
+        basePath="/ko"
+      />
+
       <NextDistributionsRail items={nextDistributions} lang="ko" basePath="/ko" />
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 -mt-2 pb-2">
-        <Link href="/ko/distributions" className="text-sm text-[#92400e] hover:underline font-medium">
-          최신 공식 분배금 발표 보기 →
-        </Link>
-      </div>
-      <KeyMetrics metrics={keyMetrics} lang="ko" basePath="/ko" />
-      <WeekSchedule items={thisWeek} lang="ko" basePath="/ko" />
+
+      {announcement && (
+        <OfficialAnnouncementsPreview
+          announcement={announcement}
+          rows={announcementRows}
+          lang="ko"
+          basePath="/ko"
+        />
+      )}
+
       <RankingPreview
         cradyTop={cradyTop}
         yieldTop={yieldTop10}
@@ -78,6 +122,9 @@ export default async function KoreanHomePage() {
         lang="ko"
         basePath="/ko"
       />
+
+      <MagazineTeaser snapshot={snapshot} lang="ko" />
+
       <AppPromoSection lang="ko" />
     </div>
   );
