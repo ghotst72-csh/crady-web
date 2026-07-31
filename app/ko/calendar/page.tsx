@@ -1,8 +1,10 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { getUpcomingDividends } from "@/lib/data";
+import { getUpcomingDividends, getKeyMetrics } from "@/lib/data";
+import { getLatestAnnouncement } from "@/lib/distributions/data";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { DividendStagePill } from "@/components/DividendLifecycle";
+import { CalendarSummary } from "@/components/calendar/CalendarSummary";
 
 export const revalidate = 3600;
 
@@ -20,7 +22,17 @@ export const metadata: Metadata = {
 };
 
 export default async function KoreanCalendarPage() {
-  const upcoming = await getUpcomingDividends(60);
+  const [upcoming, keyMetrics, latestAnnouncement] = await Promise.all([
+    getUpcomingDividends(60),
+    getKeyMetrics(),
+    getLatestAnnouncement(),
+  ]);
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const nextExDividendRow =
+    [...upcoming].filter((d) => d.ex_date >= todayStr).sort((a, b) => (a.ex_date < b.ex_date ? -1 : 1))[0] ??
+    upcoming[0] ??
+    null;
 
   const byDate = new Map<string, typeof upcoming>();
   for (const d of upcoming) {
@@ -41,11 +53,22 @@ export default async function KoreanCalendarPage() {
       <p className="text-sm text-[var(--gray-500)] mt-1">
         지급일이 다가오는 배당 ETF {upcoming.length}건
       </p>
-      <p className="text-sm mt-1">
-        <Link href="/ko/distributions" className="text-[var(--crady-accent)] hover:underline font-medium">
-          최신 공식 분배금 발표 보기 →
-        </Link>
-      </p>
+
+      <div className="mt-4">
+        <CalendarSummary
+          todayCount={keyMetrics.todayCount}
+          weekCount={keyMetrics.weekCount}
+          predictionCount={keyMetrics.nextPredictionCount}
+          nextExDividend={nextExDividendRow ? { ticker: nextExDividendRow.ticker, exDate: nextExDividendRow.ex_date } : null}
+          latestAnnouncement={
+            latestAnnouncement
+              ? { etfCount: latestAnnouncement.etf_count, date: latestAnnouncement.announcement_date }
+              : null
+          }
+          lang="ko"
+          basePath="/ko"
+        />
+      </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-[var(--gray-500)] border border-[var(--gray-200)] rounded-lg px-3 py-2">
         <span className="font-semibold text-[var(--gray-600)]">배당 흐름</span>

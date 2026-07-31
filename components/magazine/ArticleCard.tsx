@@ -1,39 +1,77 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
+
+/** Text-forward editorial card (Part 6 of the Visual Hierarchy redesign):
+ * badge, large ticker, smaller subtitle, one important number, short
+ * summary — no thumbnail image. The previous version used each ticker's
+ * dynamic OG-image route as a card thumbnail, which meant every card on
+ * the Magazine hub triggered its own server-rendered image fetch (slow,
+ * and a real CLS/LCP risk on a page with dozens of cards) for a visual
+ * that, at card size, mostly read as a pale near-empty box anyway — a pure
+ * server-rendered text card is faster, jump-free, and reads better at a
+ * glance, matching the "Bloomberg/Apple News, not Excel" brief. */
+export type ExtraStat = { label: string; value: string };
 
 export function ArticleCard({
   href,
-  title,
-  description,
-  date,
-  imageSrc,
+  ticker,
+  badge,
+  subtitle,
+  metricLabel,
+  metricValue,
+  summary,
+  extraStats,
+  featured = false,
 }: {
   href: string;
-  title: string;
-  description: string;
-  date?: string;
-  imageSrc?: string;
+  ticker: string;
+  badge?: ReactNode;
+  subtitle?: string;
+  metricLabel?: string;
+  metricValue?: string;
+  summary?: string;
+  /** Extra key/value facts shown only in the featured slot — real content
+   * to fill the hero card's larger footprint rather than empty whitespace
+   * (Part 8: "large empty areas should usually contain useful information"). */
+  extraStats?: ExtraStat[];
+  /** Larger type scale for the single hero-slot card in a featured layout. */
+  featured?: boolean;
 }) {
   return (
     <Link
       href={href}
-      className="group block border border-[var(--gray-200)] rounded-xl overflow-hidden hover:border-black transition-colors"
+      className="group block h-full border border-[var(--gray-200)] rounded-xl p-4 sm:p-5 hover:border-black hover:shadow-sm transition-all"
     >
-      {imageSrc && (
-        // eslint-disable-next-line @next/next/no-img-element -- server-generated PNG (ImageResponse route), not an optimizable static asset
-        <img
-          src={imageSrc}
-          alt={title}
-          width={1200}
-          height={630}
-          className="w-full aspect-[1200/630] object-cover bg-[var(--gray-50)]"
-          loading="lazy"
-        />
-      )}
-      <div className="p-4">
-        <h3 className="font-bold text-sm sm:text-base group-hover:underline">{title}</h3>
-        <p className="mt-1 text-sm text-[var(--gray-500)] line-clamp-2">{description}</p>
-        {date && <p className="mt-2 text-xs text-[var(--gray-400)]">{date}</p>}
+      <div className="flex items-start justify-between gap-2">
+        <span
+          className={`font-black tracking-tight group-hover:underline ${featured ? "text-2xl sm:text-3xl" : "text-lg"}`}
+        >
+          {ticker}
+        </span>
+        {badge}
       </div>
+      {subtitle && <div className="mt-1 text-xs text-[var(--gray-500)]">{subtitle}</div>}
+      {metricValue != null && (
+        <div className="mt-2.5">
+          <div className={`font-extrabold text-[var(--crady-accent)] ${featured ? "text-3xl" : "text-xl"}`}>
+            {metricValue}
+          </div>
+          {metricLabel && <div className="text-[11px] text-[var(--gray-400)] mt-0.5">{metricLabel}</div>}
+        </div>
+      )}
+      {summary && (
+        <p className={`mt-2.5 text-[var(--gray-600)] line-clamp-2 ${featured ? "text-sm" : "text-xs"}`}>{summary}</p>
+      )}
+      {featured && extraStats && extraStats.length > 0 && (
+        <div className="mt-5 pt-4 border-t border-[var(--gray-100)] grid grid-cols-3 gap-3">
+          {extraStats.map((s) => (
+            <div key={s.label}>
+              <div className="text-sm sm:text-base font-bold">{s.value}</div>
+              <div className="text-[11px] text-[var(--gray-400)] mt-0.5">{s.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
     </Link>
   );
 }

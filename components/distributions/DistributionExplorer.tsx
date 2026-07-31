@@ -12,6 +12,7 @@ import {
   type SortOption,
 } from "@/lib/distributions/table";
 import { providerLabel } from "@/lib/providers";
+import { Badge } from "@/components/ui/Badge";
 
 const T = {
   searchPlaceholder: { en: "Search ticker or ETF name...", ko: "티커 또는 ETF 이름 검색..." },
@@ -34,6 +35,7 @@ const T = {
   collapse: { en: "Tap to collapse", ko: "탭하여 접기" },
   source: { en: "Source", ko: "출처" },
   viewTicker: { en: "View ticker page →", ko: "티커 페이지 보기 →" },
+  popularBadge: { en: "Popular", ko: "인기" },
   na: "—",
 } as const;
 
@@ -44,6 +46,27 @@ function fmtMoney(n: number | null): string {
 }
 function fmtPct(n: number | null): string {
   return n != null ? `${n.toFixed(2)}%` : T.na;
+}
+
+/** A restrained "sparkbar" — width scales with the value (0-100%), neutral
+ * gray fill (never red/green: ROC has no inherent good/bad direction, so
+ * coloring it as a judgment would be misleading). Just enough of a visual
+ * indicator that the column reads at a glance instead of as another column
+ * of plain digits (Part 2: "use visual indicators rather than plain text"). */
+function RocBar({ value }: { value: number | null }) {
+  if (value == null) return <span className="text-[var(--gray-400)]">{T.na}</span>;
+  const width = Math.max(0, Math.min(100, value));
+  return (
+    <span className="inline-flex items-center gap-2 justify-end w-full">
+      <span className="w-10 h-1.5 rounded-full bg-[var(--gray-100)] overflow-hidden shrink-0">
+        <span
+          className="block h-full rounded-full bg-[var(--gray-400)]"
+          style={{ width: `${width}%` }}
+        />
+      </span>
+      <span className="tabular-nums">{value.toFixed(2)}%</span>
+    </span>
+  );
 }
 
 export function DistributionExplorer({
@@ -163,25 +186,45 @@ export function DistributionExplorer({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--gray-100)]">
-                  {visibleRows.map((r) => (
-                    <tr key={r.ticker} className="hover:bg-[var(--gray-50)] transition-colors">
-                      <td className="px-4 py-2.5 font-semibold">
-                        <Link href={`${basePath}/${r.ticker.toLowerCase()}`} className="hover:underline">
-                          {r.ticker}
-                        </Link>
-                      </td>
-                      <td className="px-4 py-2.5 text-[var(--gray-600)] truncate max-w-[220px]">
-                        {r.etfName ?? T.na}
-                      </td>
-                      <td className="px-4 py-2.5 text-[var(--gray-600)]">{r.frequency ?? T.na}</td>
-                      <td className="px-4 py-2.5 text-right font-medium">{fmtMoney(r.distributionPerShare)}</td>
-                      <td className="px-4 py-2.5 text-right">{fmtPct(r.distributionRate)}</td>
-                      <td className="px-4 py-2.5 text-right">{fmtPct(r.secYield30d)}</td>
-                      <td className="px-4 py-2.5 text-right">{fmtPct(r.rocPercent)}</td>
-                      <td className="px-4 py-2.5 text-[var(--gray-600)]">{r.exDate}</td>
-                      <td className="px-4 py-2.5 text-[var(--gray-600)]">{r.payDate}</td>
-                    </tr>
-                  ))}
+                  {visibleRows.map((r, i) => {
+                    const isPopular = POPULAR_TICKERS.includes(r.ticker);
+                    return (
+                      <tr
+                        key={r.ticker}
+                        className={`transition-colors hover:bg-[var(--gray-100)]/60 ${
+                          i % 2 === 1 ? "bg-[var(--gray-50)]/50" : ""
+                        }`}
+                      >
+                        <td className="px-4 py-2.5">
+                          <Link
+                            href={`${basePath}/${r.ticker.toLowerCase()}`}
+                            className="inline-flex items-center gap-1.5 font-bold text-[15px] hover:underline"
+                          >
+                            {r.ticker}
+                            {isPopular && <Badge variant="accent-outline">{T.popularBadge[lang]}</Badge>}
+                          </Link>
+                        </td>
+                        <td className="px-4 py-2.5 text-[var(--gray-600)] truncate max-w-[220px]">
+                          {r.etfName ?? T.na}
+                        </td>
+                        <td className="px-4 py-2.5 text-[var(--gray-600)]">{r.frequency ?? T.na}</td>
+                        <td className="px-4 py-2.5 text-right font-semibold tabular-nums">
+                          {fmtMoney(r.distributionPerShare)}
+                        </td>
+                        <td className="px-4 py-2.5 text-right font-semibold text-[var(--crady-accent)] tabular-nums">
+                          {fmtPct(r.distributionRate)}
+                        </td>
+                        <td className="px-4 py-2.5 text-right text-[var(--gray-700)] tabular-nums">
+                          {fmtPct(r.secYield30d)}
+                        </td>
+                        <td className="px-4 py-2.5 text-right">
+                          <RocBar value={r.rocPercent} />
+                        </td>
+                        <td className="px-4 py-2.5 text-[var(--gray-600)]">{r.exDate}</td>
+                        <td className="px-4 py-2.5 text-[var(--gray-600)]">{r.payDate}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -189,19 +232,23 @@ export function DistributionExplorer({
 
           {/* Mobile — compact rows, tap to expand. */}
           <ul className="sm:hidden mt-5 border border-[var(--gray-200)] rounded-xl divide-y divide-[var(--gray-100)] overflow-hidden">
-            {visibleRows.map((r) => {
+            {visibleRows.map((r, i) => {
               const isOpen = expanded.has(r.ticker);
+              const isPopular = POPULAR_TICKERS.includes(r.ticker);
               return (
-                <li key={r.ticker}>
+                <li key={r.ticker} className={i % 2 === 1 ? "bg-[var(--gray-50)]/50" : ""}>
                   <button
                     type="button"
                     onClick={() => toggleExpanded(r.ticker)}
                     aria-expanded={isOpen}
-                    className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left min-h-[44px]"
+                    className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left min-h-[44px]"
                   >
-                    <span className="font-semibold">{r.ticker}</span>
-                    <span className="flex-1 text-right text-sm font-medium">{fmtMoney(r.distributionPerShare)}</span>
-                    <span className="w-16 shrink-0 text-right text-xs text-[var(--gray-500)]">{fmtPct(r.distributionRate)}</span>
+                    <span className="flex items-center gap-1.5 font-bold shrink-0">
+                      {r.ticker}
+                      {isPopular && <Badge variant="accent-outline">{T.popularBadge[lang]}</Badge>}
+                    </span>
+                    <span className="flex-1 text-right text-sm font-semibold tabular-nums">{fmtMoney(r.distributionPerShare)}</span>
+                    <span className="w-16 shrink-0 text-right text-xs font-semibold text-[var(--crady-accent)] tabular-nums">{fmtPct(r.distributionRate)}</span>
                     <span className="w-20 shrink-0 text-right text-xs text-[var(--gray-500)]">{r.payDate}</span>
                   </button>
                   {isOpen && (
@@ -221,7 +268,7 @@ export function DistributionExplorer({
                         </div>
                         <div>
                           <dt className="text-xs text-[var(--gray-500)]">{T.th.roc[lang]}</dt>
-                          <dd>{fmtPct(r.rocPercent)}</dd>
+                          <dd><RocBar value={r.rocPercent} /></dd>
                         </div>
                         <div>
                           <dt className="text-xs text-[var(--gray-500)]">{T.th.exDate[lang]}</dt>

@@ -41,7 +41,9 @@ describe("DistributionExplorer — desktop table", () => {
 
   it("ticker cells link to the correct ticker page, honoring basePath", () => {
     render(<DistributionExplorer rows={ROWS} lang="ko" basePath="/ko" />);
-    const link = screen.getByRole("link", { name: "MSTY" });
+    // Popular tickers (MSTY included) now carry a "Popular" badge inside the
+    // same link, so its accessible name is "MSTY Popular" — match by regex.
+    const link = screen.getByRole("link", { name: /^MSTY/ });
     expect(link).toHaveAttribute("href", "/ko/msty");
   });
 
@@ -49,16 +51,16 @@ describe("DistributionExplorer — desktop table", () => {
     const user = userEvent.setup();
     render(<DistributionExplorer rows={ROWS} lang="en" />);
     await user.type(screen.getByRole("searchbox"), "msty");
-    expect(screen.getAllByRole("link", { name: "MSTY" }).length).toBeGreaterThan(0);
-    expect(screen.queryByRole("link", { name: "TSLY" })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /^MSTY/ }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("link", { name: /^TSLY/ })).not.toBeInTheDocument();
   });
 
   it("filters by provider via a filter chip", async () => {
     const user = userEvent.setup();
     render(<DistributionExplorer rows={ROWS} lang="en" />);
     await user.click(screen.getByRole("button", { name: /roundhill/i }));
-    expect(screen.getAllByRole("link", { name: "CONY" }).length).toBeGreaterThan(0);
-    expect(screen.queryByRole("link", { name: "MSTY" })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /^CONY/ }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("link", { name: /^MSTY/ })).not.toBeInTheDocument();
   });
 
   it("re-sorts rows when the sort option changes", async () => {

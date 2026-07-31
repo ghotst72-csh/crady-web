@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getLatestAnnouncement, getDistributionRowsForAnnouncement } from "@/lib/distributions/data";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { AnnouncementHeader } from "@/components/distributions/AnnouncementHeader";
+import { DistributionKpis } from "@/components/distributions/DistributionKpis";
 import { DistributionExplorer } from "@/components/distributions/DistributionExplorer";
 import { DataExplanations } from "@/components/distributions/DataExplanations";
 
@@ -65,14 +66,17 @@ export default async function DistributionsPage() {
       <p className="text-xs font-semibold text-[var(--gray-500)] uppercase tracking-wide">
         CRADY Official Distribution Center
       </p>
-      <h1 className="sr-only">Latest Official Distributions</h1>
 
       {announcement ? (
         <>
           <div className="mt-2">
-            <AnnouncementHeader announcement={announcement} lang="en" />
+            <AnnouncementHeader announcement={announcement} lang="en" variant="hero" />
           </div>
           <div className="mt-6">
+            <DistributionKpis rows={rows} lang="en" />
+          </div>
+          <div className="mt-8">
+            <h2 className="text-lg font-bold mb-3">All Announced Distributions</h2>
             <DistributionExplorer rows={rows} lang="en" basePath="" />
           </div>
         </>

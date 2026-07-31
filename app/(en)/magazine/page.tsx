@@ -1,12 +1,15 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { getHomeSnapshot, providerLabel, type EtfSnapshot } from "@/lib/data";
+import { getHomeSnapshot, getKeyMetrics, providerLabel, type EtfSnapshot } from "@/lib/data";
+import { getLatestAnnouncement } from "@/lib/distributions/data";
 import { articleSlug } from "@/lib/magazine/recipes";
 import { HUB_DEFINITIONS } from "@/lib/magazine/hubs";
 import { CALENDAR_HUB_DEFINITIONS } from "@/lib/magazine/calendarHubs";
 import { STANDALONE_PAGES } from "@/lib/magazine/standalone";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { ArticleCard } from "@/components/magazine/ArticleCard";
+import { ArticleTypeBadge } from "@/components/magazine/ArticleTypeBadge";
+import { KpiGrid, type KpiItem } from "@/components/ui/KpiCard";
 
 export const revalidate = 3600;
 
@@ -32,16 +35,29 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
 };
 
-function nextDividendCard(etf: EtfSnapshot) {
+const RISK_LABEL: Record<string, string> = { SAFE: "Safe", NORMAL: "Normal", RISKY: "Risky", EXTREME: "Extreme" };
+
+function predictionCard(etf: EtfSnapshot, featured = false) {
+  const extraStats = featured
+    ? [
+        etf.riskLevel ? { label: "Risk Level", value: RISK_LABEL[etf.riskLevel] ?? etf.riskLevel } : null,
+        etf.payoutFrequency ? { label: "Frequency", value: etf.payoutFrequency } : null,
+        etf.nextPredictedDate ? { label: "Next Predicted Payment", value: etf.nextPredictedDate } : null,
+      ].filter((s): s is { label: string; value: string } => s != null)
+    : undefined;
+
   return (
     <ArticleCard
       key={etf.ticker}
       href={`/magazine/${articleSlug(etf.ticker, "next-dividend-prediction")}`}
-      title={`${etf.ticker} Next Dividend Prediction`}
-      description={`${providerLabel(etf.provider_id)}${
-        etf.annualYieldPct != null ? ` · ${etf.annualYieldPct.toFixed(1)}% est. yield` : ""
-      }`}
-      imageSrc={`/${etf.ticker.toLowerCase()}/opengraph-image`}
+      ticker={etf.ticker}
+      badge={<ArticleTypeBadge type="next-dividend-prediction" />}
+      subtitle={`${providerLabel(etf.provider_id)} · Next Dividend Prediction`}
+      metricValue={etf.annualYieldPct != null ? `${etf.annualYieldPct.toFixed(1)}%` : undefined}
+      metricLabel="Est. Annual Yield"
+      summary={etf.cradyScore != null ? `CRADY Score ${etf.cradyScore.toFixed(1)}` : undefined}
+      extraStats={extraStats}
+      featured={featured}
     />
   );
 }
@@ -51,15 +67,22 @@ function dividendGuideCard(etf: EtfSnapshot) {
     <ArticleCard
       key={etf.ticker}
       href={`/magazine/${articleSlug(etf.ticker, "dividend-guide")}`}
-      title={`${etf.ticker} Dividend Guide`}
-      description={`${providerLabel(etf.provider_id)} · Distribution history, yield & payout frequency`}
-      imageSrc={`/${etf.ticker.toLowerCase()}/opengraph-image`}
+      ticker={etf.ticker}
+      badge={<ArticleTypeBadge type="dividend-guide" />}
+      subtitle={`${providerLabel(etf.provider_id)} · Dividend Guide`}
+      metricValue={etf.annualYieldPct != null ? `${etf.annualYieldPct.toFixed(1)}%` : undefined}
+      metricLabel="Est. Annual Yield"
+      summary="Distribution history, yield & payout frequency"
     />
   );
 }
 
 export default async function MagazineIndexPage() {
-  const snapshot = await getHomeSnapshot();
+  const [snapshot, keyMetrics, latestAnnouncement] = await Promise.all([
+    getHomeSnapshot(),
+    getKeyMetrics(),
+    getLatestAnnouncement(),
+  ]);
   const byYield = [...snapshot]
     .filter((e) => e.annualYieldPct != null)
     .sort((a, b) => b.annualYieldPct! - a.annualYieldPct!);
@@ -72,6 +95,7 @@ export default async function MagazineIndexPage() {
     .sort((a, b) => (a.nextPredictedDate! < b.nextPredictedDate! ? -1 : 1));
 
   const featured = byYield[0];
+  const secondary = byUpcoming.filter((e) => e.ticker !== featured?.ticker).slice(0, 3);
   const latest = byUpcoming.slice(0, 6);
   const weekly = snapshot.filter((e) => e.payoutFrequency === "weekly").sort((a, b) => (b.annualYieldPct ?? -1) - (a.annualYieldPct ?? -1)).slice(0, 4);
   const monthly = snapshot.filter((e) => e.payoutFrequency === "monthly").sort((a, b) => (b.annualYieldPct ?? -1) - (a.annualYieldPct ?? -1)).slice(0, 4);
@@ -79,6 +103,20 @@ export default async function MagazineIndexPage() {
   const roundhill = snapshot.filter((e) => e.provider_id === "roundhill").sort((a, b) => (b.annualYieldPct ?? -1) - (a.annualYieldPct ?? -1)).slice(0, 4);
   const defiance = snapshot.filter((e) => e.provider_id === "defiance").sort((a, b) => (b.annualYieldPct ?? -1) - (a.annualYieldPct ?? -1)).slice(0, 4);
   const guides = byYield.slice(0, 4);
+
+  const highlightItems: KpiItem[] = [
+    { label: "ETFs Tracked", value: snapshot.length, href: "/ranking" },
+    { label: "Paying Today", value: keyMetrics.todayCount, href: "/calendar" },
+    { label: "Paying This Week", value: keyMetrics.weekCount, href: "/calendar" },
+  ];
+  if (latestAnnouncement) {
+    highlightItems.push({
+      label: "New Official Distribution",
+      value: latestAnnouncement.etf_count,
+      sublabel: latestAnnouncement.announcement_date,
+      href: "/distributions",
+    });
+  }
 
   return (
     <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10">
@@ -95,23 +133,38 @@ export default async function MagazineIndexPage() {
         auto-generated from CRADY&apos;s data pipeline and kept up to date automatically.
       </p>
 
+      {/* Today's Highlights — the page's "hero moment": answer "what should
+          I pay attention to right now" before any card grid. */}
+      <section className="mt-6">
+        <h2 className="text-xs font-semibold text-[var(--gray-500)] uppercase tracking-wide mb-3">
+          Today&apos;s Highlights
+        </h2>
+        <KpiGrid items={highlightItems} columns={4} />
+      </section>
+
+      {/* Featured magazine layout — one large hero story + secondary
+          stories, instead of a single lonely card in a sea of whitespace. */}
       {featured && (
         <section className="mt-8">
-          <h2 className="text-xs font-semibold text-[var(--gray-500)] uppercase tracking-wide mb-3">
-            Featured
-          </h2>
-          <div className="max-w-md">{nextDividendCard(featured)}</div>
+          <div className="grid lg:grid-cols-3 gap-4 items-start">
+            <div className="lg:col-span-2">{predictionCard(featured, true)}</div>
+            {secondary.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-4">
+                {secondary.map((etf) => predictionCard(etf))}
+              </div>
+            )}
+          </div>
         </section>
       )}
 
       {latest.length > 0 && (
-        <CategorySection title="Paying Soon" items={latest.map(nextDividendCard)} />
+        <CategorySection title="Paying Soon" items={latest.map((e) => predictionCard(e))} />
       )}
 
       {weekly.length > 0 && (
         <CategorySection
           title="Weekly Dividend ETFs"
-          items={weekly.map(nextDividendCard)}
+          items={weekly.map((e) => predictionCard(e))}
           moreHref="/magazine/weekly-dividend-etfs"
         />
       )}
@@ -119,7 +172,7 @@ export default async function MagazineIndexPage() {
       {monthly.length > 0 && (
         <CategorySection
           title="Monthly Dividend ETFs"
-          items={monthly.map(nextDividendCard)}
+          items={monthly.map((e) => predictionCard(e))}
           moreHref="/magazine/monthly-dividend-etfs"
         />
       )}
@@ -127,7 +180,7 @@ export default async function MagazineIndexPage() {
       {yieldmax.length > 0 && (
         <CategorySection
           title="YieldMax ETFs"
-          items={yieldmax.map(nextDividendCard)}
+          items={yieldmax.map((e) => predictionCard(e))}
           moreHref="/magazine/yieldmax-etfs"
         />
       )}
@@ -135,7 +188,7 @@ export default async function MagazineIndexPage() {
       {roundhill.length > 0 && (
         <CategorySection
           title="Roundhill ETFs"
-          items={roundhill.map(nextDividendCard)}
+          items={roundhill.map((e) => predictionCard(e))}
           moreHref="/magazine/roundhill-etfs"
         />
       )}
@@ -143,7 +196,7 @@ export default async function MagazineIndexPage() {
       {defiance.length > 0 && (
         <CategorySection
           title="Defiance ETFs"
-          items={defiance.map(nextDividendCard)}
+          items={defiance.map((e) => predictionCard(e))}
           moreHref="/magazine/defiance-etfs"
         />
       )}

@@ -1,9 +1,11 @@
 import { providerLabel } from "@/lib/providers";
+import { Badge } from "@/components/ui/Badge";
 import type { AnnouncementRow } from "@/lib/distributions/data";
 
 const T = {
   officialBadge: { en: "Official data", ko: "공식 데이터" },
-  etfCount: { en: (n: number) => `${n} ETFs announced`, ko: (n: number) => `${n}개 ETF 발표` },
+  eyebrow: { en: "Latest Official Distribution", ko: "최신 공식 분배금" },
+  etfsAnnounced: { en: "ETFs announced", ko: "개 ETF 발표" },
   lastUpdated: { en: "Last updated", ko: "마지막 업데이트" },
   source: { en: "Source", ko: "출처" },
   viewSource: { en: "View original announcement →", ko: "원문 발표 보기 →" },
@@ -30,27 +32,76 @@ function formatTimestamp(iso: string, lang: "en" | "ko"): string {
   });
 }
 
+/** The Distribution Center's "hero moment" (variant="hero", used on
+ * /distributions itself — the page's single most important fact, the ETF
+ * count, gets the same big-stat treatment as EtfHero's yield percentage)
+ * and the more compact header reused on archive/announcement detail pages
+ * (variant="compact", the default) where the full table + insights below
+ * already carry the page's weight. */
 export function AnnouncementHeader({
   announcement,
   lang = "en",
+  variant = "compact",
 }: {
   announcement: AnnouncementRow;
   lang?: "en" | "ko";
+  variant?: "hero" | "compact";
 }) {
+  if (variant === "hero") {
+    return (
+      <div className="border border-[var(--gray-200)] rounded-2xl p-6 sm:p-8 bg-gradient-to-br from-[var(--gray-50)] to-white">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold text-[var(--gray-500)] uppercase tracking-wide">
+            {T.eyebrow[lang]}
+          </span>
+          <Badge variant="accent">{T.officialBadge[lang]}</Badge>
+        </div>
+
+        <div className="mt-3 flex items-baseline gap-3 flex-wrap">
+          <span className="text-5xl sm:text-6xl font-black text-[var(--crady-accent)] leading-none">
+            {announcement.etf_count}
+          </span>
+          <span className="text-lg sm:text-xl font-bold text-[var(--gray-900)]">
+            {T.etfsAnnounced[lang]}
+          </span>
+        </div>
+        <div className="mt-1 text-sm text-[var(--gray-600)]">
+          {formatDate(announcement.announcement_date, lang)} · {providerLabel(announcement.provider_id)}
+        </div>
+
+        <h1 className="mt-4 text-lg sm:text-xl font-bold leading-snug">{announcement.title}</h1>
+
+        <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-1.5 text-xs text-[var(--gray-500)]">
+          <span>
+            {T.lastUpdated[lang]}: {formatTimestamp(announcement.fetched_at, lang)}
+          </span>
+          <a
+            href={announcement.source_url}
+            target="_blank"
+            rel="noopener noreferrer nofollow"
+            className="font-medium text-[var(--crady-accent)] hover:underline"
+          >
+            {T.viewSource[lang]}
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="border border-[var(--gray-200)] rounded-2xl p-5 sm:p-6 bg-[var(--gray-50)]">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-semibold text-[var(--gray-500)] uppercase tracking-wide">
           {providerLabel(announcement.provider_id)}
         </span>
-        <span className="px-2 py-0.5 rounded-full bg-[var(--crady-accent)]/15 text-[var(--crady-accent)] text-[11px] font-semibold">
-          {T.officialBadge[lang]}
-        </span>
+        <Badge variant="accent">{T.officialBadge[lang]}</Badge>
       </div>
       <h1 className="mt-2 text-xl sm:text-2xl font-bold leading-snug">{announcement.title}</h1>
       <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1.5 text-sm text-[var(--gray-600)]">
         <span>{formatDate(announcement.announcement_date, lang)}</span>
-        <span>{T.etfCount[lang](announcement.etf_count)}</span>
+        <span>
+          {announcement.etf_count} {T.etfsAnnounced[lang]}
+        </span>
         <span>
           {T.lastUpdated[lang]}: {formatTimestamp(announcement.fetched_at, lang)}
         </span>

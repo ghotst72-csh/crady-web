@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { providerLabel, type ComparisonPeer } from "@/lib/data";
 import { DividendStagePill } from "@/components/DividendLifecycle";
+import { KpiGrid, type KpiItem } from "@/components/ui/KpiCard";
 import type { ArticleData } from "./data";
 import type { FaqItem, Section } from "./types";
 import type { TrendWindow } from "./trend";
@@ -337,32 +338,33 @@ export function yieldAnalysisSection(data: ArticleData): Section | null {
 export function riskAnalysisSection(data: ArticleData): Section | null {
   const { ticker, risk } = data;
   if (!risk) return null;
+
+  // A stat grid instead of a plain bulleted list of "Label: value" lines —
+  // this was the single flattest, most database-report-looking section on
+  // the site (Visual Hierarchy Phase 1 audit) despite being the article
+  // type most in need of an at-a-glance read.
+  const items: KpiItem[] = [];
+  if (risk.crady_score != null) {
+    items.push({ label: "CRADY Score", value: risk.crady_score.toFixed(1), sublabel: "out of 100", accent: true });
+  }
+  if (risk.risk_level) {
+    items.push({ label: "Risk Level", value: RISK_LABEL[risk.risk_level] ?? risk.risk_level });
+  }
+  if (risk.volatility_30d != null) {
+    items.push({ label: "30-Day Volatility", value: fmtPct(risk.volatility_30d) });
+  }
+  if (risk.max_drawdown != null) {
+    items.push({ label: "Max Drawdown", value: fmtPct(risk.max_drawdown) });
+  }
+  if (items.length === 0) return null;
+
   return {
     id: "risk-analysis",
     heading: `${ticker} Risk Analysis`,
     body: (
-      <ul>
-        {risk.crady_score != null && (
-          <li>
-            CRADY Score: <strong>{risk.crady_score.toFixed(1)}</strong> / 100
-          </li>
-        )}
-        {risk.risk_level && (
-          <li>
-            Risk level: <strong>{RISK_LABEL[risk.risk_level] ?? risk.risk_level}</strong>
-          </li>
-        )}
-        {risk.volatility_30d != null && (
-          <li>
-            30-day volatility: <strong>{fmtPct(risk.volatility_30d)}</strong>
-          </li>
-        )}
-        {risk.max_drawdown != null && (
-          <li>
-            Max drawdown: <strong>{fmtPct(risk.max_drawdown)}</strong>
-          </li>
-        )}
-      </ul>
+      <div className="not-prose">
+        <KpiGrid items={items} columns={4} />
+      </div>
     ),
   };
 }

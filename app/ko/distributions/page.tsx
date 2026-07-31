@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getLatestAnnouncement, getDistributionRowsForAnnouncement } from "@/lib/distributions/data";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { AnnouncementHeader } from "@/components/distributions/AnnouncementHeader";
+import { DistributionKpis } from "@/components/distributions/DistributionKpis";
 import { DistributionExplorer } from "@/components/distributions/DistributionExplorer";
 import { DataExplanations } from "@/components/distributions/DataExplanations";
 
@@ -65,14 +66,17 @@ export default async function KoreanDistributionsPage() {
       <p className="text-xs font-semibold text-[var(--gray-500)] uppercase tracking-wide">
         CRADY 공식 분배금 센터
       </p>
-      <h1 className="sr-only">최신 공식 분배금 발표</h1>
 
       {announcement ? (
         <>
           <div className="mt-2">
-            <AnnouncementHeader announcement={announcement} lang="ko" />
+            <AnnouncementHeader announcement={announcement} lang="ko" variant="hero" />
           </div>
           <div className="mt-6">
+            <DistributionKpis rows={rows} lang="ko" />
+          </div>
+          <div className="mt-8">
+            <h2 className="text-lg font-bold mb-3">전체 발표된 분배금</h2>
             <DistributionExplorer rows={rows} lang="ko" basePath="/ko" />
           </div>
         </>

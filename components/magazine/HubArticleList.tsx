@@ -2,6 +2,7 @@ import { getHomeSnapshot, providerLabel } from "@/lib/data";
 import { HUB_DEFINITIONS, type HubId } from "@/lib/magazine/hubs";
 import { articleSlug } from "@/lib/magazine/recipes";
 import { ArticleCard } from "./ArticleCard";
+import { ArticleTypeBadge } from "./ArticleTypeBadge";
 
 export async function HubArticleList({ hubSlug }: { hubSlug: HubId }) {
   const def = HUB_DEFINITIONS[hubSlug];
@@ -22,11 +23,12 @@ export async function HubArticleList({ hubSlug }: { hubSlug: HubId }) {
         <ArticleCard
           key={etf.ticker}
           href={`/magazine/${articleSlug(etf.ticker, "next-dividend-prediction")}`}
-          title={`${etf.ticker} Next Dividend Prediction`}
-          description={`${providerLabel(etf.provider_id)} · ${
-            etf.annualYieldPct != null ? `${etf.annualYieldPct.toFixed(1)}% est. yield` : "Yield data pending"
-          }${etf.cradyScore != null ? ` · CRADY ${etf.cradyScore.toFixed(1)}` : ""}`}
-          imageSrc={`/${etf.ticker.toLowerCase()}/opengraph-image`}
+          ticker={etf.ticker}
+          badge={<ArticleTypeBadge type="next-dividend-prediction" />}
+          subtitle={providerLabel(etf.provider_id)}
+          metricValue={etf.annualYieldPct != null ? `${etf.annualYieldPct.toFixed(1)}%` : undefined}
+          metricLabel="Est. Annual Yield"
+          summary={etf.cradyScore != null ? `CRADY Score ${etf.cradyScore.toFixed(1)}` : undefined}
         />
       ))}
     </div>
