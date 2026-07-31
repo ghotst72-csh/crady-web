@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { TickerSearch } from "./search/TickerSearch";
 import { MobileSearch } from "./search/MobileSearch";
+import { LanguageSwitcher } from "./i18n/LanguageSwitcher";
 import type { SearchEntry } from "@/lib/search/searchTickers";
 
 // Magazine is English-only (no /ko/magazine — see the CRADY International
@@ -114,13 +115,20 @@ export function Header({
 
           <div className="flex-1" />
 
-          {/* Desktop: a real, always-visible instant-search field.
-              Mobile: an icon that opens a full-width search sheet — see
-              components/search/MobileSearch.tsx. */}
+          {/* Language switcher sits immediately before search on both
+              desktop and mobile (Part 8). Desktop: a real, always-visible
+              instant-search field. Mobile: icons that open a full-width
+              search sheet / a compact language menu — see
+              components/search/MobileSearch.tsx and
+              components/i18n/LanguageSwitcher.tsx. */}
+          <div className="hidden sm:block shrink-0">
+            <LanguageSwitcher lang={lang} />
+          </div>
           <div className="hidden sm:block w-[260px] shrink-0">
             <TickerSearch index={searchIndex} lang={lang} basePath={basePath} />
           </div>
-          <div className="sm:hidden">
+          <div className="sm:hidden flex items-center">
+            <LanguageSwitcher lang={lang} compact />
             <MobileSearch index={searchIndex} lang={lang} basePath={basePath} />
           </div>
         </div>

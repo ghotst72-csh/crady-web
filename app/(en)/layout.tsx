@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Header } from "@/components/Header";
+import { FooterLanguageLink } from "@/components/i18n/FooterLanguageLink";
+import { LanguagePreferenceManager } from "@/components/i18n/LanguagePreferenceManager";
 import { getHomeSnapshot, toSearchIndex } from "@/lib/data";
 import "../globals.css";
 
@@ -60,6 +62,8 @@ export default async function EnglishRootLayout({
 
         <main className="flex-1">{children}</main>
 
+        <LanguagePreferenceManager lang="en" />
+
         <footer className="border-t border-[var(--gray-200)] mt-16">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10">
             <div className="flex flex-col sm:flex-row sm:justify-between gap-8">
@@ -72,9 +76,7 @@ export default async function EnglishRootLayout({
                   and Defiance — dividend schedules, prices, and CRADY scores.
                 </p>
                 <p className="mt-3 text-xs text-[var(--gray-600)]">
-                  <Link href="/ko" className="hover:text-black underline">
-                    한국어로 보기
-                  </Link>
+                  <FooterLanguageLink target="ko" label="한국어로 보기" />
                 </p>
               </div>
               <nav className="flex flex-wrap gap-x-8 gap-y-4 text-sm">
