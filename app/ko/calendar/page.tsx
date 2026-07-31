@@ -41,6 +41,11 @@ export default async function KoreanCalendarPage() {
       <p className="text-sm text-[var(--gray-500)] mt-1">
         지급일이 다가오는 배당 ETF {upcoming.length}건
       </p>
+      <p className="text-sm mt-1">
+        <Link href="/ko/distributions" className="text-[var(--crady-accent)] hover:underline font-medium">
+          최신 공식 분배금 발표 보기 →
+        </Link>
+      </p>
 
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-[var(--gray-500)] border border-[var(--gray-200)] rounded-lg px-3 py-2">
         <span className="font-semibold text-[var(--gray-600)]">배당 흐름</span>

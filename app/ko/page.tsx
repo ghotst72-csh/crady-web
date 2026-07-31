@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import {
   getHomeSnapshot,
   getThisWeekDividends,
@@ -63,6 +64,11 @@ export default async function KoreanHomePage() {
     <div>
       <YieldCarousel top10={yieldTop10} lang="ko" basePath="/ko" />
       <NextDistributionsRail items={nextDistributions} lang="ko" basePath="/ko" />
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 -mt-2 pb-2">
+        <Link href="/ko/distributions" className="text-sm text-[var(--crady-accent)] hover:underline font-medium">
+          최신 공식 분배금 발표 보기 →
+        </Link>
+      </div>
       <KeyMetrics metrics={keyMetrics} lang="ko" basePath="/ko" />
       <WeekSchedule items={thisWeek} lang="ko" basePath="/ko" />
       <RankingPreview

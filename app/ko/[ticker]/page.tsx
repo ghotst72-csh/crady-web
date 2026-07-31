@@ -23,6 +23,8 @@ import { EtfHero } from "@/components/EtfHero";
 import { articleSlug } from "@/lib/magazine/recipes";
 import { pickComparisonPeerTicker } from "@/lib/magazine/comparison";
 import { ARTICLE_TYPE_LABEL, type ArticleTypeId } from "@/lib/magazine/types";
+import { getLatestOfficialDistributionForTicker, getPredictionVsOfficial } from "@/lib/distributions/data";
+import { OfficialDistributionBlock } from "@/components/distributions/OfficialDistributionBlock";
 
 export const revalidate = 3600;
 
@@ -112,18 +114,31 @@ export default async function KoreanTickerPage({
   if (!found) notFound();
   const { ticker, etf } = found;
 
-  const [risk, regime, price, history, distributions, recentDistributions, rawPrediction, siblings, allTickers] =
-    await Promise.all([
-      getRiskMetrics(ticker),
-      getRegimeProfile(ticker),
-      getLatestPrice(ticker),
-      getPriceHistory(ticker, 30),
-      getDistributions(ticker, 12),
-      getDistributionsSince(ticker, 90),
-      getNextPrediction(ticker),
-      getSameProviderEtfs(etf.provider_id, ticker),
-      getAllTickers(),
-    ]);
+  const [
+    risk,
+    regime,
+    price,
+    history,
+    distributions,
+    recentDistributions,
+    rawPrediction,
+    siblings,
+    allTickers,
+    officialDistribution,
+    predictionVsOfficial,
+  ] = await Promise.all([
+    getRiskMetrics(ticker),
+    getRegimeProfile(ticker),
+    getLatestPrice(ticker),
+    getPriceHistory(ticker, 30),
+    getDistributions(ticker, 12),
+    getDistributionsSince(ticker, 90),
+    getNextPrediction(ticker),
+    getSameProviderEtfs(etf.provider_id, ticker),
+    getAllTickers(),
+    getLatestOfficialDistributionForTicker(ticker),
+    getPredictionVsOfficial(ticker),
+  ]);
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const prediction =
@@ -218,7 +233,13 @@ export default async function KoreanTickerPage({
       />
 
       <div className="mx-auto max-w-4xl px-4 sm:px-6 mt-8">
-        <div>
+        <OfficialDistributionBlock
+          official={officialDistribution}
+          predictionComparison={predictionVsOfficial}
+          lang="ko"
+        />
+
+        <div className="mt-8">
           <h2 className="text-lg font-bold mb-3">현재 가격</h2>
           <div className="grid sm:grid-cols-[auto_1fr] gap-3">
             <Stat

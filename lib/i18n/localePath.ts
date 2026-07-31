@@ -25,13 +25,14 @@ export function getLocaleTargetPath(pathname: string, targetLang: "en" | "ko"): 
     const [first, ...rest] = segments;
     if (first === "ko") return pathname; // already Korean
     if (NO_KO_EQUIVALENT.has(first)) return "/ko";
-    // "about" | "ranking" | "calendar" | a ticker symbol — all mirror
+    // "about" | "ranking" | "calendar" | "distributions" (incl. its
+    // /distributions/{slug} archive sub-paths) | a ticker symbol — all mirror
     // 1:1 as /ko/{same segments}. RESERVED_PATHS also contains entries
     // (magazine, privacy, ...) already excluded above, plus "ko" itself
     // and infra paths (sitemap.xml, robots.txt, api) that should never
     // realistically be the current pathname here, but are excluded for
     // defense-in-depth rather than assumed impossible.
-    if (RESERVED_PATHS.has(first) && !["about", "ranking", "calendar"].includes(first)) {
+    if (RESERVED_PATHS.has(first) && !["about", "ranking", "calendar", "distributions"].includes(first)) {
       return "/ko";
     }
     return `/ko/${[first, ...rest].join("/")}`;

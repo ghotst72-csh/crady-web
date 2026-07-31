@@ -92,6 +92,7 @@ export function buildInternalLinks(
   }
 
   links.push({ href: `/${data.ticker.toLowerCase()}`, label: `${data.ticker} Full ETF Profile` });
+  links.push({ href: "/distributions", label: "Latest Official Distributions" });
 
   return links;
 }

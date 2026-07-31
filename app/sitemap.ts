@@ -11,6 +11,7 @@ import { CALENDAR_HUB_IDS } from "@/lib/magazine/calendarHubs";
 import { STANDALONE_PAGE_IDS } from "@/lib/magazine/standalone";
 import { hasRiskContentFromSnapshot } from "@/lib/magazine/quality";
 import { pickComparisonPeerTicker } from "@/lib/magazine/comparison";
+import { getAllAnnouncements } from "@/lib/distributions/data";
 import type { ArticleTypeId } from "@/lib/magazine/types";
 
 export const dynamic = "force-static";
@@ -19,11 +20,12 @@ const ARTICLE_TYPES = Object.keys(ARTICLE_TYPE_SLUG) as ArticleTypeId[];
 const UNCONDITIONAL_ARTICLE_TYPES = ARTICLE_TYPES.filter((t) => t !== "comparison");
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [snapshot, allTickers, tickersWithSchedule, tickersWithDistOrStrategy] = await Promise.all([
+  const [snapshot, allTickers, tickersWithSchedule, tickersWithDistOrStrategy, announcements] = await Promise.all([
     getHomeSnapshot(),
     getAllTickers(),
     getTickersWithFutureSchedule(),
     getTickersWithDistributionOrStrategyContent(),
+    getAllAnnouncements(),
   ]);
 
   // Most recent pipeline run across all tickers — a real, verifiable
@@ -121,6 +123,58 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       },
     },
     {
+      url: "https://crady.net/distributions",
+      lastModified: announcements[0] ? new Date(announcements[0].fetched_at) : undefined,
+      changeFrequency: "daily",
+      priority: 0.9,
+      alternates: {
+        languages: {
+          en: "https://crady.net/distributions",
+          ko: "https://crady.net/ko/distributions",
+          "x-default": "https://crady.net/distributions",
+        },
+      },
+    },
+    {
+      url: "https://crady.net/ko/distributions",
+      lastModified: announcements[0] ? new Date(announcements[0].fetched_at) : undefined,
+      changeFrequency: "daily",
+      priority: 0.9,
+      alternates: {
+        languages: {
+          en: "https://crady.net/distributions",
+          ko: "https://crady.net/ko/distributions",
+          "x-default": "https://crady.net/distributions",
+        },
+      },
+    },
+    {
+      url: "https://crady.net/distributions/archive",
+      lastModified: announcements[0] ? new Date(announcements[0].fetched_at) : undefined,
+      changeFrequency: "weekly",
+      priority: 0.5,
+      alternates: {
+        languages: {
+          en: "https://crady.net/distributions/archive",
+          ko: "https://crady.net/ko/distributions/archive",
+          "x-default": "https://crady.net/distributions/archive",
+        },
+      },
+    },
+    {
+      url: "https://crady.net/ko/distributions/archive",
+      lastModified: announcements[0] ? new Date(announcements[0].fetched_at) : undefined,
+      changeFrequency: "weekly",
+      priority: 0.5,
+      alternates: {
+        languages: {
+          en: "https://crady.net/distributions/archive",
+          ko: "https://crady.net/ko/distributions/archive",
+          "x-default": "https://crady.net/distributions/archive",
+        },
+      },
+    },
+    {
       url: "https://crady.net/magazine",
       lastModified: mostRecentCalculatedAt ?? undefined,
       changeFrequency: "daily",
@@ -171,6 +225,28 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         lastModified: etf.calculatedAt ? new Date(etf.calculatedAt) : undefined,
         changeFrequency: "daily" as const,
         priority: 0.9,
+        alternates: { languages },
+      },
+    ];
+  });
+
+  const announcementEntries: MetadataRoute.Sitemap = announcements.flatMap((a) => {
+    const enUrl = `https://crady.net/distributions/${a.slug}`;
+    const koUrl = `https://crady.net/ko/distributions/${a.slug}`;
+    const languages = { en: enUrl, ko: koUrl, "x-default": enUrl };
+    return [
+      {
+        url: enUrl,
+        lastModified: new Date(a.fetched_at),
+        changeFrequency: "monthly" as const,
+        priority: 0.6,
+        alternates: { languages },
+      },
+      {
+        url: koUrl,
+        lastModified: new Date(a.fetched_at),
+        changeFrequency: "monthly" as const,
+        priority: 0.6,
         alternates: { languages },
       },
     ];
@@ -234,6 +310,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     ...staticEntries,
     ...tickerEntries,
+    ...announcementEntries,
     ...hubEntries,
     ...calendarHubEntries,
     ...standaloneEntries,

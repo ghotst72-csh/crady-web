@@ -1,0 +1,258 @@
+import { supabase } from "@/lib/supabase";
+import type { DistributionRow } from "./table";
+
+export type AnnouncementRow = {
+  id: string;
+  issuer: string;
+  provider_id: string;
+  title: string;
+  slug: string;
+  announcement_date: string;
+  source_url: string;
+  source_type: string;
+  etf_count: number;
+  status: string;
+  fetched_at: string;
+  published_at: string | null;
+};
+
+const ANNOUNCEMENT_COLUMNS =
+  "id, issuer, provider_id, title, slug, announcement_date, source_url, source_type, etf_count, status, fetched_at, published_at";
+
+export async function getLatestAnnouncement(): Promise<AnnouncementRow | null> {
+  const { data, error } = await supabase
+    .from("distribution_announcements")
+    .select(ANNOUNCEMENT_COLUMNS)
+    .eq("status", "published")
+    .order("announcement_date", { ascending: false })
+    .order("fetched_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+export async function getAnnouncementBySlug(slug: string): Promise<AnnouncementRow | null> {
+  const { data, error } = await supabase
+    .from("distribution_announcements")
+    .select(ANNOUNCEMENT_COLUMNS)
+    .eq("slug", slug)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+/** Newest first — powers the /distributions/archive index. */
+export async function getAllAnnouncements(): Promise<AnnouncementRow[]> {
+  const { data, error } = await supabase
+    .from("distribution_announcements")
+    .select(ANNOUNCEMENT_COLUMNS)
+    .order("announcement_date", { ascending: false })
+    .order("fetched_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Every announcement slug — for generateStaticParams on both the (en) and
+ * ko archive-detail routes. */
+export async function getAllAnnouncementSlugs(): Promise<string[]> {
+  const { data, error } = await supabase.from("distribution_announcements").select("slug");
+  if (error) throw error;
+  return (data ?? []).map((r) => r.slug);
+}
+
+/** Distribution rows for one announcement, joined with etfs for name/
+ * frequency via a manual two-query join (distributions/etfs have no FK
+ * PostgREST can embed across — same pattern already used throughout
+ * lib/data.ts, e.g. getTopByCradyScore). */
+export async function getDistributionRowsForAnnouncement(
+  announcementId: string
+): Promise<DistributionRow[]> {
+  const { data: rows, error } = await supabase
+    .from("distributions")
+    .select(
+      "ticker, provider_id, ex_date, pay_date, amount, distribution_rate, sec_yield_30d, roc_rate, source_url"
+    )
+    .eq("announcement_id", announcementId)
+    .order("ticker", { ascending: true });
+  if (error) throw error;
+  if (!rows || rows.length === 0) return [];
+
+  const tickers = rows.map((r) => r.ticker);
+  const { data: etfRows, error: etfErr } = await supabase
+    .from("etfs")
+    .select("ticker, name, payout_frequency")
+    .in("ticker", tickers);
+  if (etfErr) throw etfErr;
+  const etfByTicker = new Map((etfRows ?? []).map((e) => [e.ticker, e]));
+
+  return rows.map((r) => {
+    const etf = etfByTicker.get(r.ticker);
+    return {
+      ticker: r.ticker,
+      etfName: etf?.name ?? null,
+      providerId: r.provider_id,
+      frequency:
+        etf?.payout_frequency && etf.payout_frequency.toLowerCase() !== "unknown"
+          ? etf.payout_frequency
+          : null,
+      distributionPerShare: r.amount,
+      distributionRate: r.distribution_rate,
+      secYield30d: r.sec_yield_30d,
+      rocPercent: r.roc_rate,
+      exDate: r.ex_date,
+      payDate: r.pay_date,
+      sourceUrl: r.source_url,
+    } satisfies DistributionRow;
+  });
+}
+
+export type OfficialDistributionForTicker = {
+  ticker: string;
+  amount: number | null;
+  distributionRate: number | null;
+  secYield30d: number | null;
+  rocPercent: number | null;
+  exDate: string;
+  payDate: string;
+  declarationDate: string | null;
+  sourceUrl: string | null;
+  announcementDate: string | null;
+  announcementTitle: string | null;
+  announcementSourceUrl: string | null;
+};
+
+/** The most recent officially-announced distribution for one ticker — for
+ * the ticker-page "Latest Official Distribution" block (Part 5). */
+export async function getLatestOfficialDistributionForTicker(
+  ticker: string
+): Promise<OfficialDistributionForTicker | null> {
+  const { data, error } = await supabase
+    .from("distributions")
+    .select(
+      "ticker, amount, distribution_rate, sec_yield_30d, roc_rate, ex_date, pay_date, declaration_date, source_url, announcement_id"
+    )
+    .eq("ticker", ticker)
+    .not("amount", "is", null)
+    .order("pay_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+
+  let announcementDate: string | null = null;
+  let announcementTitle: string | null = null;
+  let announcementSourceUrl: string | null = null;
+  if (data.announcement_id) {
+    const { data: ann } = await supabase
+      .from("distribution_announcements")
+      .select("announcement_date, title, source_url")
+      .eq("id", data.announcement_id)
+      .maybeSingle();
+    if (ann) {
+      announcementDate = ann.announcement_date;
+      announcementTitle = ann.title;
+      announcementSourceUrl = ann.source_url;
+    }
+  }
+
+  return {
+    ticker: data.ticker,
+    amount: data.amount,
+    distributionRate: data.distribution_rate,
+    secYield30d: data.sec_yield_30d,
+    rocPercent: data.roc_rate,
+    exDate: data.ex_date,
+    payDate: data.pay_date,
+    declarationDate: data.declaration_date,
+    sourceUrl: data.source_url,
+    announcementDate,
+    announcementTitle,
+    announcementSourceUrl,
+  };
+}
+
+export type DistributionChange = {
+  ticker: string;
+  currentAmount: number;
+  priorAmount: number;
+  changePct: number;
+};
+
+/** For each row in an announcement, finds the most recent PRIOR paid amount
+ * for that ticker (pay_date before this announcement's) and computes %
+ * change — powers the archive detail page's "largest increases/decreases"
+ * and "highest/lowest ROC" sections (Part 7). One batched query for all
+ * tickers rather than N per-ticker queries. */
+export async function getAnnouncementChanges(
+  rows: DistributionRow[]
+): Promise<DistributionChange[]> {
+  const tickers = rows.map((r) => r.ticker);
+  if (tickers.length === 0) return [];
+  const earliestPayDate = rows.reduce((min, r) => (r.payDate < min ? r.payDate : min), rows[0].payDate);
+
+  const { data: priorRows, error } = await supabase
+    .from("distributions")
+    .select("ticker, amount, pay_date")
+    .in("ticker", tickers)
+    .not("amount", "is", null)
+    .lt("pay_date", earliestPayDate)
+    .order("pay_date", { ascending: false });
+  if (error) throw error;
+
+  const priorByTicker = new Map<string, number>();
+  for (const r of priorRows ?? []) {
+    if (!priorByTicker.has(r.ticker)) priorByTicker.set(r.ticker, r.amount as number);
+  }
+
+  const changes: DistributionChange[] = [];
+  for (const row of rows) {
+    if (row.distributionPerShare == null) continue;
+    const prior = priorByTicker.get(row.ticker);
+    if (prior == null || prior <= 0) continue;
+    changes.push({
+      ticker: row.ticker,
+      currentAmount: row.distributionPerShare,
+      priorAmount: prior,
+      changePct: ((row.distributionPerShare - prior) / prior) * 100,
+    });
+  }
+  return changes;
+}
+
+export type PredictionVsOfficial = {
+  predictedAmount: number;
+  actualAmount: number;
+  targetPayDate: string;
+  absoluteDifference: number;
+  percentageError: number | null;
+  evaluatedAt: string;
+};
+
+/** The most recent EVALUATED prediction for a ticker (Part 6) — reads the
+ * existing dividend_predictions table (already populated + evaluated by the
+ * C:\CRADY pipeline's evaluate_predictions.py against real distributions
+ * data), rather than re-implementing prediction-vs-actual matching. Only
+ * ever returns a genuinely evaluated row — never fabricates a comparison
+ * for a pending/unmatched prediction. */
+export async function getPredictionVsOfficial(ticker: string): Promise<PredictionVsOfficial | null> {
+  const { data, error } = await supabase
+    .from("dividend_predictions")
+    .select("predicted_amount, actual_amount, target_pay_date, prediction_error_pct, evaluation_status, created_at")
+    .eq("ticker", ticker)
+    .eq("evaluation_status", "evaluated")
+    .order("target_pay_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data || data.predicted_amount == null || data.actual_amount == null) return null;
+
+  return {
+    predictedAmount: data.predicted_amount,
+    actualAmount: data.actual_amount,
+    targetPayDate: data.target_pay_date,
+    absoluteDifference: Math.abs(data.predicted_amount - data.actual_amount),
+    percentageError: data.prediction_error_pct,
+    evaluatedAt: data.created_at,
+  };
+}

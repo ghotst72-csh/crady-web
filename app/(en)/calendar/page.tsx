@@ -41,6 +41,11 @@ export default async function CalendarPage() {
       <p className="text-sm text-[var(--gray-500)] mt-1">
         {upcoming.length} high dividend ETFs with an upcoming payment date
       </p>
+      <p className="text-sm mt-1">
+        <Link href="/distributions" className="text-[var(--crady-accent)] hover:underline font-medium">
+          See the latest officially announced distributions →
+        </Link>
+      </p>
 
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-[var(--gray-500)] border border-[var(--gray-200)] rounded-lg px-3 py-2">
         <span className="font-semibold text-[var(--gray-600)]">Dividend Flow</span>
