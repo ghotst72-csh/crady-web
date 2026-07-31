@@ -34,6 +34,27 @@ const T = {
     en: (label: string) => `#1 by ${label}`,
     ko: (label: string) => `${label} 1위`,
   },
+  // "Why it ranks first" — Visual Hierarchy Phase 2, Part 6: the leader
+  // card should explain itself without the reader having to scroll into
+  // the list below to understand what the number means.
+  reason: {
+    crady: {
+      en: (v: string) => `Highest CRADY Score among all tracked ETFs, at ${v}.`,
+      ko: (v: string) => `추적 중인 전체 ETF 중 CRADY Score가 ${v}로 가장 높습니다.`,
+    },
+    yield: {
+      en: (v: string) => `Leads every tracked ETF with a ${v} distribution yield.`,
+      ko: (v: string) => `분배 수익률 ${v}로 전체 ETF 중 1위입니다.`,
+    },
+    safety: {
+      en: (v: string) => `The most stable dividend history on record, scoring ${v}.`,
+      ko: (v: string) => `배당 안정성 점수 ${v}로 가장 안정적인 기록을 보유하고 있습니다.`,
+    },
+    growth: {
+      en: (v: string) => `Grew the most versus its last payment, ${v}.`,
+      ko: (v: string) => `직전 지급 대비 ${v}로 가장 크게 증가했습니다.`,
+    },
+  },
 } as const;
 
 function metricFor(etf: EtfSnapshot, criterion: Criterion, lang: "en" | "ko") {
@@ -104,6 +125,9 @@ export function RankingTable({
             {providerLabel(leader.provider_id)}
             {leader.name ? ` · ${leader.name}` : ""}
           </div>
+          <div className="text-sm text-[var(--gray-700)] mt-2.5 max-w-md">
+            {T.reason[criterion][lang](leaderMetric.value)}
+          </div>
         </Link>
       )}
 
@@ -139,7 +163,7 @@ export function RankingTable({
               href={`${basePath}/${etf.ticker.toLowerCase()}`}
               className="flex items-center gap-3 sm:gap-4 px-4 py-3 border-b border-[var(--gray-100)] last:border-0 hover:bg-[var(--gray-50)] transition-colors xl:border xl:border-[var(--gray-200)] xl:rounded-xl xl:hover:border-black"
             >
-              <span className="w-5 shrink-0 text-[var(--gray-400)] text-sm font-medium">
+              <span className="w-5 shrink-0 text-[var(--gray-600)] text-sm font-medium">
                 {i + 1}
               </span>
               <div className="flex-1 min-w-0">
@@ -157,10 +181,13 @@ export function RankingTable({
                 </div>
               </div>
               <div className="text-right shrink-0">
-                <div className="text-sm font-bold text-[var(--crady-accent)]">
+                {/* #92400e, not --crady-accent — see components/ui/KpiCard.tsx
+                    for why. gray-600, not gray-400 — gray-400 fails WCAG
+                    contrast at this size, same fix as the rest of the site. */}
+                <div className="text-sm font-bold text-[#92400e]">
                   {metric.value}
                 </div>
-                <div className="text-[10px] text-[var(--gray-400)] hidden sm:block">
+                <div className="text-[10px] text-[var(--gray-600)] hidden sm:block">
                   {metric.label}
                 </div>
               </div>

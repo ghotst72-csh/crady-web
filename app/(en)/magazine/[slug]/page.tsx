@@ -232,7 +232,7 @@ export default async function MagazinePage({
         />
       )}
 
-      <nav className="text-xs text-[var(--gray-400)] mb-4">
+      <nav className="text-xs text-[var(--gray-600)] mb-4">
         <Link href="/magazine" className="hover:text-black">
           Magazine
         </Link>{" "}
@@ -285,7 +285,7 @@ async function HubPage({ slug }: { slug: keyof typeof HUB_DEFINITIONS }) {
           { name: def.h1, url },
         ]}
       />
-      <nav className="text-xs text-[var(--gray-400)] mb-4">
+      <nav className="text-xs text-[var(--gray-600)] mb-4">
         <Link href="/magazine" className="hover:text-black">
           Magazine
         </Link>{" "}
@@ -315,7 +315,7 @@ async function CalendarHubPage({ slug }: { slug: CalendarHubId }) {
           { name: def.h1, url },
         ]}
       />
-      <nav className="text-xs text-[var(--gray-400)] mb-4">
+      <nav className="text-xs text-[var(--gray-600)] mb-4">
         <Link href="/magazine" className="hover:text-black">
           Magazine
         </Link>{" "}
@@ -385,7 +385,7 @@ async function StandalonePage({ slug }: { slug: StandalonePageId }) {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
         />
       )}
-      <nav className="text-xs text-[var(--gray-400)] mb-4">
+      <nav className="text-xs text-[var(--gray-600)] mb-4">
         <Link href="/magazine" className="hover:text-black">
           Magazine
         </Link>{" "}

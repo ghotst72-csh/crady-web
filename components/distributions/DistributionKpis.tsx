@@ -1,5 +1,5 @@
-import { KpiGrid, type KpiItem } from "@/components/ui/KpiCard";
-import type { DistributionRow } from "@/lib/distributions/table";
+import { KpiCard, type KpiItem } from "@/components/ui/KpiCard";
+import { maxBy, type DistributionRow } from "@/lib/distributions/table";
 
 const T = {
   highestDistribution: { en: "Highest Distribution", ko: "최고 분배금" },
@@ -15,19 +15,12 @@ const T = {
 // integrity claim; the table itself never restricts to just these four.
 const POPULAR_TICKERS = ["MSTY", "TSLY", "CONY", "NVDY"];
 
-function maxBy<T>(rows: T[], key: (r: T) => number | null): T | null {
-  let best: T | null = null;
-  let bestVal = -Infinity;
-  for (const r of rows) {
-    const v = key(r);
-    if (v != null && v > bestVal) {
-      best = r;
-      bestVal = v;
-    }
-  }
-  return best;
-}
-
+/** Three deliberate size tiers instead of six identical cards (Visual
+ * Hierarchy Phase 2, Part 1): the two dollar-figure records the reader
+ * cares most about get large cards, the two "which ETF" facts get medium
+ * cards, and the two plain counts — useful but the least decision-relevant
+ * numbers on the page — get small cards. Stacked rows rather than one
+ * uniform grid, since a 2/2/2 pyramid doesn't fit a single column count. */
 export function DistributionKpis({ rows, lang = "en" }: { rows: DistributionRow[]; lang?: "en" | "ko" }) {
   if (rows.length === 0) return null;
 
@@ -38,9 +31,9 @@ export function DistributionKpis({ rows, lang = "en" }: { rows: DistributionRow[
   const weeklyCount = rows.filter((r) => r.frequency?.toLowerCase() === "weekly").length;
   const monthlyCount = rows.filter((r) => r.frequency?.toLowerCase() === "monthly").length;
 
-  const items: KpiItem[] = [];
+  const large: KpiItem[] = [];
   if (highestDist) {
-    items.push({
+    large.push({
       label: T.highestDistribution[lang],
       value: highestDist.ticker,
       sublabel: `$${highestDist.distributionPerShare!.toFixed(4)}`,
@@ -48,27 +41,54 @@ export function DistributionKpis({ rows, lang = "en" }: { rows: DistributionRow[
     });
   }
   if (highestRate) {
-    items.push({
+    large.push({
       label: T.highestRate[lang],
       value: highestRate.ticker,
       sublabel: `${highestRate.distributionRate!.toFixed(2)}%`,
       accent: true,
     });
   }
+
+  const medium: KpiItem[] = [];
   if (highestRoc) {
-    items.push({
+    medium.push({
       label: T.highestRoc[lang],
       value: highestRoc.ticker,
       sublabel: `${highestRoc.rocPercent!.toFixed(2)}%`,
     });
   }
   if (popular) {
-    items.push({ label: T.mostPopular[lang], value: popular.ticker, sublabel: providerSublabel(popular) });
+    medium.push({ label: T.mostPopular[lang], value: popular.ticker, sublabel: providerSublabel(popular) });
   }
-  items.push({ label: T.weekly[lang], value: weeklyCount });
-  items.push({ label: T.monthly[lang], value: monthlyCount });
 
-  return <KpiGrid items={items} columns={3} />;
+  const small: KpiItem[] = [
+    { label: T.weekly[lang], value: weeklyCount },
+    { label: T.monthly[lang], value: monthlyCount },
+  ];
+
+  return (
+    <div className="flex flex-col gap-3">
+      {large.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {large.map((item) => (
+            <KpiCard key={item.label} {...item} size="lg" />
+          ))}
+        </div>
+      )}
+      {medium.length > 0 && (
+        <div className="grid grid-cols-2 gap-3">
+          {medium.map((item) => (
+            <KpiCard key={item.label} {...item} size="md" />
+          ))}
+        </div>
+      )}
+      <div className="grid grid-cols-2 gap-3">
+        {small.map((item) => (
+          <KpiCard key={item.label} {...item} size="sm" />
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function providerSublabel(row: DistributionRow): string {

@@ -57,6 +57,7 @@ function predictionCard(etf: EtfSnapshot, featured = false) {
       metricLabel="Est. Annual Yield"
       summary={etf.cradyScore != null ? `CRADY Score ${etf.cradyScore.toFixed(1)}` : undefined}
       extraStats={extraStats}
+      cta={featured ? `Read the full ${etf.ticker} forecast →` : undefined}
       featured={featured}
     />
   );

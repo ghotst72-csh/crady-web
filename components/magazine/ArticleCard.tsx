@@ -21,6 +21,7 @@ export function ArticleCard({
   metricValue,
   summary,
   extraStats,
+  cta,
   featured = false,
 }: {
   href: string;
@@ -34,6 +35,10 @@ export function ArticleCard({
    * to fill the hero card's larger footprint rather than empty whitespace
    * (Part 8: "large empty areas should usually contain useful information"). */
   extraStats?: ExtraStat[];
+  /** Featured slot only — a newspaper-style "read the full story" line, so
+   * the hero card reads as headline → stat → stats → summary → CTA instead
+   * of stopping at the summary (Visual Hierarchy Phase 2, Part 4). */
+  cta?: string;
   /** Larger type scale for the single hero-slot card in a featured layout. */
   featured?: boolean;
 }) {
@@ -53,15 +58,26 @@ export function ArticleCard({
       {subtitle && <div className="mt-1 text-xs text-[var(--gray-500)]">{subtitle}</div>}
       {metricValue != null && (
         <div className="mt-2.5">
-          {/* #92400e, not --crady-accent — see KpiCard.tsx for why. */}
-          <div className={`font-extrabold text-[#92400e] ${featured ? "text-3xl" : "text-xl"}`}>
+          {/* #92400e, not --crady-accent — see KpiCard.tsx for why. The
+              featured stat is the page's "primary statistic," sized to
+              outweigh the summary paragraph below it, not just sit above it
+              (Part 4: "the statistic should be visually stronger than the
+              paragraph") — same hero-number scale already used for the
+              Distribution Center and Ranking leader cards, not a new token. */}
+          <div className={`font-black text-[#92400e] leading-none ${featured ? "text-4xl sm:text-5xl" : "text-xl"}`}>
             {metricValue}
           </div>
-          {metricLabel && <div className="text-[11px] text-[var(--gray-600)] mt-0.5">{metricLabel}</div>}
+          {metricLabel && <div className="text-[11px] text-[var(--gray-600)] mt-1.5">{metricLabel}</div>}
         </div>
       )}
       {summary && (
-        <p className={`mt-2.5 text-[var(--gray-600)] line-clamp-2 ${featured ? "text-sm" : "text-xs"}`}>{summary}</p>
+        <p
+          className={`mt-2.5 text-[var(--gray-600)] ${
+            featured ? "text-sm line-clamp-2" : "text-xs line-clamp-1"
+          }`}
+        >
+          {summary}
+        </p>
       )}
       {featured && extraStats && extraStats.length > 0 && (
         <div className="mt-5 pt-4 border-t border-[var(--gray-100)] grid grid-cols-3 gap-3">
@@ -72,6 +88,9 @@ export function ArticleCard({
             </div>
           ))}
         </div>
+      )}
+      {featured && cta && (
+        <div className="mt-4 text-sm font-bold text-[#92400e] group-hover:underline">{cta}</div>
       )}
     </Link>
   );

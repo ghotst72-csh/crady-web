@@ -123,7 +123,7 @@ describe("filterDistributionRows", () => {
 describe("buildAvailableFilters", () => {
   it("derives filter chips from the actual data, not a fixed list", () => {
     const filters = buildAvailableFilters(ROWS);
-    const values = filters.map((f) => f.value);
+    const values = [...filters.frequency, ...filters.issuer].map((f) => f.value);
     expect(values).toContain("all");
     expect(values).toContain("freq:Weekly");
     expect(values).toContain("freq:Monthly");
@@ -133,9 +133,21 @@ describe("buildAvailableFilters", () => {
     expect(values).not.toContain("provider:defiance");
   });
 
+  it("splits frequency and issuer into separate groups, not one flat row", () => {
+    const filters = buildAvailableFilters(ROWS);
+    expect(filters.frequency.map((f) => f.value)).toEqual(["all", "freq:Weekly", "freq:Monthly"]);
+    expect(filters.issuer.map((f) => f.value).sort()).toEqual(["provider:roundhill", "provider:yieldmax"]);
+  });
+
   it("counts are accurate", () => {
     const filters = buildAvailableFilters(ROWS);
-    const weekly = filters.find((f) => f.value === "freq:Weekly");
+    const weekly = filters.frequency.find((f) => f.value === "freq:Weekly");
     expect(weekly?.count).toBe(3);
+  });
+
+  it("issuer labels are human-readable, not raw provider ids", () => {
+    const filters = buildAvailableFilters(ROWS);
+    const yieldmax = filters.issuer.find((f) => f.value === "provider:yieldmax");
+    expect(yieldmax?.label).toBe("YieldMax");
   });
 });

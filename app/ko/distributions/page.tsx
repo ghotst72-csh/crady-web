@@ -70,7 +70,7 @@ export default async function KoreanDistributionsPage() {
       {announcement ? (
         <>
           <div className="mt-2">
-            <AnnouncementHeader announcement={announcement} lang="ko" variant="hero" />
+            <AnnouncementHeader announcement={announcement} rows={rows} lang="ko" variant="hero" />
           </div>
           <div className="mt-6">
             <DistributionKpis rows={rows} lang="ko" />

@@ -1,3 +1,5 @@
+import { providerLabel } from "@/lib/providers";
+
 export type DistributionRow = {
   ticker: string;
   etfName: string | null;
@@ -87,21 +89,43 @@ export function filterDistributionRows(rows: DistributionRow[], filter: string):
   return rows;
 }
 
-export type FilterChoice = { value: string; label: string; count: number };
+/** Shared by DistributionKpis and AnnouncementHeader's hero summary strip —
+ * both need "which row has the highest X" from the same row set. */
+export function maxBy<T>(rows: T[], key: (r: T) => number | null): T | null {
+  let best: T | null = null;
+  let bestVal = -Infinity;
+  for (const r of rows) {
+    const v = key(r);
+    if (v != null && v > bestVal) {
+      best = r;
+      bestVal = v;
+    }
+  }
+  return best;
+}
 
-/** Builds the actual available filter chips from the data itself — "All"
- * plus one chip per distinct frequency and one per distinct provider that
- * has at least one row, each showing a live row count. */
-export function buildAvailableFilters(rows: DistributionRow[]): FilterChoice[] {
+export type FilterChoice = { value: string; label: string; count: number };
+export type FilterGroups = { frequency: FilterChoice[]; issuer: FilterChoice[] };
+
+/** Builds the actual available filter chips from the data itself, split
+ * into groups by CONCEPT rather than one flat row — Visual Hierarchy Phase
+ * 2: mixing payment frequency, issuer, and popular tickers in a single chip
+ * row was flagged as the site's highest-priority UX problem, since those
+ * are three unrelated facets, not options on the same axis. "All" lives in
+ * the frequency group (it resets both facets, but visually anchors the
+ * group a reader reaches for first). Issuer labels use providerLabel() so
+ * the chip reads "YieldMax", not the raw id "yieldmax". */
+export function buildAvailableFilters(rows: DistributionRow[]): FilterGroups {
   const freqCounts = new Map<string, number>();
   const providerCounts = new Map<string, number>();
   for (const r of rows) {
     if (r.frequency) freqCounts.set(r.frequency, (freqCounts.get(r.frequency) ?? 0) + 1);
     providerCounts.set(r.providerId, (providerCounts.get(r.providerId) ?? 0) + 1);
   }
-  const choices: FilterChoice[] = [{ value: "all", label: "All", count: rows.length }];
-  for (const [freq, count] of freqCounts) choices.push({ value: `freq:${freq}`, label: freq, count });
+  const frequency: FilterChoice[] = [{ value: "all", label: "All", count: rows.length }];
+  for (const [freq, count] of freqCounts) frequency.push({ value: `freq:${freq}`, label: freq, count });
+  const issuer: FilterChoice[] = [];
   for (const [providerId, count] of providerCounts)
-    choices.push({ value: `provider:${providerId}`, label: providerId, count });
-  return choices;
+    issuer.push({ value: `provider:${providerId}`, label: providerLabel(providerId), count });
+  return { frequency, issuer };
 }

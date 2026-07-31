@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
   sortDistributionRows,
@@ -19,7 +19,9 @@ const T = {
   searchLabel: { en: "Search distributions by ticker or ETF name", ko: "티커 또는 이름으로 분배금 검색" },
   sortLabel: { en: "Sort by", ko: "정렬 기준" },
   noResults: { en: "No distributions match your search or filter.", ko: "검색/필터 조건에 맞는 분배금이 없습니다." },
-  popular: { en: "Popular:", ko: "인기:" },
+  frequencyGroup: { en: "Payment Frequency", ko: "지급 주기" },
+  issuerGroup: { en: "Issuer", ko: "발행사" },
+  popularGroup: { en: "Popular", ko: "인기" },
   th: {
     ticker: { en: "Ticker", ko: "티커" },
     name: { en: "ETF Name", ko: "ETF 이름" },
@@ -66,6 +68,47 @@ function RocBar({ value }: { value: number | null }) {
       </span>
       <span className="tabular-nums">{value.toFixed(2)}%</span>
     </span>
+  );
+}
+
+function FilterGroup({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div>
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--gray-500)] mb-1.5">
+        {label}
+      </div>
+      <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function FilterChip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-xs sm:text-sm border transition-colors ${
+        active
+          ? "bg-black text-white border-black"
+          : "border-[var(--gray-200)] text-[var(--gray-600)] hover:border-black"
+      }`}
+    >
+      {/* No opacity-60 here — blending the inherited text color toward the
+          background to "de-emphasize" the count silently broke WCAG
+          contrast (parentheses already read as secondary without needing a
+          faded color). */}
+      {children}
+    </button>
   );
 }
 
@@ -131,42 +174,41 @@ export function DistributionExplorer({
         </label>
       </div>
 
-      <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-        {availableFilters.map((f) => (
-          <button
-            key={f.value}
-            type="button"
-            onClick={() => setFilter(f.value)}
-            className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-xs sm:text-sm border transition-colors ${
-              filter === f.value
-                ? "bg-black text-white border-black"
-                : "border-[var(--gray-200)] text-[var(--gray-600)] hover:border-black"
-            }`}
-          >
-            {/* No opacity-60 here — blending the inherited text color
-                toward the background to "de-emphasize" the count silently
-                broke WCAG contrast (parentheses already read as secondary
-                without needing a faded color). */}
-            {f.label} <span>({f.count})</span>
-          </button>
-        ))}
-      </div>
-
-      {popularPresent.length > 0 && (
-        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-[var(--gray-500)]">
-          <span>{T.popular[lang]}</span>
-          {popularPresent.map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setQuery(t)}
-              className="px-2 py-0.5 rounded-full border border-[var(--gray-200)] hover:border-black transition-colors"
-            >
-              {t}
-            </button>
+      {/* Grouped by CONCEPT, not one flat chip row — payment frequency,
+          issuer, and popular tickers are three unrelated facets, and mixing
+          them together (the pre-Phase-2 layout) was the single
+          highest-priority UX problem flagged for this page. Each group gets
+          its own label and its own horizontal-scroll lane so they never
+          visually blur into each other, on mobile or desktop. */}
+      <div className="mt-4 flex flex-col gap-3">
+        <FilterGroup label={T.frequencyGroup[lang]}>
+          {availableFilters.frequency.map((f) => (
+            <FilterChip key={f.value} active={filter === f.value} onClick={() => setFilter(f.value)}>
+              {f.label} <span>({f.count})</span>
+            </FilterChip>
           ))}
-        </div>
-      )}
+        </FilterGroup>
+
+        {availableFilters.issuer.length > 0 && (
+          <FilterGroup label={T.issuerGroup[lang]}>
+            {availableFilters.issuer.map((f) => (
+              <FilterChip key={f.value} active={filter === f.value} onClick={() => setFilter(f.value)}>
+                {f.label} <span>({f.count})</span>
+              </FilterChip>
+            ))}
+          </FilterGroup>
+        )}
+
+        {popularPresent.length > 0 && (
+          <FilterGroup label={T.popularGroup[lang]}>
+            {popularPresent.map((t) => (
+              <FilterChip key={t} active={query.toUpperCase() === t} onClick={() => setQuery(t)}>
+                {t}
+              </FilterChip>
+            ))}
+          </FilterGroup>
+        )}
+      </div>
 
       {visibleRows.length === 0 ? (
         <p className="mt-8 text-center text-sm text-[var(--gray-400)]">{T.noResults[lang]}</p>
@@ -199,10 +241,13 @@ export function DistributionExplorer({
                           i % 2 === 1 ? "bg-[var(--gray-50)]/50" : ""
                         }`}
                       >
+                        {/* Ticker stays identifiable but no longer the loudest
+                            thing in the row — Visual Hierarchy Phase 2, Part 3:
+                            financial tables emphasize the numbers, not the label. */}
                         <td className="px-4 py-2.5">
                           <Link
                             href={`${basePath}/${r.ticker.toLowerCase()}`}
-                            className="inline-flex items-center gap-1.5 font-bold text-[15px] hover:underline"
+                            className="inline-flex items-center gap-1.5 font-semibold text-sm hover:underline"
                           >
                             {r.ticker}
                             {isPopular && <Badge variant="accent-outline">{T.popularBadge[lang]}</Badge>}
@@ -212,12 +257,14 @@ export function DistributionExplorer({
                           {r.etfName ?? T.na}
                         </td>
                         <td className="px-4 py-2.5 text-[var(--gray-600)]">{r.frequency ?? T.na}</td>
-                        <td className="px-4 py-2.5 text-right font-semibold tabular-nums">
+                        {/* Dividend and Rate carry the row's real weight — bumped
+                            to text-[15px]/bold to visually outrank the ticker. */}
+                        <td className="px-4 py-2.5 text-right font-bold text-[15px] text-[var(--gray-900)] tabular-nums">
                           {fmtMoney(r.distributionPerShare)}
                         </td>
                         {/* #92400e, not --crady-accent — see
                             components/ui/KpiCard.tsx for why. */}
-                        <td className="px-4 py-2.5 text-right font-semibold text-[#92400e] tabular-nums">
+                        <td className="px-4 py-2.5 text-right font-bold text-[15px] text-[#92400e] tabular-nums">
                           {fmtPct(r.distributionRate)}
                         </td>
                         <td className="px-4 py-2.5 text-right text-[var(--gray-700)] tabular-nums">
@@ -226,8 +273,11 @@ export function DistributionExplorer({
                         <td className="px-4 py-2.5 text-right">
                           <RocBar value={r.rocPercent} />
                         </td>
-                        <td className="px-4 py-2.5 text-[var(--gray-600)]">{r.exDate}</td>
-                        <td className="px-4 py-2.5 text-[var(--gray-600)]">{r.payDate}</td>
+                        <td className="px-4 py-2.5 text-[var(--gray-500)]">{r.exDate}</td>
+                        {/* Payment Date: the date a reader actually cares about
+                            (money arriving), so it's dark/semibold vs Ex-Date's
+                            lighter gray rather than sharing the same weight. */}
+                        <td className="px-4 py-2.5 font-semibold text-[var(--gray-900)] tabular-nums">{r.payDate}</td>
                       </tr>
                     );
                   })}
@@ -249,13 +299,13 @@ export function DistributionExplorer({
                     aria-expanded={isOpen}
                     className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left min-h-[44px]"
                   >
-                    <span className="flex items-center gap-1.5 font-bold shrink-0">
+                    <span className="flex items-center gap-1.5 font-semibold text-sm shrink-0">
                       {r.ticker}
                       {isPopular && <Badge variant="accent-outline">{T.popularBadge[lang]}</Badge>}
                     </span>
-                    <span className="flex-1 text-right text-sm font-semibold tabular-nums">{fmtMoney(r.distributionPerShare)}</span>
-                    <span className="w-16 shrink-0 text-right text-xs font-semibold text-[#92400e] tabular-nums">{fmtPct(r.distributionRate)}</span>
-                    <span className="w-20 shrink-0 text-right text-xs text-[var(--gray-500)]">{r.payDate}</span>
+                    <span className="flex-1 text-right text-base font-bold text-[var(--gray-900)] tabular-nums">{fmtMoney(r.distributionPerShare)}</span>
+                    <span className="w-16 shrink-0 text-right text-sm font-bold text-[#92400e] tabular-nums">{fmtPct(r.distributionRate)}</span>
+                    <span className="w-20 shrink-0 text-right text-xs font-semibold text-[var(--gray-700)]">{r.payDate}</span>
                   </button>
                   {isOpen && (
                     <div className="px-4 pb-4 text-sm text-[var(--gray-700)] bg-[var(--gray-50)]">

@@ -1,4 +1,4 @@
-import { KpiGrid, type KpiItem } from "@/components/ui/KpiCard";
+import { KpiCard, type KpiItem } from "@/components/ui/KpiCard";
 
 const T = {
   today: { en: "Today's Payments", ko: "오늘 지급" },
@@ -9,6 +9,10 @@ const T = {
   officialSub: { en: "official distribution", ko: "공식 분배금" },
 } as const;
 
+/** Today's Payments dominates, This Week is secondary, everything else is
+ * tertiary (Visual Hierarchy Phase 2, Part 5) — the calendar's whole job is
+ * answering "what's happening right now," so today's count gets a full-width
+ * large card of its own rather than sharing equal billing with five others. */
 export function CalendarSummary({
   todayCount,
   weekCount,
@@ -26,21 +30,19 @@ export function CalendarSummary({
   lang?: "en" | "ko";
   basePath?: string;
 }) {
-  const items: KpiItem[] = [
-    { label: T.today[lang], value: todayCount, accent: true },
-    { label: T.thisWeek[lang], value: weekCount },
-    { label: T.predictions[lang], value: predictionCount, href: `${basePath}/ranking` },
-  ];
+  const secondary: KpiItem[] = [{ label: T.thisWeek[lang], value: weekCount }];
   if (nextExDividend) {
-    items.push({
+    secondary.push({
       label: T.nextExDividend[lang],
       value: nextExDividend.ticker,
       sublabel: nextExDividend.exDate,
       href: `${basePath}/${nextExDividend.ticker.toLowerCase()}`,
     });
   }
+
+  const tertiary: KpiItem[] = [{ label: T.predictions[lang], value: predictionCount, href: `${basePath}/ranking` }];
   if (latestAnnouncement) {
-    items.push({
+    tertiary.push({
       label: T.officialAnnounced[lang],
       value: latestAnnouncement.etfCount,
       sublabel: `${T.officialSub[lang]} · ${latestAnnouncement.date}`,
@@ -48,5 +50,19 @@ export function CalendarSummary({
     });
   }
 
-  return <KpiGrid items={items} columns={3} />;
+  return (
+    <div className="flex flex-col gap-3">
+      <KpiCard label={T.today[lang]} value={todayCount} accent size="lg" />
+      <div className="grid grid-cols-2 gap-3">
+        {secondary.map((item) => (
+          <KpiCard key={item.label} {...item} size="md" />
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {tertiary.map((item) => (
+          <KpiCard key={item.label} {...item} size="sm" />
+        ))}
+      </div>
+    </div>
+  );
 }
