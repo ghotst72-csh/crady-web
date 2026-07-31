@@ -49,7 +49,13 @@ export function RankingPreview({
   return (
     <section className="mx-auto max-w-6xl px-4 sm:px-6 py-8 border-t border-[var(--gray-200)]">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-        <div className="flex gap-1 border border-[var(--gray-200)] rounded-lg p-1 w-fit">
+        {/* w-full + flex-wrap on mobile: at 320px three tab labels ("CRADY
+            Score" / "Distribution Yield" / "Rising Dividends") don't fit on
+            one line even at text-xs, and this pill previously had no wrap
+            or scroll containment — it silently pushed the whole page into
+            horizontal overflow. sm+ keeps the original single-line w-fit
+            pill unchanged. */}
+        <div className="flex flex-wrap sm:flex-nowrap gap-1 border border-[var(--gray-200)] rounded-lg p-1 w-full sm:w-fit">
           {(Object.keys(TAB_LABEL) as Tab[]).map((key) => (
             <button
               key={key}

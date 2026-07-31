@@ -38,7 +38,21 @@ export function LanguagePreferenceManager({ lang }: { lang: "en" | "ko" }) {
     // An explicit prior choice that doesn't match where we are now — the
     // ONLY condition that ever triggers an automatic navigation here.
     if (stored && stored !== lang) {
-      window.location.href = getLocaleTargetPath(pathname, stored);
+      const target = getLocaleTargetPath(pathname, stored);
+      // Pages with no Korean equivalent (Magazine, legal pages — see
+      // NO_KO_EQUIVALENT in localePath.ts) fall back to the Korean home
+      // page rather than a broken link. That fallback is a reasonable
+      // outcome for an EXPLICIT switch (the switcher, footer link, or
+      // recommendation card), but firing it passively on every mount
+      // would hijack normal in-app navigation: clicking a Magazine link
+      // from a /ko page lands on the English Magazine article, and this
+      // effect would then silently bounce the user straight to /ko home
+      // instead of leaving them on the page they just navigated to. Only
+      // auto-redirect here when it actually preserves the current page.
+      const isFallbackToHome = target === "/ko" && pathname !== "/" && pathname !== "/ko";
+      if (!isFallbackToHome) {
+        window.location.href = target;
+      }
       return;
     }
 

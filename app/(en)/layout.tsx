@@ -60,7 +60,14 @@ export default async function EnglishRootLayout({
         />
         <Header lang="en" searchIndex={searchIndex} />
 
-        <main className="flex-1">{children}</main>
+        {/* min-w-0: body is flex flex-col, and a flex item's implicit
+            min-width is auto (its content's intrinsic width), not 0 — a
+            deeply nested horizontal-scroll carousel's un-scrolled content
+            width would otherwise leak out and stretch the whole page,
+            causing page-level horizontal scroll even though the carousel
+            itself is correctly clipped by its own overflow-x-auto. See the
+            CRADY Mobile UX Final Polish report, Issue 6. */}
+        <main className="flex-1 min-w-0">{children}</main>
 
         <LanguagePreferenceManager lang="en" />
 

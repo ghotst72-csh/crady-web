@@ -150,4 +150,14 @@ describe("MobileSearch", () => {
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
+
+  it("portals the sheet directly onto document.body (regression: a header with backdrop-blur becomes the containing block for a fixed-position descendant, silently shrinking it to the header's own height instead of the full viewport — rendering outside the header via a portal sidesteps that entirely)", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<MobileSearch index={INDEX} lang="en" />);
+    await user.click(screen.getByLabelText("Search ETFs"));
+    const dialog = screen.getByRole("dialog");
+
+    expect(dialog.parentElement).toBe(document.body);
+    expect(container.contains(dialog)).toBe(false);
+  });
 });

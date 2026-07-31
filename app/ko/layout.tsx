@@ -60,7 +60,11 @@ export default async function KoreanRootLayout({
         />
         <Header lang="ko" searchIndex={searchIndex} />
 
-        <main className="flex-1">{children}</main>
+        {/* min-w-0: see the matching comment in app/(en)/layout.tsx — same
+            flex-item implicit-min-width fix for page-level horizontal
+            overflow, mirrored here since the two root layouts don't share
+            a parent. */}
+        <main className="flex-1 min-w-0">{children}</main>
 
         <LanguagePreferenceManager lang="ko" />
 

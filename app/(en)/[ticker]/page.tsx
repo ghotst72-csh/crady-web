@@ -347,12 +347,15 @@ export default async function TickerPage({
             ranking, so no page on the site is a dead end. */}
         <div className="mt-8">
           <h2 className="text-lg font-bold mb-3">{ticker} Deep Dive</h2>
-          <div className="flex flex-wrap gap-2">
+          {/* Horizontally scrollable chip row on mobile (too many chips to
+              wrap cleanly in a narrow viewport without breaking the header
+              rhythm) — reverts to the original wrapping row at sm+. */}
+          <div className="flex gap-2 overflow-x-auto sm:overflow-visible sm:flex-wrap pb-2 sm:pb-0 snap-x snap-mandatory sm:snap-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {MAGAZINE_TYPES.map((type) => (
               <Link
                 key={type}
                 href={`/magazine/${articleSlug(ticker, type)}`}
-                className="px-3 py-1.5 border border-[var(--gray-200)] rounded-full text-sm hover:border-black transition-colors"
+                className="shrink-0 whitespace-nowrap snap-start px-3 py-1.5 border border-[var(--gray-200)] rounded-full text-sm hover:border-black transition-colors"
               >
                 {ARTICLE_TYPE_LABEL[type]}
               </Link>
@@ -360,20 +363,20 @@ export default async function TickerPage({
             {comparisonPeerTicker && (
               <Link
                 href={`/magazine/${articleSlug(ticker, "comparison")}`}
-                className="px-3 py-1.5 border border-[var(--gray-200)] rounded-full text-sm hover:border-black transition-colors"
+                className="shrink-0 whitespace-nowrap snap-start px-3 py-1.5 border border-[var(--gray-200)] rounded-full text-sm hover:border-black transition-colors"
               >
                 {ticker} vs {comparisonPeerTicker}
               </Link>
             )}
             <Link
               href="/ranking"
-              className="px-3 py-1.5 border border-[var(--gray-200)] rounded-full text-sm hover:border-black transition-colors"
+              className="shrink-0 whitespace-nowrap snap-start px-3 py-1.5 border border-[var(--gray-200)] rounded-full text-sm hover:border-black transition-colors"
             >
               Full ETF Ranking
             </Link>
             <Link
               href="/about#methodology"
-              className="px-3 py-1.5 border border-[var(--gray-200)] rounded-full text-sm hover:border-black transition-colors"
+              className="shrink-0 whitespace-nowrap snap-start px-3 py-1.5 border border-[var(--gray-200)] rounded-full text-sm hover:border-black transition-colors"
             >
               Prediction Methodology
             </Link>

@@ -5,24 +5,9 @@ import Link from "next/link";
 import { TickerSearch } from "./search/TickerSearch";
 import { MobileSearch } from "./search/MobileSearch";
 import { LanguageSwitcher } from "./i18n/LanguageSwitcher";
+import { MobileNav } from "./MobileNav";
+import { NAV_EN, NAV_KO } from "@/lib/nav";
 import type { SearchEntry } from "@/lib/search/searchTickers";
-
-// Magazine is English-only (no /ko/magazine — see the CRADY International
-// SEO report), so its nav link never gets the /ko prefix even on the
-// Korean header.
-const NAV_EN = [
-  { href: "/ranking", label: "Ranking" },
-  { href: "/calendar", label: "Dividend Calendar" },
-  { href: "/magazine", label: "Magazine" },
-  { href: "/about", label: "About" },
-];
-
-const NAV_KO = [
-  { href: "/ko/ranking", label: "랭킹" },
-  { href: "/ko/calendar", label: "배당 일정" },
-  { href: "/magazine", label: "매거진" },
-  { href: "/ko/about", label: "소개" },
-];
 
 // Scroll direction thresholds — small jitters (<10px) don't trigger a
 // show/hide flip, and the header always shows within 20px of the top.
@@ -101,12 +86,16 @@ export function Header({
                 report for the WCAG contrast fix behind this exact value. */}
             CRA<span className="text-[#92400e]">DY</span>
           </Link>
-          <nav className="flex items-center gap-0.5 sm:gap-4 text-xs sm:text-sm min-w-0">
+          {/* Desktop only — the full label set ("Dividend Calendar" etc.)
+              overflows a phone-width header, so mobile gets a hamburger
+              menu (MobileNav) with the same items instead (Issue 2, CRADY
+              Mobile UX Final Polish report). */}
+          <nav className="hidden sm:flex items-center gap-4 text-sm min-w-0">
             {nav.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="px-1.5 sm:px-2 py-1.5 rounded-md text-[var(--gray-600)] hover:text-black hover:bg-[var(--gray-100)] transition-colors whitespace-nowrap"
+                className="px-2 py-1.5 rounded-md text-[var(--gray-600)] hover:text-black hover:bg-[var(--gray-100)] transition-colors whitespace-nowrap"
               >
                 {item.label}
               </Link>
@@ -117,17 +106,18 @@ export function Header({
 
           {/* Language switcher sits immediately before search on both
               desktop and mobile (Part 8). Desktop: a real, always-visible
-              instant-search field. Mobile: icons that open a full-width
-              search sheet / a compact language menu — see
-              components/search/MobileSearch.tsx and
-              components/i18n/LanguageSwitcher.tsx. */}
+              instant-search field. Mobile: a hamburger nav, a compact
+              language menu, and a search sheet trigger — see
+              components/MobileNav.tsx, components/i18n/LanguageSwitcher.tsx,
+              and components/search/MobileSearch.tsx. */}
           <div className="hidden sm:block shrink-0">
             <LanguageSwitcher lang={lang} />
           </div>
           <div className="hidden sm:block w-[260px] shrink-0">
             <TickerSearch index={searchIndex} lang={lang} basePath={basePath} />
           </div>
-          <div className="sm:hidden flex items-center">
+          <div className="sm:hidden flex items-center gap-1">
+            <MobileNav lang={lang} />
             <LanguageSwitcher lang={lang} compact />
             <MobileSearch index={searchIndex} lang={lang} basePath={basePath} />
           </div>

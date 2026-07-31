@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { TickerSearch } from "./TickerSearch";
 import type { SearchEntry } from "@/lib/search/searchTickers";
 
@@ -49,29 +50,41 @@ export function MobileSearch({
         <SearchIcon />
       </button>
 
-      {open && (
-        <div className="fixed inset-0 z-[60] bg-white sm:hidden" role="dialog" aria-modal="true">
-          <div className="flex items-center gap-2 h-14 px-4 border-b border-[var(--gray-200)]">
-            <div className="flex-1">
-              <TickerSearch
-                index={index}
-                lang={lang}
-                basePath={basePath}
-                autoFocus
-                onNavigate={() => setOpen(false)}
-              />
+      {/* Portaled to document.body — this sheet used to render inline
+          inside <header>, and <header> has backdrop-blur (a backdrop-filter),
+          which per spec makes it the CONTAINING BLOCK for any fixed-position
+          descendant. That silently resized "fixed inset-0" here down to
+          header's own ~56px height instead of the full viewport, so the
+          "full-screen" sheet only ever covered the header strip and every
+          page underneath showed through. Portaling to body sidesteps any
+          ancestor's stacking/containing-block quirks entirely — the
+          standard fix for a modal/sheet in this situation. */}
+      {open &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div className="fixed inset-0 z-[60] bg-white sm:hidden" role="dialog" aria-modal="true">
+            <div className="flex items-center gap-2 h-14 px-4 border-b border-[var(--gray-200)]">
+              <div className="flex-1">
+                <TickerSearch
+                  index={index}
+                  lang={lang}
+                  basePath={basePath}
+                  autoFocus
+                  onNavigate={() => setOpen(false)}
+                />
+              </div>
+              <button
+                type="button"
+                aria-label={T.closeLabel[lang]}
+                onClick={() => setOpen(false)}
+                className="shrink-0 w-9 h-9 flex items-center justify-center rounded-full text-[var(--gray-600)] hover:bg-[var(--gray-100)] transition-colors"
+              >
+                <CloseIcon />
+              </button>
             </div>
-            <button
-              type="button"
-              aria-label={T.closeLabel[lang]}
-              onClick={() => setOpen(false)}
-              className="shrink-0 w-9 h-9 flex items-center justify-center rounded-full text-[var(--gray-600)] hover:bg-[var(--gray-100)] transition-colors"
-            >
-              <CloseIcon />
-            </button>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </>
   );
 }

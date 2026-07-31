@@ -137,3 +137,44 @@ describe("LanguagePreferenceManager — stored preference differs from current t
     expect(window.location.href).toBe("");
   });
 });
+
+describe("LanguagePreferenceManager — pages with no Korean equivalent (regression)", () => {
+  // Root cause of the "Deep Dive navigates to homepage" bug (CRADY Mobile
+  // UX Final Polish): a stored ko preference used to unconditionally
+  // window.location.href to getLocaleTargetPath's result, which falls back
+  // to "/ko" home for Magazine/legal pages — silently hijacking normal
+  // in-app navigation into those pages instead of leaving the user on them.
+  it("does NOT bounce a Magazine article to /ko home when the stored preference is Korean", () => {
+    getStoredLanguagePreference.mockReturnValue("ko");
+    pathname = "/magazine/bigy-next-dividend-prediction";
+    render(<LanguagePreferenceManager lang="en" />);
+
+    expect(window.location.href).toBe("");
+  });
+
+  it("does NOT bounce the Magazine hub to /ko home", () => {
+    getStoredLanguagePreference.mockReturnValue("ko");
+    pathname = "/magazine";
+    render(<LanguagePreferenceManager lang="en" />);
+
+    expect(window.location.href).toBe("");
+  });
+
+  it("does NOT bounce legal pages (privacy/terms/account-deletion) to /ko home", () => {
+    getStoredLanguagePreference.mockReturnValue("ko");
+    for (const p of ["/privacy", "/terms", "/account-deletion"]) {
+      pathname = p;
+      const { unmount } = render(<LanguagePreferenceManager lang="en" />);
+      expect(window.location.href).toBe("");
+      unmount();
+    }
+  });
+
+  it("still redirects the English home page to Korean home (real equivalent, not a bounce)", () => {
+    getStoredLanguagePreference.mockReturnValue("ko");
+    pathname = "/";
+    render(<LanguagePreferenceManager lang="en" />);
+
+    expect(window.location.href).toBe("/ko");
+  });
+});
