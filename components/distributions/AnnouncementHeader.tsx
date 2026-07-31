@@ -58,7 +58,9 @@ export function AnnouncementHeader({
         </div>
 
         <div className="mt-3 flex items-baseline gap-3 flex-wrap">
-          <span className="text-5xl sm:text-6xl font-black text-[var(--crady-accent)] leading-none">
+          {/* #92400e, not --crady-accent — see components/ui/KpiCard.tsx
+              for why (the raw brand accent fails WCAG text contrast). */}
+          <span className="text-5xl sm:text-6xl font-black text-[#92400e] leading-none">
             {announcement.etf_count}
           </span>
           <span className="text-lg sm:text-xl font-bold text-[var(--gray-900)]">
@@ -79,7 +81,7 @@ export function AnnouncementHeader({
             href={announcement.source_url}
             target="_blank"
             rel="noopener noreferrer nofollow"
-            className="font-medium text-[var(--crady-accent)] hover:underline"
+            className="font-medium text-[#92400e] hover:underline"
           >
             {T.viewSource[lang]}
           </a>
@@ -110,7 +112,7 @@ export function AnnouncementHeader({
         href={announcement.source_url}
         target="_blank"
         rel="noopener noreferrer nofollow"
-        className="mt-3 inline-block text-sm font-medium text-[var(--crady-accent)] hover:underline"
+        className="mt-3 inline-block text-sm font-medium text-[#92400e] hover:underline"
       >
         {T.viewSource[lang]}
       </a>

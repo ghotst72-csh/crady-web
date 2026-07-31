@@ -143,7 +143,11 @@ export function DistributionExplorer({
                 : "border-[var(--gray-200)] text-[var(--gray-600)] hover:border-black"
             }`}
           >
-            {f.label} <span className="opacity-60">({f.count})</span>
+            {/* No opacity-60 here — blending the inherited text color
+                toward the background to "de-emphasize" the count silently
+                broke WCAG contrast (parentheses already read as secondary
+                without needing a faded color). */}
+            {f.label} <span>({f.count})</span>
           </button>
         ))}
       </div>
@@ -211,7 +215,9 @@ export function DistributionExplorer({
                         <td className="px-4 py-2.5 text-right font-semibold tabular-nums">
                           {fmtMoney(r.distributionPerShare)}
                         </td>
-                        <td className="px-4 py-2.5 text-right font-semibold text-[var(--crady-accent)] tabular-nums">
+                        {/* #92400e, not --crady-accent — see
+                            components/ui/KpiCard.tsx for why. */}
+                        <td className="px-4 py-2.5 text-right font-semibold text-[#92400e] tabular-nums">
                           {fmtPct(r.distributionRate)}
                         </td>
                         <td className="px-4 py-2.5 text-right text-[var(--gray-700)] tabular-nums">
@@ -248,7 +254,7 @@ export function DistributionExplorer({
                       {isPopular && <Badge variant="accent-outline">{T.popularBadge[lang]}</Badge>}
                     </span>
                     <span className="flex-1 text-right text-sm font-semibold tabular-nums">{fmtMoney(r.distributionPerShare)}</span>
-                    <span className="w-16 shrink-0 text-right text-xs font-semibold text-[var(--crady-accent)] tabular-nums">{fmtPct(r.distributionRate)}</span>
+                    <span className="w-16 shrink-0 text-right text-xs font-semibold text-[#92400e] tabular-nums">{fmtPct(r.distributionRate)}</span>
                     <span className="w-20 shrink-0 text-right text-xs text-[var(--gray-500)]">{r.payDate}</span>
                   </button>
                   {isOpen && (
@@ -281,7 +287,7 @@ export function DistributionExplorer({
                       </dl>
                       <Link
                         href={`${basePath}/${r.ticker.toLowerCase()}`}
-                        className="mt-3 inline-block text-sm font-medium text-[var(--crady-accent)] hover:underline"
+                        className="mt-3 inline-block text-sm font-medium text-[#92400e] hover:underline"
                       >
                         {T.viewTicker[lang]}
                       </Link>

@@ -69,7 +69,7 @@ export default async function HomePage() {
       <NextDistributionsRail items={nextDistributions} lang="en" />
 
       <div className="mx-auto max-w-6xl px-4 sm:px-6 -mt-2 pb-2">
-        <Link href="/distributions" className="text-sm text-[var(--crady-accent)] hover:underline font-medium">
+        <Link href="/distributions" className="text-sm text-[#92400e] hover:underline font-medium">
           See the latest officially announced distributions →
         </Link>
       </div>

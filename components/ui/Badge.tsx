@@ -9,8 +9,11 @@ export type BadgeVariant =
 
 const VARIANT_CLASSES: Record<BadgeVariant, string> = {
   neutral: "bg-[var(--gray-100)] text-[var(--gray-600)]",
-  accent: "bg-[var(--crady-accent)]/15 text-[var(--crady-accent)]",
-  "accent-outline": "border border-[var(--crady-accent)]/40 text-[var(--crady-accent)]",
+  // #92400e, not the raw --crady-accent token, for the text color — the
+  // brand accent itself (#f59e0b) fails WCAG contrast as text, including on
+  // its own tinted background (see the matching note in KpiCard.tsx).
+  accent: "bg-[var(--crady-accent)]/15 text-[#92400e]",
+  "accent-outline": "border border-[var(--crady-accent)]/40 text-[#92400e]",
   // Restrained, sparingly-used hues — not a new brand palette, just enough
   // differentiation to tell article types apart at a glance (Part 6). Blue
   // and green already existed once each on the site (the ticker hero's

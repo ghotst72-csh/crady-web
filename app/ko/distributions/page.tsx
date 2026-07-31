@@ -85,7 +85,7 @@ export default async function KoreanDistributionsPage() {
       )}
 
       <p className="mt-6 text-sm">
-        <Link href="/ko/distributions/archive" className="text-[var(--crady-accent)] hover:underline font-medium">
+        <Link href="/ko/distributions/archive" className="text-[#92400e] hover:underline font-medium">
           지난 발표 전체 보기 →
         </Link>
       </p>

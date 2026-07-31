@@ -27,9 +27,13 @@ export function KpiGrid({ items, columns = 4 }: { items: KpiItem[]; columns?: 2 
 function KpiCard({ label, value, href, accent, sublabel }: KpiItem) {
   const content = (
     <>
-      <div className={`text-2xl font-extrabold ${accent ? "text-[var(--crady-accent)]" : ""}`}>{value}</div>
+      {/* #92400e, not the raw --crady-accent token, for text-on-white — see
+          the CRADY Authority & Google Trust Phase 1 report for why: the
+          brand accent (#f59e0b) itself fails WCAG contrast as text on a
+          white background even at this size/weight. */}
+      <div className={`text-2xl font-extrabold ${accent ? "text-[#92400e]" : ""}`}>{value}</div>
       <div className="text-xs text-[var(--gray-500)] mt-0.5">{label}</div>
-      {sublabel && <div className="text-[11px] text-[var(--gray-400)] mt-1">{sublabel}</div>}
+      {sublabel && <div className="text-[11px] text-[var(--gray-600)] mt-1">{sublabel}</div>}
     </>
   );
   const className =

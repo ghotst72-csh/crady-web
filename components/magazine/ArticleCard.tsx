@@ -53,10 +53,11 @@ export function ArticleCard({
       {subtitle && <div className="mt-1 text-xs text-[var(--gray-500)]">{subtitle}</div>}
       {metricValue != null && (
         <div className="mt-2.5">
-          <div className={`font-extrabold text-[var(--crady-accent)] ${featured ? "text-3xl" : "text-xl"}`}>
+          {/* #92400e, not --crady-accent — see KpiCard.tsx for why. */}
+          <div className={`font-extrabold text-[#92400e] ${featured ? "text-3xl" : "text-xl"}`}>
             {metricValue}
           </div>
-          {metricLabel && <div className="text-[11px] text-[var(--gray-400)] mt-0.5">{metricLabel}</div>}
+          {metricLabel && <div className="text-[11px] text-[var(--gray-600)] mt-0.5">{metricLabel}</div>}
         </div>
       )}
       {summary && (
@@ -67,7 +68,7 @@ export function ArticleCard({
           {extraStats.map((s) => (
             <div key={s.label}>
               <div className="text-sm sm:text-base font-bold">{s.value}</div>
-              <div className="text-[11px] text-[var(--gray-400)] mt-0.5">{s.label}</div>
+              <div className="text-[11px] text-[var(--gray-600)] mt-0.5">{s.label}</div>
             </div>
           ))}
         </div>

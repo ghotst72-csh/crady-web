@@ -87,7 +87,7 @@ export default async function DistributionsPage() {
       )}
 
       <p className="mt-6 text-sm">
-        <Link href="/distributions/archive" className="text-[var(--crady-accent)] hover:underline font-medium">
+        <Link href="/distributions/archive" className="text-[#92400e] hover:underline font-medium">
           View all past announcements →
         </Link>
       </p>

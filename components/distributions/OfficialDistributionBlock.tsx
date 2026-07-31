@@ -44,7 +44,7 @@ export function OfficialDistributionBlock({
     <div className="mt-8 border border-[var(--gray-200)] rounded-2xl p-4 sm:p-5">
       <div className="flex items-center gap-2">
         <h2 className="text-lg font-bold">{T.heading[lang]}</h2>
-        <span className="px-2 py-0.5 rounded-full bg-[var(--crady-accent)]/15 text-[var(--crady-accent)] text-[11px] font-semibold">
+        <span className="px-2 py-0.5 rounded-full bg-[var(--crady-accent)]/15 text-[#92400e] text-[11px] font-semibold">
           {T.officialBadge[lang]}
         </span>
       </div>
@@ -87,7 +87,7 @@ export function OfficialDistributionBlock({
           href={official.announcementSourceUrl ?? official.sourceUrl ?? undefined}
           target="_blank"
           rel="noopener noreferrer nofollow"
-          className="mt-3 inline-block text-sm font-medium text-[var(--crady-accent)] hover:underline"
+          className="mt-3 inline-block text-sm font-medium text-[#92400e] hover:underline"
         >
           {T.source[lang]}
         </a>
@@ -109,7 +109,7 @@ export function OfficialDistributionBlock({
             <div>
               <div className="text-xs text-[var(--gray-500)] flex items-center gap-1">
                 {T.official[lang]}
-                <span className="px-1.5 py-0.5 rounded-full bg-[var(--crady-accent)]/15 text-[var(--crady-accent)] text-[10px]">
+                <span className="px-1.5 py-0.5 rounded-full bg-[var(--crady-accent)]/15 text-[#92400e] text-[10px]">
                   {T.officialBadge[lang]}
                 </span>
               </div>

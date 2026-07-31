@@ -88,7 +88,9 @@ export function RankingTable({
             {T.leaderEyebrow[lang](CRITERION_LABEL[criterion][lang])}
           </div>
           <div className="mt-2 flex items-baseline gap-3 flex-wrap">
-            <span className="text-4xl sm:text-5xl font-black text-[var(--crady-accent)] leading-none">
+            {/* #92400e, not --crady-accent — see components/ui/KpiCard.tsx
+                for why (the raw brand accent fails WCAG text contrast). */}
+            <span className="text-4xl sm:text-5xl font-black text-[#92400e] leading-none">
               {leaderMetric.value}
             </span>
             <span className="text-xl sm:text-2xl font-bold group-hover:underline">{leader.ticker}</span>
