@@ -12,6 +12,7 @@ import { HeroSection } from "@/components/home/Hero";
 import { TrustBar } from "@/components/home/TrustBar";
 import { TodaysHighlights } from "@/components/home/TodaysHighlights";
 import { MarketSummary } from "@/components/home/MarketSummary";
+import { QuickInsights } from "@/components/home/QuickInsights";
 import { NextDistributionsRail } from "@/components/NextDistributionsRail";
 import { OfficialAnnouncementsPreview } from "@/components/home/OfficialAnnouncementsPreview";
 import { RankingPreview } from "@/components/RankingPreview";
@@ -68,6 +69,10 @@ export default async function HomePage() {
     (max, e) => (e.calculatedAt && (!max || e.calculatedAt > max) ? e.calculatedAt : max),
     null
   );
+  const nextExDividend = snapshot
+    .filter((e) => e.nextPredictedExDate != null)
+    .sort((a, b) => (a.nextPredictedExDate! < b.nextPredictedExDate! ? -1 : 1))[0];
+  const topPick = cradyTop[0]?.cradyScore != null ? { ticker: cradyTop[0].ticker, cradyScore: cradyTop[0].cradyScore } : null;
 
   return (
     <div>
@@ -78,7 +83,15 @@ export default async function HomePage() {
           visual design (AI Overview Optimization Phase 1). */}
       <h1 className="sr-only">CRADY — YieldMax &amp; Covered Call ETF Dividend Tracker</h1>
       {/* Hero — one ETF, Bloomberg/FT-style, no carousel */}
-      <HeroSection top10={yieldTop10} lang="en" />
+      <HeroSection
+        top10={yieldTop10}
+        weekCount={keyMetrics.weekCount}
+        nextExDividend={
+          nextExDividend ? { ticker: nextExDividend.ticker, exDate: nextExDividend.nextPredictedExDate! } : null
+        }
+        topPick={topPick}
+        lang="en"
+      />
       <TrustBar
         etfsTracked={snapshot.length}
         distributionRecords={trustStats.distributionRecords}
@@ -108,6 +121,8 @@ export default async function HomePage() {
         weekCount={keyMetrics.weekCount}
         lang="en"
       />
+
+      <QuickInsights snapshot={snapshot} lang="en" />
 
       <NextDistributionsRail items={nextDistributions} lang="en" />
 

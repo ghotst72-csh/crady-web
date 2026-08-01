@@ -10,6 +10,7 @@ import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { ArticleCard } from "@/components/magazine/ArticleCard";
 import { ArticleTypeBadge } from "@/components/magazine/ArticleTypeBadge";
 import { KpiGrid, type KpiItem } from "@/components/ui/KpiCard";
+import { PageAppCta } from "@/components/PageAppCta";
 
 export const revalidate = 3600;
 
@@ -256,6 +257,8 @@ export default async function MagazineIndexPage() {
           ))}
         </div>
       </section>
+
+      <PageAppCta lang="en" />
     </div>
   );
 }

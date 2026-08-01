@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { GooglePlayButton } from "./GooglePlayButton";
+import { AppStoreBadge } from "./AppStoreBadge";
 
 const FEATURES_EN = [
   { label: "Dividend Alerts", desc: "Get a push notification so you never miss a payment date." },
@@ -84,7 +85,10 @@ export function AppPromoSection({ lang = "en" }: { lang?: "en" | "ko" }) {
               ))}
             </div>
 
-            <GooglePlayButton className="mt-8" lang={lang} />
+            <div className="mt-8 flex flex-wrap gap-3">
+              <GooglePlayButton lang={lang} />
+              <AppStoreBadge lang={lang} />
+            </div>
           </div>
 
           <div className="flex gap-3 overflow-x-auto pb-2 lg:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

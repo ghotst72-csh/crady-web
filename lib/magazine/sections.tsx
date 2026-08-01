@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { providerLabel, type ComparisonPeer } from "@/lib/data";
 import { DividendStagePill } from "@/components/DividendLifecycle";
-import { KpiCard, type KpiItem } from "@/components/ui/KpiCard";
+import { KpiCard, KpiGrid, type KpiItem } from "@/components/ui/KpiCard";
+import { Sparkline } from "@/components/ui/Sparkline";
 import type { ArticleData } from "./data";
 import type { FaqItem, Section } from "./types";
 import type { TrendWindow } from "./trend";
@@ -258,29 +259,39 @@ export function investmentStrategySection(data: ArticleData): Section | null {
 export function distributionHistorySection(data: ArticleData): Section | null {
   const { ticker, distributions } = data;
   if (distributions.length === 0) return null;
+  const amounts = [...distributions].reverse().map((d) => d.amount);
   return {
     id: "distribution-history",
     heading: `${ticker} Distribution History`,
     body: (
       <div className="not-prose border border-[var(--gray-200)] rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-[var(--gray-50)] text-[var(--gray-500)]">
-            <tr>
-              <th className="text-left px-4 py-2 font-medium">Ex-Date</th>
-              <th className="text-left px-4 py-2 font-medium">Pay Date</th>
-              <th className="text-right px-4 py-2 font-medium">Amount</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[var(--gray-100)]">
-            {distributions.map((d, i) => (
-              <tr key={`${d.ex_date}-${i}`}>
-                <td className="px-4 py-2">{d.ex_date}</td>
-                <td className="px-4 py-2">{d.pay_date}</td>
-                <td className="px-4 py-2 text-right font-medium">{fmtMoney(d.amount)}</td>
+        <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--gray-100)] bg-white">
+          <span className="text-[11px] text-[var(--gray-500)] uppercase tracking-wide font-semibold">Trend</span>
+          <Sparkline values={amounts} width={120} height={28} color="auto" />
+        </div>
+        <div className="max-h-[420px] overflow-y-auto overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 z-10 bg-[var(--gray-50)] text-[var(--gray-500)]">
+              <tr>
+                <th className="text-left px-4 py-2.5 font-medium">Ex-Date</th>
+                <th className="text-left px-4 py-2.5 font-medium">Pay Date</th>
+                <th className="text-right px-4 py-2.5 font-medium">Amount</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-[var(--gray-100)]">
+              {distributions.map((d, i) => (
+                <tr
+                  key={`${d.ex_date}-${i}`}
+                  className={`hover:bg-[var(--gray-100)]/60 transition-colors ${i % 2 === 1 ? "bg-[var(--gray-50)]/50" : ""}`}
+                >
+                  <td className="px-4 py-2.5 text-[var(--gray-600)]">{d.ex_date}</td>
+                  <td className="px-4 py-2.5 text-[var(--gray-600)]">{d.pay_date}</td>
+                  <td className="px-4 py-2.5 text-right font-semibold tabular-nums">{fmtMoney(d.amount)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     ),
   };
@@ -578,22 +589,27 @@ export function upcomingScheduleSection(data: ArticleData): Section | null {
           for CRADY&apos;s estimate of the very next one.
         </p>
         <div className="not-prose border border-[var(--gray-200)] rounded-xl overflow-hidden mt-4">
-          <table className="w-full text-sm">
-            <thead className="bg-[var(--gray-50)] text-[var(--gray-500)]">
-              <tr>
-                <th className="text-left px-4 py-2 font-medium">Ex-Dividend Date</th>
-                <th className="text-left px-4 py-2 font-medium">Payment Date</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--gray-100)]">
-              {futureSchedule.map((s, i) => (
-                <tr key={`${s.ex_date}-${i}`}>
-                  <td className="px-4 py-2">{s.ex_date}</td>
-                  <td className="px-4 py-2">{s.pay_date}</td>
+          <div className="max-h-[420px] overflow-y-auto overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 z-10 bg-[var(--gray-50)] text-[var(--gray-500)]">
+                <tr>
+                  <th className="text-left px-4 py-2.5 font-medium">Ex-Dividend Date</th>
+                  <th className="text-left px-4 py-2.5 font-medium">Payment Date</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-[var(--gray-100)]">
+                {futureSchedule.map((s, i) => (
+                  <tr
+                    key={`${s.ex_date}-${i}`}
+                    className={`hover:bg-[var(--gray-100)]/60 transition-colors ${i % 2 === 1 ? "bg-[var(--gray-50)]/50" : ""}`}
+                  >
+                    <td className="px-4 py-2.5 text-[var(--gray-700)] font-medium">{s.ex_date}</td>
+                    <td className="px-4 py-2.5 text-[var(--gray-700)] font-medium">{s.pay_date}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     ),
@@ -631,24 +647,29 @@ export function yearlyBreakdownSection(data: ArticleData): Section | null {
           <strong>${lifetimeTotal.toFixed(2)}</strong> per share on CRADY&apos;s record.
         </p>
         <div className="not-prose border border-[var(--gray-200)] rounded-xl overflow-hidden mt-4">
-          <table className="w-full text-sm">
-            <thead className="bg-[var(--gray-50)] text-[var(--gray-500)]">
-              <tr>
-                <th className="text-left px-4 py-2 font-medium">Year</th>
-                <th className="text-right px-4 py-2 font-medium">Payments</th>
-                <th className="text-right px-4 py-2 font-medium">Total Paid</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--gray-100)]">
-              {years.map(([year, bucket]) => (
-                <tr key={year}>
-                  <td className="px-4 py-2">{year}</td>
-                  <td className="px-4 py-2 text-right">{bucket.count}</td>
-                  <td className="px-4 py-2 text-right font-medium">${bucket.total.toFixed(2)}</td>
+          <div className="max-h-[420px] overflow-y-auto overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 z-10 bg-[var(--gray-50)] text-[var(--gray-500)]">
+                <tr>
+                  <th className="text-left px-4 py-2.5 font-medium">Year</th>
+                  <th className="text-right px-4 py-2.5 font-medium">Payments</th>
+                  <th className="text-right px-4 py-2.5 font-medium">Total Paid</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-[var(--gray-100)]">
+                {years.map(([year, bucket], i) => (
+                  <tr
+                    key={year}
+                    className={`hover:bg-[var(--gray-100)]/60 transition-colors ${i % 2 === 1 ? "bg-[var(--gray-50)]/50" : ""}`}
+                  >
+                    <td className="px-4 py-2.5 font-semibold">{year}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums">{bucket.count}</td>
+                    <td className="px-4 py-2.5 text-right font-semibold tabular-nums">${bucket.total.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     ),
@@ -726,25 +747,25 @@ export function comparisonTableSection(data: ArticleData, peers: ComparisonPeer[
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--gray-100)]">
-            <tr>
-              <td className="px-4 py-2 text-[var(--gray-500)]">Provider</td>
-              {columns.map((c) => <td key={c.ticker} className="px-4 py-2 text-right font-medium">{providerLabel(c.provider)}</td>)}
+            <tr className="hover:bg-[var(--gray-100)]/60 transition-colors">
+              <td className="px-4 py-2.5 text-[var(--gray-500)]">Provider</td>
+              {columns.map((c) => <td key={c.ticker} className="px-4 py-2.5 text-right font-semibold">{providerLabel(c.provider)}</td>)}
             </tr>
-            <tr>
-              <td className="px-4 py-2 text-[var(--gray-500)]">Est. Annualized Yield</td>
-              {columns.map((c) => <td key={c.ticker} className="px-4 py-2 text-right font-medium">{fmtPct(c.yield)}</td>)}
+            <tr className="bg-[var(--gray-50)]/50 hover:bg-[var(--gray-100)]/60 transition-colors">
+              <td className="px-4 py-2.5 text-[var(--gray-500)]">Est. Annualized Yield</td>
+              {columns.map((c) => <td key={c.ticker} className="px-4 py-2.5 text-right font-semibold tabular-nums text-[#92400e]">{fmtPct(c.yield)}</td>)}
             </tr>
-            <tr>
-              <td className="px-4 py-2 text-[var(--gray-500)]">CRADY Score</td>
-              {columns.map((c) => <td key={c.ticker} className="px-4 py-2 text-right font-medium">{c.score != null ? `${c.score.toFixed(1)}/100` : "—"}</td>)}
+            <tr className="hover:bg-[var(--gray-100)]/60 transition-colors">
+              <td className="px-4 py-2.5 text-[var(--gray-500)]">CRADY Score</td>
+              {columns.map((c) => <td key={c.ticker} className="px-4 py-2.5 text-right font-semibold tabular-nums">{c.score != null ? `${c.score.toFixed(1)}/100` : "—"}</td>)}
             </tr>
-            <tr>
-              <td className="px-4 py-2 text-[var(--gray-500)]">Risk Level</td>
-              {columns.map((c) => <td key={c.ticker} className="px-4 py-2 text-right font-medium">{c.riskLevel ? (RISK_LABEL[c.riskLevel] ?? c.riskLevel) : "—"}</td>)}
+            <tr className="bg-[var(--gray-50)]/50 hover:bg-[var(--gray-100)]/60 transition-colors">
+              <td className="px-4 py-2.5 text-[var(--gray-500)]">Risk Level</td>
+              {columns.map((c) => <td key={c.ticker} className="px-4 py-2.5 text-right font-semibold">{c.riskLevel ? (RISK_LABEL[c.riskLevel] ?? c.riskLevel) : "—"}</td>)}
             </tr>
-            <tr>
-              <td className="px-4 py-2 text-[var(--gray-500)]">Payout Frequency</td>
-              {columns.map((c) => <td key={c.ticker} className="px-4 py-2 text-right font-medium capitalize">{c.freq ?? "—"}</td>)}
+            <tr className="hover:bg-[var(--gray-100)]/60 transition-colors">
+              <td className="px-4 py-2.5 text-[var(--gray-500)]">Payout Frequency</td>
+              {columns.map((c) => <td key={c.ticker} className="px-4 py-2.5 text-right font-semibold capitalize">{c.freq ?? "—"}</td>)}
             </tr>
           </tbody>
         </table>
@@ -849,6 +870,45 @@ export function featuredSnippetSection(data: ArticleData): Section | null {
   }
 
   return null;
+}
+
+/** A compact "Quick Facts" strip — Web UX/SEO Phase 2, Part 2: every
+ * article type gets the same five-glance answer (frequency, next payment,
+ * current yield, risk, prediction confidence) right under its snippet
+ * lead, before the reader has to read any prose or table. Deliberately
+ * terse (one line of KPI cards, no explanation) — the sections below each
+ * page already go deep on whichever of these facts is that page's own
+ * focus, so this never substitutes for them, only orients the reader
+ * before they get there. */
+export function quickFactsSection(data: ArticleData): Section | null {
+  const { ticker, payoutFrequency, prediction, annualYieldPct, risk } = data;
+  const items: KpiItem[] = [];
+  if (payoutFrequency) {
+    items.push({ label: "Dividend Frequency", value: payoutFrequency });
+  }
+  if (prediction?.target_pay_date) {
+    items.push({ label: "Next Payment", value: prediction.target_pay_date });
+  }
+  if (annualYieldPct != null) {
+    items.push({ label: "Current Yield", value: fmtPct(annualYieldPct), accent: true });
+  }
+  if (risk?.risk_level) {
+    items.push({ label: "Risk", value: RISK_LABEL[risk.risk_level] ?? risk.risk_level });
+  }
+  if (prediction?.confidence_score != null) {
+    items.push({ label: "Prediction Confidence", value: fmtPct(prediction.confidence_score, 0) });
+  }
+  if (items.length < 2) return null;
+
+  return {
+    id: "quick-facts",
+    heading: `${ticker} Quick Facts`,
+    body: (
+      <div className="not-prose">
+        <KpiGrid items={items} columns={items.length >= 4 ? 4 : 3} />
+      </div>
+    ),
+  };
 }
 
 /** Same snippet-lead pattern as featuredSnippetSection, adapted for
@@ -1084,28 +1144,39 @@ export function dividendTrendSection(data: ArticleData): Section | null {
     id: "dividend-trend",
     heading: `${ticker} Dividend Trend`,
     body: (
-      <div className="not-prose border border-[var(--gray-200)] rounded-xl overflow-hidden">
+      <div className="not-prose border border-[var(--gray-200)] rounded-xl overflow-hidden overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-[var(--gray-50)] text-[var(--gray-500)]">
             <tr>
-              <th className="text-left px-4 py-2 font-medium">Window</th>
-              <th className="text-right px-4 py-2 font-medium">Payments</th>
-              <th className="text-right px-4 py-2 font-medium">Average</th>
-              <th className="text-right px-4 py-2 font-medium">High</th>
-              <th className="text-right px-4 py-2 font-medium">Low</th>
-              <th className="text-right px-4 py-2 font-medium">Up / Down</th>
+              <th className="text-left px-4 py-2.5 font-medium">Window</th>
+              <th className="text-right px-4 py-2.5 font-medium">Payments</th>
+              <th className="text-right px-4 py-2.5 font-medium">Average</th>
+              <th className="text-right px-4 py-2.5 font-medium">High</th>
+              <th className="text-right px-4 py-2.5 font-medium">Low</th>
+              <th className="text-right px-4 py-2.5 font-medium">Up / Down</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--gray-100)]">
-            {trend.map((w) => (
-              <tr key={w.days}>
-                <td className="px-4 py-2">{w.label}</td>
-                <td className="px-4 py-2 text-right">{w.count}</td>
-                <td className="px-4 py-2 text-right font-medium">{fmtMoney(w.avg)}</td>
-                <td className="px-4 py-2 text-right">{fmtMoney(w.max)}</td>
-                <td className="px-4 py-2 text-right">{fmtMoney(w.min)}</td>
-                <td className="px-4 py-2 text-right">
-                  {w.count > 0 ? `${w.increases}↑ / ${w.decreases}↓` : "—"}
+            {trend.map((w, i) => (
+              <tr
+                key={w.days}
+                className={`hover:bg-[var(--gray-100)]/60 transition-colors ${i % 2 === 1 ? "bg-[var(--gray-50)]/50" : ""}`}
+              >
+                <td className="px-4 py-2.5 font-medium">{w.label}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums">{w.count}</td>
+                <td className="px-4 py-2.5 text-right font-semibold tabular-nums">{fmtMoney(w.avg)}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums">{fmtMoney(w.max)}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums">{fmtMoney(w.min)}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums">
+                  {w.count > 0 ? (
+                    <>
+                      <span className="text-emerald-700 font-semibold">{w.increases}↑</span>
+                      {" / "}
+                      <span className="text-red-700 font-semibold">{w.decreases}↓</span>
+                    </>
+                  ) : (
+                    "—"
+                  )}
                 </td>
               </tr>
             ))}
@@ -1219,33 +1290,36 @@ export function quickCompareSection(data: ArticleData, peers: ComparisonPeer[]):
     id: "quick-compare",
     heading: `How Does ${ticker} Compare?`,
     body: (
-      <div className="not-prose border border-[var(--gray-200)] rounded-xl overflow-hidden">
+      <div className="not-prose border border-[var(--gray-200)] rounded-xl overflow-hidden overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-[var(--gray-50)] text-[var(--gray-500)]">
             <tr>
-              <th className="text-left px-4 py-2 font-medium">Ticker</th>
-              <th className="text-right px-4 py-2 font-medium">Est. Yield</th>
-              <th className="text-right px-4 py-2 font-medium">CRADY Score</th>
-              <th className="text-right px-4 py-2 font-medium">Frequency</th>
+              <th className="text-left px-4 py-2.5 font-medium">Ticker</th>
+              <th className="text-right px-4 py-2.5 font-medium">Est. Yield</th>
+              <th className="text-right px-4 py-2.5 font-medium">CRADY Score</th>
+              <th className="text-right px-4 py-2.5 font-medium">Frequency</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--gray-100)]">
-            <tr className="bg-amber-50/40">
-              <td className="px-4 py-2 font-semibold">{ticker}</td>
-              <td className="px-4 py-2 text-right">{fmtPct(annualYieldPct)}</td>
-              <td className="px-4 py-2 text-right">{risk?.crady_score != null ? risk.crady_score.toFixed(1) : "—"}</td>
-              <td className="px-4 py-2 text-right capitalize">{data.payoutFrequency ?? "—"}</td>
+            <tr className="bg-[var(--crady-accent)]/10 hover:bg-[var(--crady-accent)]/15 transition-colors">
+              <td className="px-4 py-2.5 font-semibold">{ticker}</td>
+              <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-[#92400e]">{fmtPct(annualYieldPct)}</td>
+              <td className="px-4 py-2.5 text-right font-semibold tabular-nums">{risk?.crady_score != null ? risk.crady_score.toFixed(1) : "—"}</td>
+              <td className="px-4 py-2.5 text-right capitalize">{data.payoutFrequency ?? "—"}</td>
             </tr>
-            {peers.map((peer) => (
-              <tr key={peer.ticker}>
-                <td className="px-4 py-2">
-                  <Link href={`/magazine/${peer.ticker.toLowerCase()}-next-dividend-prediction`} className="hover:underline">
+            {peers.map((peer, i) => (
+              <tr
+                key={peer.ticker}
+                className={`hover:bg-[var(--gray-100)]/60 transition-colors ${i % 2 === 1 ? "bg-[var(--gray-50)]/50" : ""}`}
+              >
+                <td className="px-4 py-2.5">
+                  <Link href={`/magazine/${peer.ticker.toLowerCase()}-next-dividend-prediction`} className="font-medium hover:underline">
                     {peer.ticker}
                   </Link>
                 </td>
-                <td className="px-4 py-2 text-right">{fmtPct(peer.annualYieldPct)}</td>
-                <td className="px-4 py-2 text-right">{peer.cradyScore != null ? peer.cradyScore.toFixed(1) : "—"}</td>
-                <td className="px-4 py-2 text-right capitalize">{peer.payoutFrequency ?? "—"}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums">{fmtPct(peer.annualYieldPct)}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums">{peer.cradyScore != null ? peer.cradyScore.toFixed(1) : "—"}</td>
+                <td className="px-4 py-2.5 text-right capitalize">{peer.payoutFrequency ?? "—"}</td>
               </tr>
             ))}
           </tbody>

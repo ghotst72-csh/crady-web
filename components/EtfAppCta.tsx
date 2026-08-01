@@ -1,4 +1,5 @@
 import { GooglePlayButton } from "./GooglePlayButton";
+import { AppStoreBadge } from "./AppStoreBadge";
 
 const ITEMS_EN = ["Add to Watchlist", "Dividend Alerts", "Portfolio Tracking", "AI Reports"];
 const ITEMS_KO = ["관심 ETF 등록", "배당 알림", "포트폴리오 관리", "AI 리포트"];
@@ -28,7 +29,10 @@ export function EtfAppCta({ ticker, lang = "en" }: { ticker: string; lang?: "en"
             </li>
           ))}
         </ul>
-        <GooglePlayButton className="mt-5" lang={lang} />
+        <div className="mt-5 flex flex-wrap gap-3">
+          <GooglePlayButton lang={lang} />
+          <AppStoreBadge lang={lang} />
+        </div>
       </div>
     </div>
   );

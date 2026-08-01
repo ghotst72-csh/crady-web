@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { GooglePlayButton } from "@/components/GooglePlayButton";
+import { AppStoreBadge } from "@/components/AppStoreBadge";
 
 export const metadata: Metadata = {
   title: "소개 & 데이터 방법론",
@@ -83,13 +84,16 @@ export default function KoreanAboutPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--gray-100)]">
-            {COMPARISON.map((row) => (
-              <tr key={row.item}>
-                <td className="px-4 py-2">{row.item}</td>
-                <td className="px-4 py-2 text-center text-[var(--gray-400)]">
+            {COMPARISON.map((row, i) => (
+              <tr
+                key={row.item}
+                className={`hover:bg-[var(--gray-100)]/60 transition-colors ${i % 2 === 1 ? "bg-[var(--gray-50)]/50" : ""}`}
+              >
+                <td className="px-4 py-2.5">{row.item}</td>
+                <td className="px-4 py-2.5 text-center text-[var(--gray-600)]">
                   {row.web}
                 </td>
-                <td className="px-4 py-2 text-center font-semibold text-[var(--crady-accent)]">
+                <td className="px-4 py-2.5 text-center font-semibold text-[#92400e]">
                   {row.app}
                 </td>
               </tr>
@@ -104,7 +108,10 @@ export default function KoreanAboutPage() {
           관심 ETF 등록, 배당 알림, 포트폴리오 관리까지 CRADY 앱에서 무료로
           이용할 수 있습니다.
         </p>
-        <GooglePlayButton className="mt-4" lang="ko" />
+        <div className="mt-4 flex flex-wrap gap-3">
+          <GooglePlayButton lang="ko" />
+          <AppStoreBadge lang="ko" />
+        </div>
       </div>
 
       <div id="methodology" className="mt-12 pt-2 scroll-mt-20">

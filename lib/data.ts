@@ -419,6 +419,7 @@ export type EtfSnapshot = {
   latestDividendDate: string | null;
   nextPredictedAmount: number | null;
   nextPredictedDate: string | null;
+  nextPredictedExDate: string | null;
   nextPredictedConfidence: number | null;
   /** Latest payment vs the average of the rest of the 90-day window. */
   dividendTrend: "up" | "down" | "flat" | null;
@@ -453,7 +454,7 @@ export async function getHomeSnapshot(): Promise<EtfSnapshot[]> {
     // "next" prediction.
     supabase
       .from("next_predictions")
-      .select("ticker, target_pay_date, predicted_amount, confidence_score")
+      .select("ticker, target_pay_date, target_ex_date, predicted_amount, confidence_score")
       .gte("target_pay_date", todayStr)
       .order("target_pay_date", { ascending: true }),
   ]);
@@ -515,6 +516,7 @@ export async function getHomeSnapshot(): Promise<EtfSnapshot[]> {
       latestDividendDate: latest?.pay_date ?? null,
       nextPredictedAmount: pred?.predicted_amount ?? null,
       nextPredictedDate: pred?.target_pay_date ?? null,
+      nextPredictedExDate: pred?.target_ex_date ?? null,
       nextPredictedConfidence: pred?.confidence_score ?? null,
       dividendTrend,
       dividendTrendPct,

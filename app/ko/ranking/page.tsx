@@ -8,6 +8,7 @@ import {
 } from "@/lib/data";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { RankingTable } from "@/components/RankingTable";
+import { PageAppCta } from "@/components/PageAppCta";
 
 export const revalidate = 3600;
 
@@ -70,6 +71,7 @@ export default async function KoreanRankingPage() {
       <div className="mt-6">
         <RankingTable rankings={rankings} lang="ko" basePath="/ko" />
       </div>
+      <PageAppCta lang="ko" />
     </div>
   );
 }

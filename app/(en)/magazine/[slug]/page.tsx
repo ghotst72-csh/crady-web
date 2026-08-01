@@ -18,6 +18,7 @@ import { ARTICLE_TYPE_SLUG } from "@/lib/magazine/recipes";
 import type { ArticleTypeId } from "@/lib/magazine/types";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { EtfAppCta } from "@/components/EtfAppCta";
+import { PageAppCta } from "@/components/PageAppCta";
 import { HubArticleList } from "@/components/magazine/HubArticleList";
 
 export const revalidate = 3600;
@@ -304,6 +305,7 @@ async function HubPage({ slug }: { slug: keyof typeof HUB_DEFINITIONS }) {
       <div className="mt-8">
         <HubArticleList hubSlug={slug} />
       </div>
+      <PageAppCta lang="en" />
     </div>
   );
 }
@@ -336,38 +338,46 @@ async function CalendarHubPage({ slug }: { slug: CalendarHubId }) {
           <p className="text-sm text-[var(--gray-400)]">No upcoming dates in this range yet.</p>
         ) : (
           <div className="not-prose border border-[var(--gray-200)] rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-[var(--gray-50)] text-[var(--gray-500)]">
-                <tr>
-                  <th className="text-left px-4 py-2 font-medium">Ticker</th>
-                  <th className="text-left px-4 py-2 font-medium">Provider</th>
-                  <th className="text-left px-4 py-2 font-medium">Ex-Date</th>
-                  <th className="text-left px-4 py-2 font-medium">Pay Date</th>
-                  <th className="text-right px-4 py-2 font-medium">Amount</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--gray-100)]">
-                {events.map((e, i) => (
-                  <tr key={`${e.ticker}-${e.pay_date}-${i}`}>
-                    <td className="px-4 py-2 font-semibold">
-                      <Link
-                        href={`/magazine/${e.ticker.toLowerCase()}-next-dividend-prediction`}
-                        className="hover:underline"
-                      >
-                        {e.ticker}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-2 text-[var(--gray-500)]">{providerLabel(e.provider_id)}</td>
-                    <td className="px-4 py-2">{e.ex_date}</td>
-                    <td className="px-4 py-2">{e.pay_date}</td>
-                    <td className="px-4 py-2 text-right">{e.amount != null ? `$${e.amount.toFixed(4)}` : "—"}</td>
+            <div className="max-h-[560px] overflow-y-auto overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 z-10 bg-[var(--gray-50)] text-[var(--gray-500)]">
+                  <tr>
+                    <th className="text-left px-4 py-2.5 font-medium">Ticker</th>
+                    <th className="text-left px-4 py-2.5 font-medium">Provider</th>
+                    <th className="text-left px-4 py-2.5 font-medium">Ex-Date</th>
+                    <th className="text-left px-4 py-2.5 font-medium">Pay Date</th>
+                    <th className="text-right px-4 py-2.5 font-medium">Amount</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-[var(--gray-100)]">
+                  {events.map((e, i) => (
+                    <tr
+                      key={`${e.ticker}-${e.pay_date}-${i}`}
+                      className={`hover:bg-[var(--gray-100)]/60 transition-colors ${i % 2 === 1 ? "bg-[var(--gray-50)]/50" : ""}`}
+                    >
+                      <td className="px-4 py-2.5 font-semibold">
+                        <Link
+                          href={`/magazine/${e.ticker.toLowerCase()}-next-dividend-prediction`}
+                          className="hover:underline"
+                        >
+                          {e.ticker}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-2.5 text-[var(--gray-500)]">{providerLabel(e.provider_id)}</td>
+                      <td className="px-4 py-2.5 text-[var(--gray-600)]">{e.ex_date}</td>
+                      <td className="px-4 py-2.5 font-medium text-[var(--gray-700)]">{e.pay_date}</td>
+                      <td className="px-4 py-2.5 text-right font-semibold tabular-nums">
+                        {e.amount != null ? `$${e.amount.toFixed(4)}` : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
+      <PageAppCta lang="en" />
     </div>
   );
 }
@@ -415,6 +425,7 @@ async function StandalonePage({ slug }: { slug: StandalonePageId }) {
           </div>
         </section>
       </div>
+      <PageAppCta lang="en" />
     </div>
   );
 }

@@ -34,6 +34,11 @@ const T = {
   avgYield: { en: "Average Yield", ko: "평균 분배율" },
   highestGrowth: { en: "Highest Growth", ko: "최고 상승" },
   na: "—",
+  highlightsHeading: { en: "Today's Dividend Highlights", ko: "오늘의 배당 하이라이트" },
+  payingThisWeek: { en: "Paying This Week", ko: "이번 주 지급 예정" },
+  nextExDate: { en: "Next Ex-Date", ko: "다음 배당락일" },
+  highestYieldToday: { en: "Highest Yield Today", ko: "오늘의 최고 분배율" },
+  cradyTopPick: { en: "CRADY Top Pick", ko: "CRADY 추천 ETF" },
 } as const;
 
 // Barely-there provider tint behind the Hero — Stripe-level subtle, never a
@@ -180,10 +185,24 @@ function heroInsight(etf: EtfSnapshot, rank: number, lang: "en" | "ko"): string 
  * reflows the panel from beside the hero to below it. */
 export function HeroSection({
   top10,
+  weekCount,
+  nextExDividend,
+  topPick,
   lang = "en",
   basePath = "",
 }: {
   top10: EtfSnapshot[];
+  /** ETFs with a payment scheduled this week — homepage Highlights card
+   * (Web UX/SEO Phase 2, Part 1). */
+  weekCount?: number;
+  /** Soonest upcoming ex-dividend date across the whole snapshot, not just
+   * top10-by-yield — a different, narrower ranking would misrepresent
+   * "next" if the soonest ex-date belongs to a lower-yield ETF. */
+  nextExDividend?: { ticker: string; exDate: string } | null;
+  /** Highest CRADY Score across the whole snapshot — deliberately a
+   * different ranking axis than top10 (sorted by yield), so this card
+   * never just repeats the Hero's own headline ETF. */
+  topPick?: { ticker: string; cradyScore: number } | null;
   lang?: "en" | "ko";
   basePath?: string;
 }) {
@@ -214,6 +233,28 @@ export function HeroSection({
     }
   }
 
+  // Touch/swipe navigation — a horizontal drag past the threshold advances
+  // the pager, same as the arrow buttons. No coverflow/visual drag-follow
+  // (Part 5's chosen direction keeps the static single-ETF Hero); this is
+  // purely a gesture alternative to tapping the arrows.
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const SWIPE_THRESHOLD_PX = 40;
+  function onTouchStart(e: React.TouchEvent) {
+    const t = e.touches[0];
+    touchStartRef.current = { x: t.clientX, y: t.clientY };
+  }
+  function onTouchEnd(e: React.TouchEvent) {
+    const start = touchStartRef.current;
+    touchStartRef.current = null;
+    if (!start) return;
+    const end = e.changedTouches[0];
+    const dx = end.clientX - start.x;
+    const dy = end.clientY - start.y;
+    if (Math.abs(dx) < SWIPE_THRESHOLD_PX || Math.abs(dx) < Math.abs(dy)) return;
+    if (dx < 0) goTo(activeIndex + 1);
+    else goTo(activeIndex - 1);
+  }
+
   if (!active) return null;
 
   // Panel mini-stats, computed once from the same top10 set the list shows.
@@ -233,8 +274,71 @@ export function HeroSection({
   const updatedAt = formatUpdatedAt(active.calculatedAt, lang);
   const eyebrow = activeIndex === 0 ? T.eyebrowLead[lang] : T.eyebrowRank[lang](activeIndex + 1);
 
+  const highlightItems = [
+    top10[0]?.annualYieldPct != null
+      ? {
+          key: "highest-yield",
+          label: T.highestYieldToday[lang],
+          value: `${top10[0].annualYieldPct.toFixed(1)}%`,
+          sub: top10[0].ticker,
+          href: `${basePath}/${top10[0].ticker.toLowerCase()}`,
+        }
+      : null,
+    weekCount != null
+      ? {
+          key: "week-count",
+          label: T.payingThisWeek[lang],
+          value: String(weekCount),
+          sub: null,
+          href: `${basePath}/calendar`,
+        }
+      : null,
+    nextExDividend
+      ? {
+          key: "next-ex-date",
+          label: T.nextExDate[lang],
+          value: nextExDividend.exDate,
+          sub: nextExDividend.ticker,
+          href: `${basePath}/${nextExDividend.ticker.toLowerCase()}`,
+        }
+      : null,
+    topPick
+      ? {
+          key: "top-pick",
+          label: T.cradyTopPick[lang],
+          value: topPick.ticker,
+          sub: `${T.cradyScore[lang]} ${topPick.cradyScore.toFixed(1)}`,
+          href: `${basePath}/${topPick.ticker.toLowerCase()}`,
+        }
+      : null,
+  ].filter((item): item is NonNullable<typeof item> => item != null);
+
   return (
     <section className="mx-auto max-w-6xl px-4 sm:px-6 pt-6">
+      {/* Today's Dividend Highlights — text-only glanceable cards at the very
+          top of the Hero, so "what's happening today" reads before the
+          single-ETF spotlight below it (Web UX/SEO Phase 2, Part 1). */}
+      {highlightItems.length > 0 && (
+        <div className="mb-4">
+          <div className="text-xs font-bold text-[var(--gray-500)] tracking-wide mb-2">
+            {T.highlightsHeading[lang]}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {highlightItems.map((item) => (
+              <Link
+                key={item.key}
+                href={item.href}
+                className="border border-[var(--gray-200)] rounded-xl px-3 py-2.5 hover:border-black hover:shadow-sm transition-all"
+              >
+                <div className="text-[10px] text-[var(--gray-500)] uppercase tracking-wide">{item.label}</div>
+                <div className="mt-0.5 text-base font-bold tabular-nums truncate">{item.value}</div>
+                {item.sub && <div className="text-[11px] text-[var(--gray-500)] truncate">{item.sub}</div>}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="grid xl:grid-cols-[1fr_300px] gap-4 xl:gap-5 items-start">
         {/* Hero card */}
         <div
@@ -243,6 +347,8 @@ export function HeroSection({
           aria-label={lang === "ko" ? "오늘의 대표 ETF" : "Today's featured ETF"}
           tabIndex={0}
           onKeyDown={onKeyDown}
+          onTouchStart={onTouchStart}
+          onTouchEnd={onTouchEnd}
           className="relative border border-[var(--gray-200)] rounded-2xl overflow-hidden bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--crady-accent)]"
         >
           {/* Subtle financial backdrop — a barely-visible dot grid plus the
@@ -323,8 +429,9 @@ export function HeroSection({
               </Link>
             </div>
 
-            {/* Manual pager — no autoplay, no chip row. Plain Previous/Next
-                and a position counter (Part 6). */}
+            {/* Manual pager — no autoplay, no chip row. Previous/Next, a
+                position counter, and a dot indicator (swipeable on touch
+                devices via onTouchStart/onTouchEnd on the card above). */}
             {len > 1 && (
               <div className="mt-6 flex items-center gap-3 text-xs text-[var(--gray-500)]">
                 <button
@@ -335,7 +442,7 @@ export function HeroSection({
                 >
                   ←
                 </button>
-                <span className="tabular-nums">
+                <span className="tabular-nums shrink-0">
                   {activeIndex + 1} / {len}
                 </span>
                 <button
@@ -346,6 +453,33 @@ export function HeroSection({
                 >
                   →
                 </button>
+                <div className="flex items-center gap-1 ml-1" role="tablist" aria-label={T.top10[lang]}>
+                  {/* p-2.5 gives each button a >=24px hit area even though
+                      the visible dot inside stays small, and gap-1 on the
+                      container keeps adjacent hit areas from touching — a
+                      real touch-target accessibility failure the first
+                      version of this indicator had (6px targets with zero
+                      spacing between them). */}
+                  {top10.map((etf, i) => (
+                    <button
+                      key={etf.ticker}
+                      type="button"
+                      role="tab"
+                      aria-selected={i === activeIndex}
+                      aria-label={etf.ticker}
+                      onClick={() => goTo(i)}
+                      className="p-2.5 flex items-center justify-center"
+                    >
+                      <span
+                        className={`block rounded-full transition-all ${
+                          i === activeIndex
+                            ? "w-4 h-1.5 bg-black"
+                            : "w-1.5 h-1.5 bg-[var(--gray-300)] hover:bg-[var(--gray-400)]"
+                        }`}
+                      />
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -388,8 +522,10 @@ export function HeroSection({
                   type="button"
                   onClick={() => goTo(i)}
                   aria-current={i === activeIndex}
-                  className={`w-full h-10 flex items-center gap-2.5 px-4 text-left border-b border-[var(--gray-100)] last:border-0 transition-colors ${
-                    i === activeIndex ? "bg-[var(--gray-100)]" : "hover:bg-[var(--gray-50)]"
+                  className={`w-full h-10 flex items-center gap-2.5 pl-3.5 pr-4 text-left border-b border-[var(--gray-100)] last:border-0 border-l-2 transition-colors ${
+                    i === activeIndex
+                      ? "bg-[var(--gray-100)] border-l-black"
+                      : "border-l-transparent hover:bg-[var(--gray-50)]"
                   }`}
                 >
                   <span className="w-4 text-[10px] text-[var(--gray-500)] font-semibold">{i + 1}</span>

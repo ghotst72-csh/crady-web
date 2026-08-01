@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { GooglePlayButton } from "@/components/GooglePlayButton";
+import { AppStoreBadge } from "@/components/AppStoreBadge";
 
 export const metadata: Metadata = {
   title: "About & Data Methodology",
@@ -81,11 +82,16 @@ export default function AboutPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--gray-100)]">
-            {COMPARISON.map((row) => (
-              <tr key={row.item}>
-                <td className="px-4 py-2">{row.item}</td>
-                <td className="px-4 py-2 text-center text-[var(--gray-400)]">{row.web}</td>
-                <td className="px-4 py-2 text-center font-semibold text-[var(--crady-accent)]">
+            {COMPARISON.map((row, i) => (
+              <tr
+                key={row.item}
+                className={`hover:bg-[var(--gray-100)]/60 transition-colors ${i % 2 === 1 ? "bg-[var(--gray-50)]/50" : ""}`}
+              >
+                <td className="px-4 py-2.5">{row.item}</td>
+                {/* gray-600/#92400e, not gray-400/--crady-accent — see
+                    components/ui/KpiCard.tsx for why. */}
+                <td className="px-4 py-2.5 text-center text-[var(--gray-600)]">{row.web}</td>
+                <td className="px-4 py-2.5 text-center font-semibold text-[#92400e]">
                   {row.app}
                 </td>
               </tr>
@@ -99,7 +105,10 @@ export default function AboutPage() {
         <p className="mt-1 text-sm text-[var(--gray-600)]">
           Watchlists, dividend alerts, and portfolio tracking — free in the CRADY app.
         </p>
-        <GooglePlayButton className="mt-4" lang="en" />
+        <div className="mt-4 flex flex-wrap gap-3">
+          <GooglePlayButton lang="en" />
+          <AppStoreBadge lang="en" />
+        </div>
       </div>
 
       <div id="methodology" className="mt-12 pt-2 scroll-mt-20">

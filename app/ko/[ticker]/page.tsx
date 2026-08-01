@@ -25,6 +25,7 @@ import { pickComparisonPeerTicker } from "@/lib/magazine/comparison";
 import { ARTICLE_TYPE_LABEL, type ArticleTypeId } from "@/lib/magazine/types";
 import { getLatestOfficialDistributionForTicker, getPredictionVsOfficial } from "@/lib/distributions/data";
 import { OfficialDistributionBlock } from "@/components/distributions/OfficialDistributionBlock";
+import { computeDividendTrend } from "@/lib/magazine/trend";
 import { buildProfileSnippet, buildProfileFaqItems } from "@/lib/ticker/profileSeo";
 import { ProfileSnippet, ProfileFaq } from "@/components/ticker/ProfileSeoBlock";
 import { buildFaqJsonLd, buildWebPageJsonLd } from "@/lib/magazine/jsonld";
@@ -124,6 +125,7 @@ export default async function KoreanTickerPage({
     history,
     distributions,
     recentDistributions,
+    yearOfDistributions,
     rawPrediction,
     siblings,
     allTickers,
@@ -136,12 +138,14 @@ export default async function KoreanTickerPage({
     getPriceHistory(ticker, 30),
     getDistributions(ticker, 12),
     getDistributionsSince(ticker, 90),
+    getDistributionsSince(ticker, 395),
     getNextPrediction(ticker),
     getSameProviderEtfs(etf.provider_id, ticker),
     getAllTickers(),
     getLatestOfficialDistributionForTicker(ticker),
     getPredictionVsOfficial(ticker),
   ]);
+  const trend12mo = computeDividendTrend(yearOfDistributions).find((w) => w.days === 365) ?? null;
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const prediction =
@@ -272,6 +276,8 @@ export default async function KoreanTickerPage({
             : null
         }
         changeFromLastPct={changeFromLastPct}
+        recentPayments={distributions.slice(0, 3).map((d) => ({ amount: d.amount, payDate: d.pay_date }))}
+        trend12mo={trend12mo}
         lang="ko"
       />
 
@@ -309,37 +315,59 @@ export default async function KoreanTickerPage({
         <div id="dividend-history" className="mt-8 scroll-mt-4">
           <h2 className="text-lg font-bold mb-3">최근 배당 이력</h2>
           <div className="border border-[var(--gray-200)] rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-[var(--gray-50)] text-[var(--gray-500)]">
-                <tr>
-                  <th className="text-left px-4 py-2 font-medium">기준일</th>
-                  <th className="text-left px-4 py-2 font-medium">지급일</th>
-                  <th className="text-right px-4 py-2 font-medium">배당금</th>
-                  <th className="text-right px-4 py-2 font-medium">상태</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--gray-100)]">
-                {distributions.map((d, i) => (
-                  <tr key={`${d.ex_date}-${i}`}>
-                    <td className="px-4 py-2">{d.ex_date}</td>
-                    <td className="px-4 py-2">{d.pay_date}</td>
-                    <td className="px-4 py-2 text-right font-medium">
-                      {d.amount != null ? `$${d.amount.toFixed(4)}` : "예정"}
-                    </td>
-                    <td className="px-4 py-2 text-right">
-                      <DividendStagePill exDate={d.ex_date} payDate={d.pay_date} lang="ko" />
-                    </td>
-                  </tr>
-                ))}
-                {distributions.length === 0 && (
+            <div className="max-h-[420px] overflow-y-auto overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 z-10 bg-[var(--gray-50)] text-[var(--gray-500)]">
                   <tr>
-                    <td colSpan={4} className="px-4 py-4 text-center text-[var(--gray-400)]">
-                      배당 내역 없음
-                    </td>
+                    <th className="text-left px-4 py-2.5 font-medium">기준일</th>
+                    <th className="text-left px-4 py-2.5 font-medium">지급일</th>
+                    <th className="text-right px-4 py-2.5 font-medium">배당금</th>
+                    <th className="text-right px-4 py-2.5 font-medium">상태</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-[var(--gray-100)]">
+                  {distributions.map((d, i) => {
+                    const prior = distributions[i + 1]?.amount ?? null;
+                    const delta = d.amount != null && prior != null ? d.amount - prior : null;
+                    return (
+                      <tr
+                        key={`${d.ex_date}-${i}`}
+                        className={`hover:bg-[var(--gray-100)]/60 transition-colors ${i % 2 === 1 ? "bg-[var(--gray-50)]/50" : ""}`}
+                      >
+                        <td className="px-4 py-2.5 text-[var(--gray-600)]">{d.ex_date}</td>
+                        <td className="px-4 py-2.5 text-[var(--gray-600)]">{d.pay_date}</td>
+                        <td className="px-4 py-2.5 text-right font-semibold tabular-nums">
+                          <span
+                            className={
+                              delta != null && delta > 0
+                                ? "text-emerald-700"
+                                : delta != null && delta < 0
+                                  ? "text-red-700"
+                                  : ""
+                            }
+                          >
+                            {d.amount != null ? `$${d.amount.toFixed(4)}` : "예정"}
+                            {delta != null && delta !== 0 && (
+                              <span className="ml-1 text-xs">{delta > 0 ? "▲" : "▼"}</span>
+                            )}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-right">
+                          <DividendStagePill exDate={d.ex_date} payDate={d.pay_date} lang="ko" />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {distributions.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="px-4 py-4 text-center text-[var(--gray-400)]">
+                        배당 내역 없음
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 

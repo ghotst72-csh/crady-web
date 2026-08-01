@@ -29,6 +29,7 @@ import {
   payoutFrequencySection,
   predictionReliabilityNote,
   quickCompareSection,
+  quickFactsSection,
   recentTrendSection,
   riskAnalysisSection,
   riskAnalysisSnippetSection,
@@ -162,6 +163,7 @@ export function buildSections(
     ],
     "dividend-guide": [
       dividendGuideSnippetSection(data),
+      quickFactsSection(data),
       overviewSection(data),
       investmentStrategySection(data),
       yieldAnalysisSection(data),
@@ -173,6 +175,7 @@ export function buildSections(
     ],
     "risk-analysis": [
       riskAnalysisSnippetSection(data),
+      quickFactsSection(data),
       riskAnalysisSection(data),
       dividendStabilitySection(data),
       advantagesDisadvantagesSection(data),
@@ -182,12 +185,14 @@ export function buildSections(
     ],
     "dividend-calendar": [
       dividendCalendarSnippetSection(data),
+      quickFactsSection(data),
       upcomingScheduleSection(data),
       faqSection(faqItems),
       faqSectionKo(faqItemsKo),
     ],
     "dividend-history": [
       dividendHistorySnippetSection(data),
+      quickFactsSection(data),
       yearlyBreakdownSection(data),
       paymentPatternSection(data),
       faqSection(faqItems),
@@ -196,6 +201,7 @@ export function buildSections(
     comparison: peers.length > 0
       ? [
           comparisonSnippetSection(data, peers),
+          quickFactsSection(data),
           comparisonTableSection(data, peers),
           comparisonVerdictSection(data, peers),
           faqSection(faqItems),

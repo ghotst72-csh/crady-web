@@ -6,6 +6,7 @@ import { AnnouncementHeader } from "@/components/distributions/AnnouncementHeade
 import { DistributionKpis } from "@/components/distributions/DistributionKpis";
 import { DistributionExplorer } from "@/components/distributions/DistributionExplorer";
 import { DataExplanations } from "@/components/distributions/DataExplanations";
+import { PageAppCta } from "@/components/PageAppCta";
 
 export const revalidate = 3600;
 
@@ -93,6 +94,7 @@ export default async function DistributionsPage() {
       </p>
 
       <DataExplanations lang="en" />
+      <PageAppCta lang="en" />
     </div>
   );
 }

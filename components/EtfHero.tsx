@@ -1,6 +1,15 @@
 import Link from "next/link";
 import { providerLabel } from "@/lib/data";
 import { DividendStagePill } from "./DividendLifecycle";
+import { Sparkline } from "./ui/Sparkline";
+import type { TrendWindow } from "@/lib/magazine/trend";
+
+function daysUntil(dateStr: string): number {
+  const target = new Date(dateStr + "T00:00:00");
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((target.getTime() - today.getTime()) / 86400000);
+}
 
 const RISK_LABEL: Record<"en" | "ko", Record<string, string>> = {
   en: { SAFE: "Safe", NORMAL: "Normal", RISKY: "Risky", EXTREME: "Extreme" },
@@ -51,6 +60,13 @@ const T = {
     ko: "아직 예측 데이터가 없습니다.",
   },
   viewHistory: { en: "View Dividend History ↓", ko: "배당 내역 보기 ↓" },
+  dueToday: { en: "Paying today", ko: "오늘 지급" },
+  daysLeft: { en: (n: number) => `D-${n}`, ko: (n: number) => `D-${n}` },
+  recentPayments: { en: "Last 3 Payments", ko: "최근 3회 지급" },
+  trend12mo: { en: "12-Month Trend", ko: "최근 12개월 추세" },
+  payments: { en: "payments", ko: "회" },
+  upDown: { en: (up: number, down: number) => `${up}↑ / ${down}↓`, ko: (up: number, down: number) => `${up}↑ / ${down}↓` },
+  avgChange: { en: "avg. change per payment", ko: "지급당 평균 변동" },
 } as const;
 
 export function EtfHero({
@@ -67,6 +83,8 @@ export function EtfHero({
   latestDividend,
   prediction,
   changeFromLastPct,
+  recentPayments = [],
+  trend12mo = null,
   lang = "en",
 }: {
   ticker: string;
@@ -87,6 +105,13 @@ export function EtfHero({
     confidenceScore: number | null;
   } | null;
   changeFromLastPct: number | null;
+  /** Last 3 actual payments, most recent first — for the at-a-glance
+   * "recent activity" strip (Web UX/SEO Phase 2, Part 4). */
+  recentPayments?: { amount: number | null; payDate: string }[];
+  /** The 365-day window from lib/magazine/trend.ts's computeDividendTrend —
+   * reused as-is rather than recomputed, so the Hero's trend figure can
+   * never drift from the Magazine system's own trend numbers. */
+  trend12mo?: TrendWindow | null;
   lang?: "en" | "ko";
 }) {
   const glow = PROVIDER_GLOW[providerId] ?? "none";
@@ -95,6 +120,7 @@ export function EtfHero({
     prediction != null &&
     (prediction.predictedAmount != null || prediction.targetPayDate != null);
   const riskLabel = riskLevel ? (RISK_LABEL[lang][riskLevel] ?? riskLevel) : null;
+  const dDay = prediction?.targetPayDate ? daysUntil(prediction.targetPayDate) : null;
 
   return (
     <section className="mx-auto max-w-6xl px-4 sm:px-6 pt-6">
@@ -196,10 +222,16 @@ export function EtfHero({
           </div>
 
           {/* Next predicted dividend — a compact line, never a large empty
-              card when there's nothing to predict yet. */}
+              card when there's nothing to predict yet. D-Day countdown is
+              the first thing in the row so "how soon" reads immediately. */}
           <div className="mt-6 pt-5 border-t border-[var(--gray-200)]">
             {hasPrediction ? (
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm">
+                {dDay != null && (
+                  <span className="shrink-0 px-2 py-0.5 rounded-full bg-black text-white text-xs font-bold tabular-nums">
+                    {dDay <= 0 ? T.dueToday[lang] : T.daysLeft[lang](dDay)}
+                  </span>
+                )}
                 {prediction!.targetExDate && prediction!.targetPayDate && (
                   <DividendStagePill
                     exDate={prediction!.targetExDate}
@@ -216,7 +248,8 @@ export function EtfHero({
                   )}
                   {prediction!.predictedAmount != null && (
                     <>
-                      <strong className="text-[var(--crady-accent)]">
+                      {/* #92400e, not --crady-accent — see components/ui/KpiCard.tsx for why. */}
+                      <strong className="text-[#92400e]">
                         ${prediction!.predictedAmount.toFixed(4)}
                       </strong>{" "}
                     </>
@@ -232,6 +265,74 @@ export function EtfHero({
               <p className="text-sm text-[var(--gray-400)]">{T.noPrediction[lang]}</p>
             )}
           </div>
+
+          {/* Recent activity strip — last 3 actual payments (with
+              payment-over-payment deltas) and the 12-month trend, so "has
+              this ETF's dividend been rising or falling" reads at a glance
+              without scrolling to the history table (Part 4). */}
+          {(recentPayments.length > 0 || (trend12mo && trend12mo.count > 0)) && (
+            <div className="mt-4 grid sm:grid-cols-2 gap-3">
+              {recentPayments.length > 0 && (
+                <div className="border border-[var(--gray-200)] rounded-xl p-3 bg-white/70">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="text-[11px] font-semibold text-[var(--gray-500)] uppercase tracking-wide">
+                      {T.recentPayments[lang]}
+                    </div>
+                    <Sparkline
+                      values={[...recentPayments].reverse().map((p) => p.amount)}
+                      color="auto"
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                    {recentPayments.map((p, i) => {
+                      const prior = recentPayments[i + 1]?.amount ?? null;
+                      const delta = p.amount != null && prior != null ? p.amount - prior : null;
+                      return (
+                        <span key={p.payDate} className="tabular-nums">
+                          <span className="text-[var(--gray-500)]">{p.payDate.slice(5)}</span>{" "}
+                          <span
+                            className={`font-semibold ${
+                              delta != null && delta > 0
+                                ? "text-emerald-700"
+                                : delta != null && delta < 0
+                                  ? "text-red-700"
+                                  : ""
+                            }`}
+                          >
+                            {p.amount != null ? `$${p.amount.toFixed(4)}` : "—"}
+                            {delta != null && delta !== 0 && (delta > 0 ? " ▲" : " ▼")}
+                          </span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {trend12mo && trend12mo.count > 0 && (
+                <div className="border border-[var(--gray-200)] rounded-xl p-3 bg-white/70">
+                  <div className="text-[11px] font-semibold text-[var(--gray-500)] uppercase tracking-wide mb-1.5">
+                    {T.trend12mo[lang]}
+                  </div>
+                  <div className="text-sm">
+                    <span className="font-semibold tabular-nums">
+                      <span className="text-emerald-700">{trend12mo.increases}↑</span>
+                      {" / "}
+                      <span className="text-red-700">{trend12mo.decreases}↓</span>
+                    </span>{" "}
+                    <span className="text-[var(--gray-500)]">
+                      · {trend12mo.count} {T.payments[lang]}
+                    </span>
+                    {trend12mo.avgChangePct != null && (
+                      <div className="text-xs text-[var(--gray-500)] mt-0.5">
+                        {trend12mo.avgChangePct > 0 ? "+" : ""}
+                        {trend12mo.avgChangePct.toFixed(1)}% {T.avgChange[lang]}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <Link
             href="#dividend-history"

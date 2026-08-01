@@ -5,6 +5,7 @@ import { getLatestAnnouncement } from "@/lib/distributions/data";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { DividendStagePill } from "@/components/DividendLifecycle";
 import { CalendarSummary } from "@/components/calendar/CalendarSummary";
+import { PageAppCta } from "@/components/PageAppCta";
 
 export const revalidate = 3600;
 
@@ -111,6 +112,7 @@ export default async function CalendarPage() {
           <p className="text-sm text-[var(--gray-400)]">No upcoming dividends scheduled.</p>
         )}
       </div>
+      <PageAppCta lang="en" />
     </div>
   );
 }

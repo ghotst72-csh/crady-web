@@ -5,6 +5,7 @@ import { getLatestAnnouncement } from "@/lib/distributions/data";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { DividendStagePill } from "@/components/DividendLifecycle";
 import { CalendarSummary } from "@/components/calendar/CalendarSummary";
+import { PageAppCta } from "@/components/PageAppCta";
 
 export const revalidate = 3600;
 
@@ -111,6 +112,7 @@ export default async function KoreanCalendarPage() {
           <p className="text-sm text-[var(--gray-400)]">예정된 일정이 없습니다.</p>
         )}
       </div>
+      <PageAppCta lang="ko" />
     </div>
   );
 }

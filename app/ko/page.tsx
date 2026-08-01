@@ -12,6 +12,7 @@ import { HeroSection } from "@/components/home/Hero";
 import { TrustBar } from "@/components/home/TrustBar";
 import { TodaysHighlights } from "@/components/home/TodaysHighlights";
 import { MarketSummary } from "@/components/home/MarketSummary";
+import { QuickInsights } from "@/components/home/QuickInsights";
 import { NextDistributionsRail } from "@/components/NextDistributionsRail";
 import { OfficialAnnouncementsPreview } from "@/components/home/OfficialAnnouncementsPreview";
 import { RankingPreview } from "@/components/RankingPreview";
@@ -68,12 +69,25 @@ export default async function KoreanHomePage() {
     (max, e) => (e.calculatedAt && (!max || e.calculatedAt > max) ? e.calculatedAt : max),
     null
   );
+  const nextExDividend = snapshot
+    .filter((e) => e.nextPredictedExDate != null)
+    .sort((a, b) => (a.nextPredictedExDate! < b.nextPredictedExDate! ? -1 : 1))[0];
+  const topPick = cradyTop[0]?.cradyScore != null ? { ticker: cradyTop[0].ticker, cradyScore: cradyTop[0].cradyScore } : null;
 
   return (
     <div>
       {/* Visually hidden — see the English homepage for the full rationale. */}
       <h1 className="sr-only">CRADY — YieldMax·커버드콜 ETF 배당 트래커</h1>
-      <HeroSection top10={yieldTop10} lang="ko" basePath="/ko" />
+      <HeroSection
+        top10={yieldTop10}
+        weekCount={keyMetrics.weekCount}
+        nextExDividend={
+          nextExDividend ? { ticker: nextExDividend.ticker, exDate: nextExDividend.nextPredictedExDate! } : null
+        }
+        topPick={topPick}
+        lang="ko"
+        basePath="/ko"
+      />
       <TrustBar
         etfsTracked={snapshot.length}
         distributionRecords={trustStats.distributionRecords}
@@ -105,6 +119,8 @@ export default async function KoreanHomePage() {
         lang="ko"
         basePath="/ko"
       />
+
+      <QuickInsights snapshot={snapshot} lang="ko" basePath="/ko" />
 
       <NextDistributionsRail items={nextDistributions} lang="ko" basePath="/ko" />
 
