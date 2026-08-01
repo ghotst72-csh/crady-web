@@ -71,6 +71,12 @@ export default async function HomePage() {
 
   return (
     <div>
+      {/* Visually hidden — every page needs exactly one <h1> describing its
+          content; the Hero's own big number/ticker isn't a page title (it
+          rotates per user interaction and per data refresh), so this
+          restores correct document structure without changing the Hero's
+          visual design (AI Overview Optimization Phase 1). */}
+      <h1 className="sr-only">CRADY — YieldMax &amp; Covered Call ETF Dividend Tracker</h1>
       {/* Hero — one ETF, Bloomberg/FT-style, no carousel */}
       <HeroSection top10={yieldTop10} lang="en" />
       <TrustBar

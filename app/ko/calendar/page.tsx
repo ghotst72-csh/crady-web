@@ -50,8 +50,10 @@ export default async function KoreanCalendarPage() {
         ]}
       />
       <h1 className="text-2xl font-bold">배당 일정</h1>
-      <p className="text-sm text-[var(--gray-500)] mt-1">
-        지급일이 다가오는 배당 ETF {upcoming.length}건
+      <p className="text-sm text-[var(--gray-500)] mt-1 max-w-2xl">
+        CRADY 배당 캘린더는 YieldMax, Roundhill, Defiance의 고배당 커버드콜 ETF {upcoming.length}건의
+        배당락일·지급일을 추적합니다. 발행사가 공식 발표한 일정과 CRADY의 다음 배당 예측을 함께
+        보여주어, 확정된 일정과 예상 일정을 한눈에 확인할 수 있습니다.
       </p>
 
       <div className="mt-4">

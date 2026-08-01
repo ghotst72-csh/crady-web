@@ -146,6 +146,20 @@ export function buildFaqItems(
             ? `${ticker} is a ${providerLabel(etf.provider_id)} ${etf.asset_class} fund.`
             : `${ticker} is issued by ${providerLabel(etf.provider_id)}. See the overview above for available details.`,
       },
+      {
+        question: `How is ${ticker}'s dividend yield calculated?`,
+        answer: `CRADY calculates ${ticker}'s annualized distribution yield from a "run-rate": it sums the actual dividends paid over the trailing 90 days, divides by 90 for a daily average, multiplies by 365, and divides by the current share price. This reflects real recent payments, not an issuer's projected yield.`,
+      },
+      {
+        question: `What is ${ticker}'s expense ratio?`,
+        answer: etf.expense_ratio && etf.expense_ratio.toLowerCase() !== "unknown"
+          ? `${ticker}'s expense ratio is ${etf.expense_ratio}.`
+          : `${ticker}'s expense ratio isn't on record yet — check the issuer's official fact sheet for the current figure.`,
+      },
+      {
+        question: `Who manages ${ticker}?`,
+        answer: `${ticker} is issued and managed by ${providerLabel(etf.provider_id)}.`,
+      },
     ];
   }
 
@@ -171,6 +185,20 @@ export function buildFaqItems(
           ? `${ticker} has a dividend stability score of ${risk.dividend_stability_score.toFixed(1)}/100, based on how consistent its distribution amount has been across recent payments.`
           : `Dividend stability data isn't available for ${ticker} yet.`,
       },
+      {
+        question: `What is ${ticker}'s maximum drawdown?`,
+        answer: risk?.max_drawdown != null
+          ? `${ticker}'s recent maximum drawdown is ${fmtPct(risk.max_drawdown)} — the largest peak-to-trough price decline over the measured period.`
+          : `Drawdown data isn't available for ${ticker} yet.`,
+      },
+      {
+        question: `What is the CRADY Score?`,
+        answer: `The CRADY Score is a 0-100 rating that combines recent price volatility, maximum drawdown, and how consistent an ETF's per-payment dividend amount has been. A high yield alone doesn't raise the score — high volatility or irregular dividends lower it by design.`,
+      },
+      {
+        question: `Why do covered-call ETFs like ${ticker} carry more risk than a typical dividend stock?`,
+        answer: `Covered-call ETFs like ${ticker} generate income by selling call options against their holdings, which caps upside participation and can mean distributions include return of capital. That income-generation approach is why they typically show higher volatility scores than traditional dividend-paying stocks.`,
+      },
     ];
   }
 
@@ -193,16 +221,27 @@ export function buildFaqItems(
           ? `${ticker} pays on a ${payoutFrequency} schedule, which is reflected in the spacing of the dates in its calendar above.`
           : `${ticker}'s payout cadence hasn't been determined yet from its distribution history.`,
       },
+      {
+        question: `What is the difference between ${ticker}'s ex-dividend date and payment date?`,
+        answer: `The ex-dividend date is the cutoff — you must own ${ticker} before this date to receive that period's payment. The payment date is when the distribution is actually deposited, which is typically a few days to a couple of weeks after the ex-dividend date.`,
+      },
+      {
+        question: `How many upcoming ${ticker} payments are on the calendar?`,
+        answer: futureSchedule.length > 0
+          ? `${futureSchedule.length} upcoming ${ticker} payment date${futureSchedule.length === 1 ? " is" : "s are"} currently published, shown in the schedule above.`
+          : `No upcoming ${ticker} payment dates are published yet.`,
+      },
     ];
   }
 
   if (type === "dividend-history") {
-    const paidCount = data.distributionsExtended.filter((d) => d.amount != null).length;
+    const paid = data.distributionsExtended.filter((d) => d.amount != null);
+    const amounts = paid.map((d) => d.amount!);
     return [
       {
         question: `How many dividends has ${ticker} paid?`,
-        answer: paidCount > 0
-          ? `CRADY has recorded ${paidCount} ${ticker} distributions, broken down by year in the table above.`
+        answer: paid.length > 0
+          ? `CRADY has recorded ${paid.length} ${ticker} distributions, broken down by year in the table above.`
           : `CRADY doesn't have a recorded payment history for ${ticker} yet.`,
       },
       {
@@ -214,6 +253,18 @@ export function buildFaqItems(
       {
         question: `Has ${ticker}'s dividend grown or shrunk over time?`,
         answer: `See the year-by-year breakdown above for how ${ticker}'s total distributions have trended across years. Option-income ETFs like ${ticker} typically fluctuate with market volatility rather than growing steadily like a traditional dividend stock.`,
+      },
+      {
+        question: `What is the highest dividend ${ticker} has ever paid?`,
+        answer: amounts.length > 0
+          ? `The highest recorded ${ticker} distribution on CRADY is ${fmtMoney(Math.max(...amounts))} per share.`
+          : `${ticker}'s payment history isn't on record yet.`,
+      },
+      {
+        question: `How much has ${ticker} paid in total dividends?`,
+        answer: amounts.length > 0
+          ? `Across its ${amounts.length} recorded payments, ${ticker} has paid a combined ${fmtMoney(amounts.reduce((a, b) => a + b, 0), 2)} per share.`
+          : `${ticker}'s payment history isn't on record yet.`,
       },
     ];
   }
@@ -243,6 +294,14 @@ export function buildFaqItems(
     {
       question: `Are ${ticker} and ${groupLabel} from the same provider?`,
       answer: `Yes, all are ${providerLabel(etf.provider_id)} funds, which means they share a similar options-income strategy applied to different underlying exposure.`,
+    },
+    {
+      question: `Do ${ticker} and ${peer.ticker} have the same risk level?`,
+      answer: risk?.risk_level && peer.riskLevel
+        ? risk.risk_level === peer.riskLevel
+          ? `Yes, CRADY classifies both ${ticker} and ${peer.ticker} as ${risk.risk_level.toLowerCase()} risk.`
+          : `No — CRADY classifies ${ticker} as ${risk.risk_level.toLowerCase()} risk, while ${peer.ticker} is ${peer.riskLevel.toLowerCase()} risk.`
+        : `Risk level data isn't fully available for both funds yet — see the comparison table above for what's known.`,
     },
   ];
 }
@@ -345,6 +404,10 @@ export function buildFaqItemsKo(
           ? `${ticker}는 ${freqKo} 배당을 지급합니다.`
           : `${ticker}의 배당 지급 주기가 아직 확인되지 않았습니다.`,
       },
+      {
+        question: `${ticker}의 운용사는 어디인가요?`,
+        answer: `${ticker}는 ${providerLabel(etf.provider_id)}가 발행 및 운용하는 ETF입니다.`,
+      },
     ];
   }
 
@@ -354,6 +417,10 @@ export function buildFaqItemsKo(
       {
         question: `${ticker}는 안전한 투자처인가요?`,
         answer: `CRADY는 ${ticker}를 ${KO_RISK_LABEL[risk.risk_level] ?? risk.risk_level} 등급으로 분류하며, CRADY 점수는 ${risk.crady_score?.toFixed(1) ?? "—"}/100입니다.`,
+      },
+      {
+        question: `CRADY 점수란 무엇인가요?`,
+        answer: `CRADY 점수는 최근 가격 변동성, 최대 낙폭(drawdown), 배당금 지급의 일관성을 종합한 0~100점 지표입니다. 배당 수익률이 높다고 점수가 올라가지 않으며, 변동성이 크거나 배당이 불규칙하면 오히려 낮아집니다.`,
       },
     ];
   }
@@ -370,6 +437,10 @@ export function buildFaqItemsKo(
         question: `${ticker}는 이번 주 또는 다음 주에 배당을 지급하나요?`,
         answer: `${ticker}의 향후 배당 일정은 위 캘린더 표를 참고하세요. 지급일이 임박한 배당은 CRADY 홈페이지의 이번 주 배당 섹션에서도 확인할 수 있습니다.`,
       },
+      {
+        question: `배당락일과 지급일의 차이는 무엇인가요?`,
+        answer: `배당락일은 해당 배당을 받기 위해 주식을 보유하고 있어야 하는 기준일입니다. 지급일은 실제로 배당금이 입금되는 날짜로, 보통 배당락일로부터 며칠에서 2주 정도 후입니다.`,
+      },
     ];
   }
 
@@ -379,6 +450,15 @@ export function buildFaqItemsKo(
         question: `${ticker}의 지난 배당금은 얼마였나요?`,
         answer: data.latestPaidDistribution?.amount != null
           ? `${ticker}의 가장 최근 배당금은 주당 ${fmtMoney(data.latestPaidDistribution.amount)}였으며, 지급일은 ${data.latestPaidDistribution.pay_date}입니다.`
+          : `${ticker}의 배당 지급 기록이 아직 없습니다.`,
+      },
+      {
+        question: `${ticker}가 지금까지 지급한 배당금 총액은 얼마인가요?`,
+        answer: data.distributionsExtended.filter((d) => d.amount != null).length > 0
+          ? `${ticker}는 지금까지 기록된 ${data.distributionsExtended.filter((d) => d.amount != null).length}회의 배당을 통해 주당 총 ${fmtMoney(
+              data.distributionsExtended.filter((d) => d.amount != null).reduce((a, d) => a + d.amount!, 0),
+              2
+            )}를 지급했습니다.`
           : `${ticker}의 배당 지급 기록이 아직 없습니다.`,
       },
     ];
@@ -392,6 +472,10 @@ export function buildFaqItemsKo(
     {
       question: `${ticker}와 ${groupLabel} 중 어느 쪽 배당 수익률이 더 높나요?`,
       answer: `예상 배당 수익률, CRADY 점수, 위험도 비교는 위 표를 참고하세요.`,
+    },
+    {
+      question: `${ticker}와 ${groupLabel}는 같은 운용사인가요?`,
+      answer: `네, 모두 ${providerLabel(etf.provider_id)}가 발행하는 ETF로, 기초자산은 다르지만 유사한 옵션 프리미엄 수익 전략을 사용합니다.`,
     },
   ];
 }

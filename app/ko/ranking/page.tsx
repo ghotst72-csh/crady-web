@@ -60,9 +60,11 @@ export default async function KoreanRankingPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }}
       />
       <h1 className="text-2xl font-bold">배당 ETF 랭킹</h1>
-      <p className="text-sm text-[var(--gray-500)] mt-1">
-        정렬 기준을 선택하면 해당 기준으로 순위를 다시 계산합니다. 홈 화면의
-        연환산 분배율 순위와 헷갈리지 않도록 여기서 기준을 직접 골라보세요.
+      <p className="text-sm text-[var(--gray-500)] mt-1 max-w-2xl">
+        CRADY는 YieldMax, Roundhill, Defiance의 고배당 커버드콜 ETF 전체를 CRADY 점수, 연환산
+        분배율, 배당 안정성, 최근 배당 증가율 4가지 기준으로 순위화합니다. 발행사가 제시하는
+        예상치가 아니라 실제 지급된 배당 데이터를 기반으로 매일 자동 계산됩니다. 아래에서 기준을
+        선택해 순위를 다시 확인하세요.
       </p>
 
       <div className="mt-6">

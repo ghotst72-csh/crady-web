@@ -60,9 +60,11 @@ export default async function RankingPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }}
       />
       <h1 className="text-2xl font-bold">Dividend ETF Ranking</h1>
-      <p className="text-sm text-[var(--gray-500)] mt-1">
-        Pick a sort criterion below to re-rank the list — a separate view from the home page&apos;s
-        yield-sorted rail, so you can choose your own basis for comparison.
+      <p className="text-sm text-[var(--gray-500)] mt-1 max-w-2xl">
+        CRADY ranks every tracked high-dividend covered-call ETF from YieldMax, Roundhill, and
+        Defiance by four criteria — CRADY Score, distribution yield, dividend safety, and recent
+        payment growth — recalculated automatically each day from real, actually-paid distribution
+        data rather than issuer-projected figures. Pick a criterion below to re-rank the list.
       </p>
 
       <div className="mt-6">

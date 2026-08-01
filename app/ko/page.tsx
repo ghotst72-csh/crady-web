@@ -71,6 +71,8 @@ export default async function KoreanHomePage() {
 
   return (
     <div>
+      {/* Visually hidden — see the English homepage for the full rationale. */}
+      <h1 className="sr-only">CRADY — YieldMax·커버드콜 ETF 배당 트래커</h1>
       <HeroSection top10={yieldTop10} lang="ko" basePath="/ko" />
       <TrustBar
         etfsTracked={snapshot.length}

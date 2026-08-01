@@ -851,6 +851,157 @@ export function featuredSnippetSection(data: ArticleData): Section | null {
   return null;
 }
 
+/** Same snippet-lead pattern as featuredSnippetSection, adapted for
+ * dividend-guide's own core question ("what is this ETF and what does it
+ * yield") — AI Overview Optimization Phase 1: every article type gets a
+ * self-contained, 40-70 word answer as the first thing on the page, not
+ * just the flagship next-dividend-prediction type. */
+export function dividendGuideSnippetSection(data: ArticleData): Section | null {
+  const { ticker, annualYieldPct, payoutFrequency, etf } = data;
+  if (annualYieldPct == null && !payoutFrequency) return null;
+
+  return {
+    id: "featured-snippet",
+    heading: "",
+    body: (
+      <p className="text-[15px] sm:text-base leading-relaxed font-medium border-l-4 border-[var(--crady-accent)] pl-4">
+        {ticker} is a {providerLabel(etf.provider_id)}
+        {payoutFrequency ? ` ${payoutFrequency}` : ""} dividend ETF
+        {etf.category && etf.category.toLowerCase() !== "unknown" ? ` in the ${etf.category} category` : ""}.
+        {annualYieldPct != null && (
+          <>
+            {" "}
+            Its estimated annualized distribution yield is {fmtPct(annualYieldPct)}, based on the
+            trailing 90-day actual payment run-rate rather than a projected figure.
+          </>
+        )}
+        {payoutFrequency && (
+          <> {ticker} pays distributions on a {payoutFrequency} schedule.</>
+        )}
+      </p>
+    ),
+  };
+}
+
+/** dividend-calendar's snippet lead — the core question is "when does this
+ * ETF pay next," so the lead states the next scheduled ex-date/pay-date (or
+ * honestly says none is published yet) rather than repeating the yield. */
+export function dividendCalendarSnippetSection(data: ArticleData): Section | null {
+  const { ticker, futureSchedule, payoutFrequency, etf } = data;
+  const next = futureSchedule[0];
+
+  return {
+    id: "featured-snippet",
+    heading: "",
+    body: (
+      <p className="text-[15px] sm:text-base leading-relaxed font-medium border-l-4 border-[var(--crady-accent)] pl-4">
+        {next ? (
+          <>
+            {ticker}&apos;s next scheduled ex-dividend date is {next.ex_date}, with payment on{" "}
+            {next.pay_date}, based on {providerLabel(etf.provider_id)}&apos;s published dividend
+            calendar.
+          </>
+        ) : (
+          <>
+            {providerLabel(etf.provider_id)} hasn&apos;t published {ticker}&apos;s forward payment
+            schedule yet.
+          </>
+        )}
+        {payoutFrequency && <> {ticker} pays on a {payoutFrequency} schedule.</>}
+      </p>
+    ),
+  };
+}
+
+/** dividend-history's snippet lead — the core question is "how much has
+ * this ETF paid historically," answered with real aggregate numbers over
+ * the same distributionsExtended window yearlyBreakdownSection uses. */
+export function dividendHistorySnippetSection(data: ArticleData): Section | null {
+  const { ticker, distributionsExtended } = data;
+  const paid = distributionsExtended.filter((d) => d.amount != null);
+  if (paid.length === 0) return null;
+
+  const total = paid.reduce((a, d) => a + d.amount!, 0);
+  const avg = total / paid.length;
+  const oldestDate = paid[paid.length - 1].pay_date;
+  const newestDate = paid[0].pay_date;
+
+  return {
+    id: "featured-snippet",
+    heading: "",
+    body: (
+      <p className="text-[15px] sm:text-base leading-relaxed font-medium border-l-4 border-[var(--crady-accent)] pl-4">
+        CRADY has recorded {paid.length} {ticker} distribution{paid.length === 1 ? "" : "s"} from{" "}
+        {oldestDate} to {newestDate}, totaling {fmtMoney(total, 2)} per share and averaging{" "}
+        {fmtMoney(avg)} per payment. Option-income ETFs like {ticker} typically fluctuate with
+        underlying volatility rather than growing steadily like a traditional dividend stock.
+      </p>
+    ),
+  };
+}
+
+/** risk-analysis's snippet lead — the core question is "is this ETF risky
+ * and why," answered with the CRADY Score and the two inputs that actually
+ * drive it, matching riskAnalysisSection's own numbers exactly (never a
+ * second, independently-computed figure that could drift from it). */
+export function riskAnalysisSnippetSection(data: ArticleData): Section | null {
+  const { ticker, risk } = data;
+  if (!risk?.risk_level || risk.crady_score == null) return null;
+
+  return {
+    id: "featured-snippet",
+    heading: "",
+    body: (
+      <p className="text-[15px] sm:text-base leading-relaxed font-medium border-l-4 border-[var(--crady-accent)] pl-4">
+        CRADY classifies {ticker} as {RISK_LABEL[risk.risk_level]?.toLowerCase() ?? risk.risk_level.toLowerCase()} risk,
+        with a CRADY Score of {risk.crady_score.toFixed(1)}/100.
+        {risk.volatility_30d != null && <> Its 30-day volatility is {fmtPct(risk.volatility_30d)}</>}
+        {risk.dividend_stability_score != null && (
+          <>
+            {risk.volatility_30d != null ? ", and" : " Its"} dividend stability score is{" "}
+            {risk.dividend_stability_score.toFixed(1)}/100
+          </>
+        )}
+        . A high yield alone doesn&apos;t raise this score — volatility and irregular payments
+        lower it by design.
+      </p>
+    ),
+  };
+}
+
+/** comparison's snippet lead — the core question is "X vs Y, which is
+ * better," answered with the same yield/score numbers the comparison table
+ * below shows, never a separate verdict computed differently. */
+export function comparisonSnippetSection(data: ArticleData, peers: ComparisonPeer[]): Section | null {
+  if (peers.length === 0) return null;
+  const { ticker, annualYieldPct, risk, etf } = data;
+  const peerLabel = peers.map((p) => p.ticker).join(", ");
+
+  return {
+    id: "featured-snippet",
+    heading: "",
+    body: (
+      <p className="text-[15px] sm:text-base leading-relaxed font-medium border-l-4 border-[var(--crady-accent)] pl-4">
+        {ticker} and {peerLabel} are {providerLabel(etf.provider_id)} covered-call ETFs.
+        {annualYieldPct != null && peers[0].annualYieldPct != null && (
+          <>
+            {" "}
+            {ticker}&apos;s estimated annualized yield is {fmtPct(annualYieldPct)}, versus{" "}
+            {fmtPct(peers[0].annualYieldPct)} for {peers[0].ticker}.
+          </>
+        )}
+        {risk?.crady_score != null && peers[0].cradyScore != null && (
+          <>
+            {" "}
+            CRADY Score: {risk.crady_score.toFixed(1)} vs {peers[0].cradyScore.toFixed(1)}.
+          </>
+        )}{" "}
+        See the full side-by-side below for risk level and payout frequency.
+      </p>
+    ),
+  };
+}
+
 type TimelineStage = { label: string; date: string; estimated?: boolean };
 
 function Timeline({ title, stages }: { title: string; stages: TimelineStage[] }) {

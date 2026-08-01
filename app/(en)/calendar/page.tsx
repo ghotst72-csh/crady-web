@@ -50,8 +50,11 @@ export default async function CalendarPage() {
         ]}
       />
       <h1 className="text-2xl font-bold">Dividend Calendar</h1>
-      <p className="text-sm text-[var(--gray-500)] mt-1">
-        {upcoming.length} high dividend ETFs with an upcoming payment date
+      <p className="text-sm text-[var(--gray-500)] mt-1 max-w-2xl">
+        The CRADY Dividend Calendar tracks every upcoming ex-dividend and payment date for{" "}
+        {upcoming.length} high-dividend covered-call ETFs from YieldMax, Roundhill, and Defiance —
+        combining each issuer&apos;s officially published schedule with CRADY&apos;s own
+        next-payment predictions, so you can see both confirmed and estimated dates in one place.
       </p>
 
       <div className="mt-4">

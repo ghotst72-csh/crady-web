@@ -183,12 +183,19 @@ export default async function MagazinePage({
     dateModified: lastUpdated,
   });
   const faqJsonLd = buildFaqJsonLd([...faqItems, ...faqItemsKo]);
+  // AI Overview Optimization Phase 1 — every article type now has its own
+  // featured-snippet lead (not just next-dividend-prediction), so point
+  // Speakable at whichever self-contained, factual blocks this specific
+  // page actually rendered, never a selector for a section this ticker
+  // didn't have enough data for.
+  const speakableIds = ["featured-snippet", "ai-summary"].filter((id) =>
+    sections.some((s) => s.id === id)
+  );
   const webPageJsonLd = buildWebPageJsonLd({
     name: meta.h1,
     description: meta.description,
     url,
-    speakableSelectors:
-      type === "next-dividend-prediction" ? ["#featured-snippet", "#ai-summary"] : undefined,
+    speakableSelectors: speakableIds.length > 0 ? speakableIds.map((id) => `#${id}`) : undefined,
   });
   // Dataset schema for the real historical distribution table this page
   // shows (next-dividend-prediction's row table) — only when there's

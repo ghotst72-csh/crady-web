@@ -45,6 +45,10 @@ export function buildWebPageJsonLd(opts: {
   description: string;
   url: string;
   speakableSelectors?: string[];
+  /** Defaults to "en" — every existing caller is Magazine (English-only),
+   * so this stays backward-compatible; the ticker profile page's Korean
+   * route is the first caller that needs "ko". */
+  inLanguage?: string;
 }) {
   return {
     "@context": "https://schema.org",
@@ -52,7 +56,7 @@ export function buildWebPageJsonLd(opts: {
     name: opts.name,
     description: opts.description,
     url: opts.url,
-    inLanguage: "en",
+    inLanguage: opts.inLanguage ?? "en",
     isPartOf: { "@type": "WebSite", name: "CRADY", url: "https://crady.net" },
     ...(opts.speakableSelectors && opts.speakableSelectors.length > 0
       ? {

@@ -25,6 +25,9 @@ import { pickComparisonPeerTicker } from "@/lib/magazine/comparison";
 import { ARTICLE_TYPE_LABEL, type ArticleTypeId } from "@/lib/magazine/types";
 import { getLatestOfficialDistributionForTicker, getPredictionVsOfficial } from "@/lib/distributions/data";
 import { OfficialDistributionBlock } from "@/components/distributions/OfficialDistributionBlock";
+import { buildProfileSnippet, buildProfileFaqItems } from "@/lib/ticker/profileSeo";
+import { ProfileSnippet, ProfileFaq } from "@/components/ticker/ProfileSeoBlock";
+import { buildFaqJsonLd, buildWebPageJsonLd } from "@/lib/magazine/jsonld";
 
 export const revalidate = 3600;
 
@@ -189,6 +192,36 @@ export default async function KoreanTickerPage({
       : {}),
   };
 
+  // AI Overview Optimization Phase 1 — see the English ticker page for the
+  // full rationale; built from data already fetched above, no new query.
+  const profileSeoInput = {
+    ticker,
+    name: etf.name,
+    providerId: etf.provider_id,
+    category: isKnown(etf.category) ? etf.category : null,
+    riskLevel: risk?.risk_level ?? null,
+    cradyScore: risk?.crady_score ?? null,
+    payoutFrequency: isKnown(etf.payout_frequency) ? etf.payout_frequency : null,
+    annualYieldPct,
+    prediction: prediction
+      ? { targetPayDate: prediction.target_pay_date, predictedAmount: prediction.predicted_amount }
+      : null,
+    latestPaidDistribution:
+      latestPaidDistribution?.amount != null
+        ? { amount: latestPaidDistribution.amount, payDate: latestPaidDistribution.pay_date }
+        : null,
+  };
+  const profileSnippetText = buildProfileSnippet(profileSeoInput, "ko");
+  const profileFaqItems = buildProfileFaqItems(profileSeoInput, "ko");
+  const faqJsonLd = buildFaqJsonLd(profileFaqItems);
+  const webPageJsonLd = buildWebPageJsonLd({
+    name: `${ticker} — ${etf.name ?? ticker}`,
+    description: profileSnippetText,
+    url: `https://crady.net/ko/${ticker.toLowerCase()}`,
+    speakableSelectors: ["#profile-snippet"],
+    inLanguage: "ko",
+  });
+
   return (
     <div className="pb-10">
       <BreadcrumbJsonLd
@@ -201,6 +234,16 @@ export default async function KoreanTickerPage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(financialProductJsonLd) }}
       />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }}
+      />
+      {faqJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+        />
+      )}
 
       <EtfHero
         ticker={ticker}
@@ -231,6 +274,10 @@ export default async function KoreanTickerPage({
         changeFromLastPct={changeFromLastPct}
         lang="ko"
       />
+
+      <div className="mx-auto max-w-4xl px-4 sm:px-6">
+        <ProfileSnippet text={profileSnippetText} />
+      </div>
 
       <div className="mx-auto max-w-4xl px-4 sm:px-6 mt-8">
         <OfficialDistributionBlock
@@ -360,6 +407,8 @@ export default async function KoreanTickerPage({
           )}
         </div>
 
+        <ProfileFaq items={profileFaqItems} lang="ko" />
+
         {/* Deep-dive links into the Magazine system — Magazine is
             English-only (no /ko mirror, see the International SEO report),
             so these intentionally point to the English Magazine URLs even
@@ -417,7 +466,8 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
     <div className="border border-[var(--gray-200)] rounded-xl p-4">
       <div className="text-xs text-[var(--gray-500)]">{label}</div>
       <div className="text-xl font-bold mt-1">{value}</div>
-      {sub && <div className="text-xs text-[var(--gray-400)] mt-0.5">{sub}</div>}
+      {/* gray-600, not gray-400 — gray-400 fails WCAG contrast at this size. */}
+      {sub && <div className="text-xs text-[var(--gray-600)] mt-0.5">{sub}</div>}
     </div>
   );
 }
