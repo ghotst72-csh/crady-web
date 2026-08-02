@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Header } from "@/components/Header";
+import { AuthProvider } from "@/components/auth/AuthProvider";
 import { FooterLanguageLink } from "@/components/i18n/FooterLanguageLink";
 import { LanguagePreferenceManager } from "@/components/i18n/LanguagePreferenceManager";
 import { getHomeSnapshot, toSearchIndex } from "@/lib/data";
@@ -58,6 +59,7 @@ export default async function KoreanRootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(WEBSITE_JSON_LD) }}
         />
+        <AuthProvider>
         <Header lang="ko" searchIndex={searchIndex} />
 
         {/* min-w-0: see the matching comment in app/(en)/layout.tsx — same
@@ -146,6 +148,7 @@ export default async function KoreanRootLayout({
             </div>
           </div>
         </footer>
+        </AuthProvider>
       </body>
     </html>
   );

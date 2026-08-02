@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { notFound, permanentRedirect } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
@@ -29,6 +30,7 @@ import { computeDividendTrend } from "@/lib/magazine/trend";
 import { buildProfileSnippet, buildProfileFaqItems } from "@/lib/ticker/profileSeo";
 import { ProfileSnippet, ProfileFaq } from "@/components/ticker/ProfileSeoBlock";
 import { buildFaqJsonLd, buildWebPageJsonLd } from "@/lib/magazine/jsonld";
+import { ActivitySection, ActivityWeeklyRecap } from "@/components/activity/ActivitySection";
 
 export const revalidate = 3600;
 
@@ -285,6 +287,38 @@ export default async function KoreanTickerPage({
         <ProfileSnippet text={profileSnippetText} />
       </div>
 
+      {/* ETF Activity — see app/(en)/[ticker]/page.tsx for the full
+          rationale on why this sits here instead of at the bottom. */}
+      <div className="mx-auto max-w-4xl px-4 sm:px-6">
+        <Suspense fallback={null}>
+          <ActivitySection
+            ticker={ticker}
+            lang="ko"
+            providerId={etf.provider_id}
+            priceHistory={history}
+            risk={risk}
+            annualYieldPct={annualYieldPct}
+            dividendTrendPct={trend12mo?.avgChangePct ?? null}
+            latestPaidDistribution={
+              latestPaidDistribution?.amount != null
+                ? { amount: latestPaidDistribution.amount, payDate: latestPaidDistribution.pay_date }
+                : null
+            }
+            prediction={
+              prediction
+                ? {
+                    targetPayDate: prediction.target_pay_date,
+                    targetExDate: prediction.target_ex_date,
+                    predictedAmount: prediction.predicted_amount,
+                    confidenceScore: prediction.confidence_score,
+                    predictionMethod: prediction.prediction_method,
+                  }
+                : null
+            }
+          />
+        </Suspense>
+      </div>
+
       <div className="mx-auto max-w-4xl px-4 sm:px-6 mt-8">
         <OfficialDistributionBlock
           official={officialDistribution}
@@ -478,6 +512,15 @@ export default async function KoreanTickerPage({
             </Link>
           </div>
         </div>
+
+        <Suspense fallback={null}>
+          <ActivityWeeklyRecap
+            ticker={ticker}
+            lang="ko"
+            priceHistory={history}
+            recentDistributions={distributions.map((d) => ({ pay_date: d.pay_date, amount: d.amount }))}
+          />
+        </Suspense>
 
         <EtfAppCta ticker={ticker} lang="ko" />
       </div>

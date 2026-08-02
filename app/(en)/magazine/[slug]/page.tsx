@@ -18,6 +18,7 @@ import { ARTICLE_TYPE_SLUG } from "@/lib/magazine/recipes";
 import type { ArticleTypeId } from "@/lib/magazine/types";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { EtfAppCta } from "@/components/EtfAppCta";
+import { ViewEtfHubCta } from "@/components/magazine/ViewEtfHubCta";
 import { PageAppCta } from "@/components/PageAppCta";
 import { HubArticleList } from "@/components/magazine/HubArticleList";
 
@@ -275,6 +276,7 @@ export default async function MagazinePage({
         )}
       </div>
 
+      <ViewEtfHubCta ticker={ticker} />
       <EtfAppCta ticker={ticker} />
     </div>
   );

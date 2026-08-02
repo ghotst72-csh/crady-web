@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { notFound, permanentRedirect } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
@@ -29,6 +30,7 @@ import { computeDividendTrend } from "@/lib/magazine/trend";
 import { buildProfileSnippet, buildProfileFaqItems } from "@/lib/ticker/profileSeo";
 import { ProfileSnippet, ProfileFaq } from "@/components/ticker/ProfileSeoBlock";
 import { buildFaqJsonLd, buildWebPageJsonLd } from "@/lib/magazine/jsonld";
+import { ActivitySection, ActivityWeeklyRecap } from "@/components/activity/ActivitySection";
 
 export const revalidate = 3600;
 
@@ -287,6 +289,43 @@ export default async function TickerPage({
         <ProfileSnippet text={profileSnippetText} />
       </div>
 
+      {/* ETF Activity — inserted here (right after the Hero/snippet, well
+          before the rest of the page's existing financial content) rather
+          than appended at the bottom, per the product direction: investors
+          should notice this ETF has activity immediately, not after
+          scrolling through the whole page. Own Suspense boundary + own
+          Promise.all, fully separate from the fetch above — never blocks
+          Hero/Prediction from rendering first. */}
+      <div className="mx-auto max-w-4xl px-4 sm:px-6">
+        <Suspense fallback={null}>
+          <ActivitySection
+            ticker={ticker}
+            lang="en"
+            providerId={etf.provider_id}
+            priceHistory={history}
+            risk={risk}
+            annualYieldPct={annualYieldPct}
+            dividendTrendPct={trend12mo?.avgChangePct ?? null}
+            latestPaidDistribution={
+              latestPaidDistribution?.amount != null
+                ? { amount: latestPaidDistribution.amount, payDate: latestPaidDistribution.pay_date }
+                : null
+            }
+            prediction={
+              prediction
+                ? {
+                    targetPayDate: prediction.target_pay_date,
+                    targetExDate: prediction.target_ex_date,
+                    predictedAmount: prediction.predicted_amount,
+                    confidenceScore: prediction.confidence_score,
+                    predictionMethod: prediction.prediction_method,
+                  }
+                : null
+            }
+          />
+        </Suspense>
+      </div>
+
       <div className="mx-auto max-w-4xl px-4 sm:px-6 mt-8">
         <OfficialDistributionBlock
           official={officialDistribution}
@@ -481,6 +520,15 @@ export default async function TickerPage({
             </Link>
           </div>
         </div>
+
+        <Suspense fallback={null}>
+          <ActivityWeeklyRecap
+            ticker={ticker}
+            lang="en"
+            priceHistory={history}
+            recentDistributions={distributions.map((d) => ({ pay_date: d.pay_date, amount: d.amount }))}
+          />
+        </Suspense>
 
         <EtfAppCta ticker={ticker} lang="en" />
       </div>

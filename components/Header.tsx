@@ -6,6 +6,7 @@ import { TickerSearch } from "./search/TickerSearch";
 import { MobileSearch } from "./search/MobileSearch";
 import { LanguageSwitcher } from "./i18n/LanguageSwitcher";
 import { MobileNav } from "./MobileNav";
+import { AuthStatus } from "./auth/AuthStatus";
 import { NAV_EN, NAV_KO } from "@/lib/nav";
 import type { SearchEntry } from "@/lib/search/searchTickers";
 
@@ -116,10 +117,14 @@ export function Header({
           <div className="hidden sm:block w-[260px] shrink-0">
             <TickerSearch index={searchIndex} lang={lang} basePath={basePath} />
           </div>
+          <div className="hidden sm:block shrink-0">
+            <AuthStatus lang={lang} />
+          </div>
           <div className="sm:hidden flex items-center gap-1">
             <MobileNav lang={lang} />
             <LanguageSwitcher lang={lang} compact />
             <MobileSearch index={searchIndex} lang={lang} basePath={basePath} />
+            <AuthStatus lang={lang} />
           </div>
         </div>
       </header>

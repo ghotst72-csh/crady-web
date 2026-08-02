@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { createServerClient } from "@supabase/ssr";
 import { INDEXNOW_KEY } from "@/lib/constants";
 
 const CANONICAL_HOST = "crady.net";
 
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // IndexNow key file (https://www.indexnow.org/documentation) must be
@@ -16,8 +17,37 @@ export function proxy(request: NextRequest) {
     });
   }
 
+  let response = NextResponse.next({ request });
+
+  // Refreshes the Supabase Auth session cookie on every request (the
+  // standard @supabase/ssr middleware pattern) so a signed-in visitor's
+  // session stays valid across server-rendered navigations — needed once
+  // ETF Activity added the site's first login flow. Read-only public pages
+  // are completely unaffected: this only touches auth cookies, never page
+  // content or the response below.
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          for (const { name, value } of cookiesToSet) {
+            request.cookies.set(name, value);
+          }
+          response = NextResponse.next({ request });
+          for (const { name, value, options } of cookiesToSet) {
+            response.cookies.set(name, value, options);
+          }
+        },
+      },
+    }
+  );
+  await supabase.auth.getUser();
+
   const host = request.headers.get("host") ?? "";
-  const response = NextResponse.next();
 
   // crady.net is the only host Google/Bing should index. Vercel's own
   // *.vercel.app domain (production alias + every preview deployment) stays
