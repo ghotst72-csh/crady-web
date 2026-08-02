@@ -22,15 +22,28 @@ import { DividendStagePill } from "@/components/DividendLifecycle";
 import { EtfAppCta } from "@/components/EtfAppCta";
 import { EtfHero } from "@/components/EtfHero";
 import { articleSlug } from "@/lib/magazine/recipes";
-import { pickComparisonPeerTicker } from "@/lib/magazine/comparison";
+import { pickComparisonPeerTicker, pickComparisonPeerTickers } from "@/lib/magazine/comparison";
+import { getComparisonPeersData } from "@/lib/magazine/data";
 import { ARTICLE_TYPE_LABEL, type ArticleTypeId } from "@/lib/magazine/types";
 import { getLatestOfficialDistributionForTicker, getPredictionVsOfficial } from "@/lib/distributions/data";
 import { OfficialDistributionBlock } from "@/components/distributions/OfficialDistributionBlock";
 import { computeDividendTrend } from "@/lib/magazine/trend";
 import { buildProfileSnippet, buildProfileFaqItems } from "@/lib/ticker/profileSeo";
+import { buildDirectAnswer } from "@/lib/ticker/directAnswer";
+import {
+  buildWhyInvestorsBuy,
+  buildBiggestRisks,
+  buildWhoShouldAvoid,
+  buildHistoricalCharacteristics,
+  type EnrichmentInput,
+} from "@/lib/ticker/enrichment";
 import { ProfileSnippet, ProfileFaq } from "@/components/ticker/ProfileSeoBlock";
 import { buildFaqJsonLd, buildWebPageJsonLd } from "@/lib/magazine/jsonld";
 import { ActivitySection, ActivityWeeklyRecap } from "@/components/activity/ActivitySection";
+import { getRelevantGuidesForEtf, GUIDE_LABELS } from "@/lib/magazine/topicalLinks";
+import { RelatedContent } from "@/components/RelatedContent";
+import { PageTrustFooter } from "@/components/seo/PageTrustFooter";
+import { Badge } from "@/components/ui/Badge";
 
 export const revalidate = 3600;
 
@@ -178,6 +191,75 @@ export default async function KoreanTickerPage({
     "risk-analysis",
   ];
 
+  // SEO Authority Phase 2 — see the English ticker page for the full
+  // rationale on every addition below; mirrored 1:1 with lang="ko".
+  const similarEtfTickers = pickComparisonPeerTickers(ticker, etf.provider_id, allTickers, 4);
+  const similarEtfs = similarEtfTickers.length > 0 ? await getComparisonPeersData(similarEtfTickers) : [];
+
+  const enrichmentInput: EnrichmentInput = {
+    ticker,
+    providerId: etf.provider_id,
+    investmentStrategy: isKnown(etf.investment_strategy)
+      ? etf.investment_strategy
+      : isKnown(etf.long_description)
+        ? etf.long_description
+        : null,
+    annualYieldPct,
+    payoutFrequency: isKnown(etf.payout_frequency) ? etf.payout_frequency : null,
+    riskLevel: risk?.risk_level ?? null,
+    maxDrawdownPct: risk?.max_drawdown ?? null,
+    volatility90dPct: risk?.volatility_90d ?? null,
+    dividendStabilityScore: risk?.dividend_stability_score ?? null,
+    trend12mo: trend12mo
+      ? {
+          avgChangePct: trend12mo.avgChangePct,
+          increases: trend12mo.increases,
+          decreases: trend12mo.decreases,
+          count: trend12mo.count,
+        }
+      : null,
+  };
+  const whyInvestorsBuy = buildWhyInvestorsBuy(enrichmentInput, "ko");
+  const biggestRisks = buildBiggestRisks(enrichmentInput, isKnown(etf.risk_summary) ? etf.risk_summary : null, "ko");
+  const whoShouldAvoid = buildWhoShouldAvoid(enrichmentInput, "ko");
+  const historicalCharacteristics = buildHistoricalCharacteristics(enrichmentInput, "ko");
+
+  const directAnswer = buildDirectAnswer(
+    {
+      ticker,
+      providerId: etf.provider_id,
+      payoutFrequency: isKnown(etf.payout_frequency) ? etf.payout_frequency : null,
+      annualYieldPct,
+      prediction: prediction
+        ? { targetPayDate: prediction.target_pay_date, predictedAmount: prediction.predicted_amount }
+        : null,
+      latestPaidDistribution:
+        latestPaidDistribution?.amount != null
+          ? { amount: latestPaidDistribution.amount, payDate: latestPaidDistribution.pay_date }
+          : null,
+    },
+    "ko"
+  );
+
+  const relevantGuides = getRelevantGuidesForEtf(etf, isKnown(etf.payout_frequency) ? etf.payout_frequency : null);
+  const guideLinks = relevantGuides.map((slug) => ({ href: `/magazine/${slug}`, label: GUIDE_LABELS[slug] }));
+  const articleLinks = MAGAZINE_TYPES.map((type) => ({
+    href: `/magazine/${articleSlug(ticker, type)}`,
+    label: `${ticker} ${ARTICLE_TYPE_LABEL[type]}`,
+  }));
+  if (comparisonPeerTicker) {
+    articleLinks.push({
+      href: `/magazine/${articleSlug(ticker, "comparison")}`,
+      label: `${ticker} vs ${comparisonPeerTicker}`,
+    });
+  }
+  const etfLinks = similarEtfs.map((peer) => ({ href: `/ko/${peer.ticker.toLowerCase()}`, label: `${peer.ticker}와 비교` }));
+  const rankingLinks = [
+    { href: "/ko/ranking", label: "전체 ETF 랭킹" },
+    { href: "/ko/calendar", label: "배당 캘린더" },
+    { href: "/ko/distributions", label: "공식 배당 발표 센터" },
+  ];
+
   const financialProductJsonLd = {
     "@context": "https://schema.org",
     "@type": "FinancialProduct",
@@ -280,6 +362,7 @@ export default async function KoreanTickerPage({
         changeFromLastPct={changeFromLastPct}
         recentPayments={distributions.slice(0, 3).map((d) => ({ amount: d.amount, payDate: d.pay_date }))}
         trend12mo={trend12mo}
+        directAnswer={directAnswer}
         lang="ko"
       />
 
@@ -443,6 +526,8 @@ export default async function KoreanTickerPage({
               value={isKnown(etf.expense_ratio) ? etf.expense_ratio! : "—"}
             />
             <DetailField label="AUM" value={isKnown(etf.aum) ? etf.aum! : "—"} />
+            {isKnown(etf.inception_date) && <DetailField label="상장일" value={etf.inception_date!} />}
+            {etf.holdings_count != null && <DetailField label="보유 종목 수" value={String(etf.holdings_count)} />}
           </div>
 
           {(etf.investment_strategy || etf.long_description || etf.short_description) && (
@@ -465,6 +550,93 @@ export default async function KoreanTickerPage({
                 시장 상태 분석
               </div>
               <p className="text-sm text-[var(--gray-700)]">{regime.description}</p>
+            </div>
+          )}
+
+          {isKnown(etf.source_url) && (
+            <div className="mt-4 border border-[var(--gray-200)] rounded-xl p-4">
+              <div className="text-xs font-semibold text-[var(--gray-500)] mb-1">공식 운용사 자료</div>
+              <a
+                href={etf.source_url!}
+                target="_blank"
+                rel="noopener noreferrer nofollow"
+                className="text-sm text-[#92400e] underline hover:text-black"
+              >
+                {ticker} 공식 펀드 페이지 →
+              </a>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-8 space-y-6">
+          <div>
+            <h2 className="text-lg font-bold mb-2">{ticker}에 투자하는 이유</h2>
+            <p className="text-sm text-[var(--gray-700)] leading-relaxed">{whyInvestorsBuy}</p>
+          </div>
+
+          {biggestRisks && (
+            <div>
+              <h2 className="text-lg font-bold mb-2">주요 리스크</h2>
+              <p className="text-sm text-[var(--gray-700)] leading-relaxed">{biggestRisks}</p>
+            </div>
+          )}
+
+          {whoShouldAvoid && (
+            <div>
+              <h2 className="text-lg font-bold mb-2">이런 투자자에게는 적합하지 않을 수 있습니다</h2>
+              <p className="text-sm text-[var(--gray-700)] leading-relaxed">{whoShouldAvoid}</p>
+            </div>
+          )}
+
+          {historicalCharacteristics && (
+            <div>
+              <h2 className="text-lg font-bold mb-2">과거 배당 특성</h2>
+              <p className="text-sm text-[var(--gray-700)] leading-relaxed">{historicalCharacteristics}</p>
+            </div>
+          )}
+
+          {similarEtfs.length > 0 && (
+            <div>
+              <h2 className="text-lg font-bold mb-3">유사 ETF</h2>
+              <div className="grid sm:grid-cols-2 gap-3">
+                {similarEtfs.map((peer) => (
+                  <Link
+                    key={peer.ticker}
+                    href={`/ko/${peer.ticker.toLowerCase()}`}
+                    className="border border-[var(--gray-200)] rounded-xl p-4 hover:border-black transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold">{peer.ticker}</span>
+                      {peer.riskLevel && <Badge variant="neutral">{peer.riskLevel}</Badge>}
+                    </div>
+                    <div className="mt-1 text-xs text-[var(--gray-500)]">{providerLabel(peer.provider_id)}</div>
+                    <div className="mt-2 flex gap-4 text-sm">
+                      <span>
+                        <span className="text-[var(--gray-500)]">분배율 </span>
+                        <span className="font-semibold text-[#92400e]">
+                          {peer.annualYieldPct != null ? `${peer.annualYieldPct.toFixed(1)}%` : "—"}
+                        </span>
+                      </span>
+                      <span>
+                        <span className="text-[var(--gray-500)]">CRADY </span>
+                        <span className="font-semibold">{peer.cradyScore != null ? peer.cradyScore.toFixed(1) : "—"}</span>
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {comparisonPeerTicker && (
+            <div>
+              <h2 className="text-lg font-bold mb-2">자주 비교되는 ETF</h2>
+              <Link
+                href={`/magazine/${articleSlug(ticker, "comparison")}`}
+                className="inline-flex px-3 py-1.5 border border-[var(--gray-200)] rounded-full text-sm hover:border-black transition-colors"
+              >
+                {ticker} vs {comparisonPeerTicker} — 전체 비교 보기 →
+              </Link>
             </div>
           )}
         </div>
@@ -522,7 +694,17 @@ export default async function KoreanTickerPage({
           />
         </Suspense>
 
+        <RelatedContent
+          lang="ko"
+          articles={articleLinks}
+          etfs={etfLinks}
+          rankings={rankingLinks}
+          guides={guideLinks}
+          nextReading={{ href: `/magazine/${articleSlug(ticker, "next-dividend-prediction")}`, label: `${ticker} Next Dividend Prediction` }}
+        />
+
         <EtfAppCta ticker={ticker} lang="ko" />
+        <PageTrustFooter lang="ko" />
       </div>
     </div>
   );

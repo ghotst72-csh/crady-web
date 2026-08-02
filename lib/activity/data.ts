@@ -200,6 +200,38 @@ export async function getMostDiscussedItem(
   };
 }
 
+/** Top-N real topics by engagement (reply_count) in the trailing N days —
+ * the "Trending Topics" list, same query shape as getMostDiscussedItem
+ * above but returning several rows instead of one. Only items with at
+ * least one real reply count as "trending" — zero-engagement items don't
+ * clutter the list, matching the honest-empty-state discipline used
+ * throughout this table (an empty array here means the UI renders "No
+ * trending topics yet," never a fabricated one). */
+export async function getTrendingTopics(
+  ticker: string,
+  limit = 3,
+  days = 7
+): Promise<{ id: string; title: string; replyCount: number }[]> {
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabase
+    .from("activity_items")
+    .select("id, title, body, reply_count")
+    .eq("ticker", ticker)
+    .eq("source", "investor")
+    .is("parent_id", null)
+    .eq("status", "visible")
+    .gte("created_at", since)
+    .gt("reply_count", 0)
+    .order("reply_count", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    title: r.title ?? r.body.slice(0, 60),
+    replyCount: r.reply_count,
+  }));
+}
+
 /** New questions/replies in the trailing 7 days — feeds buildWeeklyRecap. */
 export async function getWeeklyActivityCounts(
   ticker: string

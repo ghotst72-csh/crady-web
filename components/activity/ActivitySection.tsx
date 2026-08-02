@@ -9,6 +9,7 @@ import {
   getActivityCounts,
   getRecentOfficialEvents,
   getMostDiscussedItem,
+  getTrendingTopics,
   getWeeklyActivityCounts,
 } from "@/lib/activity/data";
 import { buildActivityStreamEntries } from "@/lib/activity/stream";
@@ -73,13 +74,17 @@ async function renderActivitySection(input: ActivitySectionInput) {
   const { ticker, lang = "en", providerId, priceHistory, risk, annualYieldPct, dividendTrendPct, latestPaidDistribution, prediction } =
     input;
 
-  const [topLevelItems, voteSummary, activityCounts, officialEvents, mostDiscussed] = await Promise.all([
+  const [topLevelItems, voteSummary, activityCounts, officialEvents, mostDiscussed, trendingTopics] = await Promise.all([
     getTopLevelItems(ticker),
     getTickerVoteSummary(ticker),
     getActivityCounts(ticker),
     getRecentOfficialEvents(ticker),
     getMostDiscussedItem(ticker),
+    getTrendingTopics(ticker, 3),
   ]);
+  // "Latest Discussions" reuses the already-fetched topLevelItems — not a
+  // second query, per the SEO Authority Phase 2 plan.
+  const latestDiscussions = topLevelItems.slice(0, 3);
 
   const repliesByParent = await getRepliesForItems(topLevelItems.map((i) => i.id));
 
@@ -133,6 +138,8 @@ async function renderActivitySection(input: ActivitySectionInput) {
         priceDeltaPct={priceDeltaPct}
         voteSummary={voteSummary}
         mostDiscussed={mostDiscussed}
+        trendingTopics={trendingTopics}
+        latestDiscussions={latestDiscussions}
         nextCatalystDate={nextCatalystDate}
         confidence={confidence}
         streamEntries={streamEntries}

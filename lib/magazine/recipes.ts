@@ -6,6 +6,7 @@ import {
   advantagesDisadvantagesSection,
   aiSummarySection,
   aiSummarySectionKo,
+  articleHeroInsightsSection,
   bestForSection,
   comparisonSnippetSection,
   comparisonTableSection,
@@ -149,6 +150,7 @@ export function buildSections(
   const bySlug: Record<ArticleTypeId, (Section | null)[]> = {
     "next-dividend-prediction": [
       featuredSnippetSection(data),
+      articleHeroInsightsSection(data),
       nextDividendHighlight(data),
       dividendTimelineSection(data),
       distributionHistorySection(data),
@@ -163,6 +165,7 @@ export function buildSections(
     ],
     "dividend-guide": [
       dividendGuideSnippetSection(data),
+      articleHeroInsightsSection(data),
       quickFactsSection(data),
       overviewSection(data),
       investmentStrategySection(data),

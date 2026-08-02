@@ -5,6 +5,17 @@ import { articleSlug } from "./recipes";
 import { HUB_DEFINITIONS, type HubId } from "./hubs";
 import type { CalendarHubId } from "./calendarHubs";
 import type { StandalonePageId } from "./standalone";
+import { getRelevantGuidesForEtf, GUIDE_LABELS } from "./topicalLinks";
+
+export type LinkItem = { href: string; label: string };
+
+export type CategorizedLinks = {
+  articles: LinkItem[];
+  etfs: LinkItem[];
+  rankings: LinkItem[];
+  guides: LinkItem[];
+  nextReading: LinkItem | null;
+};
 
 // dividend-calendar/dividend-history are safe to always link to (they exist
 // for every ticker, only gated indexable-vs-noindex like risk-analysis, not
@@ -19,23 +30,32 @@ const ALL_TYPES: ArticleTypeId[] = [
   "dividend-history",
 ];
 
+/** Internal Link Explosion (SEO Authority Phase 2) — the same underlying
+ * link-generation logic as before, now grouped by category instead of
+ * flattened, plus a new `guides` category driven by
+ * getRelevantGuidesForEtf (the bidirectional pillar-guide linking added in
+ * this phase) and a single `nextReading` pick. Rendered by
+ * components/RelatedContent.tsx. */
 export function buildInternalLinks(
   data: ArticleData,
   currentType: ArticleTypeId,
   extra?: { comparisonPeerTicker?: string | null }
-): { href: string; label: string }[] {
-  const links: { href: string; label: string }[] = [];
+): CategorizedLinks {
+  const articles: LinkItem[] = [];
+  const etfs: LinkItem[] = [];
+  const rankings: LinkItem[] = [];
+  const guides: LinkItem[] = [];
 
   for (const type of ALL_TYPES) {
     if (type === currentType) continue;
-    links.push({
+    articles.push({
       href: `/magazine/${articleSlug(data.ticker, type)}`,
       label: `${data.ticker} ${ARTICLE_TYPE_LABEL[type]}`,
     });
   }
 
   if (currentType !== "comparison" && extra?.comparisonPeerTicker) {
-    links.push({
+    articles.push({
       href: `/magazine/${articleSlug(data.ticker, "comparison")}`,
       label: `${data.ticker} vs ${extra.comparisonPeerTicker}`,
     });
@@ -43,21 +63,16 @@ export function buildInternalLinks(
 
   // Same-payout-frequency siblings surfaced first ("같은 지급일 ETF" —
   // same cadence, so their next-payment timing is directly comparable to
-  // this ticker's) before other same-provider siblings. "같은 선언일 ETF" /
-  // "같은 Risk ETF" / "같은 Sector ETF" from the Magazine 3.0 request aren't
-  // built as their own dedicated hub URLs — declaration dates aren't
-  // tracked reliably enough to group by, and per-dimension hubs risk
-  // thin/near-empty pages at this ticker count; the risk/yield angle is
-  // instead served by next-dividend-prediction's quick-compare teaser,
-  // which already pulls real risk data for its peers.
+  // this ticker's) before other same-provider siblings.
   const sameFrequency = data.siblings.filter((s) => s.payout_frequency === data.payoutFrequency);
   const otherSiblings = data.siblings.filter((s) => s.payout_frequency !== data.payoutFrequency);
   for (const sibling of [...sameFrequency, ...otherSiblings].slice(0, 3)) {
-    links.push({
+    etfs.push({
       href: `/magazine/${articleSlug(sibling.ticker, "next-dividend-prediction")}`,
       label: `Compare with ${sibling.ticker}`,
     });
   }
+  etfs.push({ href: `/${data.ticker.toLowerCase()}`, label: `${data.ticker} Full ETF Profile` });
 
   const hubCandidates: HubId[] = [];
   if (data.payoutFrequency === "weekly") hubCandidates.push("weekly-dividend-etfs");
@@ -69,7 +84,7 @@ export function buildInternalLinks(
 
   for (const hub of hubCandidates) {
     const def = HUB_DEFINITIONS[hub];
-    links.push({ href: `/magazine/${hub}`, label: def.h1 });
+    rankings.push({ href: `/magazine/${hub}`, label: def.h1 });
   }
 
   const calendarHubCandidates: { slug: CalendarHubId; label: string }[] = [
@@ -80,19 +95,28 @@ export function buildInternalLinks(
     calendarHubCandidates.push({ slug: "yieldmax-dividend-calendar", label: "YieldMax Dividend Calendar" });
   }
   for (const hub of calendarHubCandidates) {
-    links.push({ href: `/magazine/${hub.slug}`, label: hub.label });
+    rankings.push({ href: `/magazine/${hub.slug}`, label: hub.label });
   }
+  rankings.push({ href: "/distributions", label: "Latest Official Distributions" });
 
   const standalonePages: { slug: StandalonePageId; label: string }[] = [
     { slug: "tax-guide", label: "Covered Call ETF Dividend Tax Guide" },
     { slug: "how-to-buy", label: "How to Buy Dividend ETFs" },
+    ...getRelevantGuidesForEtf(data.etf, data.payoutFrequency).map((slug) => ({
+      slug,
+      label: GUIDE_LABELS[slug],
+    })),
   ];
   for (const page of standalonePages) {
-    links.push({ href: `/magazine/${page.slug}`, label: page.label });
+    guides.push({ href: `/magazine/${page.slug}`, label: page.label });
   }
 
-  links.push({ href: `/${data.ticker.toLowerCase()}`, label: `${data.ticker} Full ETF Profile` });
-  links.push({ href: "/distributions", label: "Latest Official Distributions" });
+  // A single "keep reading" suggestion — the flagship prediction article if
+  // we're not already on it, otherwise the dividend guide.
+  const nextReading: LinkItem | null =
+    currentType === "next-dividend-prediction"
+      ? { href: `/magazine/${articleSlug(data.ticker, "dividend-guide")}`, label: `${data.ticker} Dividend Guide` }
+      : { href: `/magazine/${articleSlug(data.ticker, "next-dividend-prediction")}`, label: `${data.ticker} Next Dividend Prediction` };
 
-  return links;
+  return { articles, etfs, rankings, guides, nextReading };
 }

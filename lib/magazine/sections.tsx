@@ -3,6 +3,8 @@ import { providerLabel, type ComparisonPeer } from "@/lib/data";
 import { DividendStagePill } from "@/components/DividendLifecycle";
 import { KpiCard, KpiGrid, type KpiItem } from "@/components/ui/KpiCard";
 import { Sparkline } from "@/components/ui/Sparkline";
+import { Badge } from "@/components/ui/Badge";
+import { KeyTakeaways } from "@/components/ui/KeyTakeaways";
 import type { ArticleData } from "./data";
 import type { FaqItem, Section } from "./types";
 import type { TrendWindow } from "./trend";
@@ -260,37 +262,66 @@ export function distributionHistorySection(data: ArticleData): Section | null {
   const { ticker, distributions } = data;
   if (distributions.length === 0) return null;
   const amounts = [...distributions].reverse().map((d) => d.amount);
+  const paidCount = distributions.filter((d) => d.amount != null).length;
+  const latest = distributions.find((d) => d.amount != null) ?? null;
+
   return {
     id: "distribution-history",
     heading: `${ticker} Distribution History`,
     body: (
-      <div className="not-prose border border-[var(--gray-200)] rounded-xl overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--gray-100)] bg-white">
-          <span className="text-[11px] text-[var(--gray-500)] uppercase tracking-wide font-semibold">Trend</span>
-          <Sparkline values={amounts} width={120} height={28} color="auto" />
-        </div>
-        <div className="max-h-[420px] overflow-y-auto overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 z-10 bg-[var(--gray-50)] text-[var(--gray-500)]">
-              <tr>
-                <th className="text-left px-4 py-2.5 font-medium">Ex-Date</th>
-                <th className="text-left px-4 py-2.5 font-medium">Pay Date</th>
-                <th className="text-right px-4 py-2.5 font-medium">Amount</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--gray-100)]">
-              {distributions.map((d, i) => (
-                <tr
-                  key={`${d.ex_date}-${i}`}
-                  className={`hover:bg-[var(--gray-100)]/60 transition-colors ${i % 2 === 1 ? "bg-[var(--gray-50)]/50" : ""}`}
-                >
-                  <td className="px-4 py-2.5 text-[var(--gray-600)]">{d.ex_date}</td>
-                  <td className="px-4 py-2.5 text-[var(--gray-600)]">{d.pay_date}</td>
-                  <td className="px-4 py-2.5 text-right font-semibold tabular-nums">{fmtMoney(d.amount)}</td>
+      <div className="space-y-3">
+        <KeyTakeaways
+          heading="Key Takeaways"
+          items={[
+            `${paidCount} distribution${paidCount === 1 ? "" : "s"} on record in this window.`,
+            ...(latest ? [`Most recent payment: ${fmtMoney(latest.amount)} per share on ${latest.pay_date}.`] : []),
+          ]}
+        />
+        <div className="not-prose border border-[var(--gray-200)] rounded-xl overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--gray-100)] bg-white">
+            <span className="text-[11px] text-[var(--gray-500)] uppercase tracking-wide font-semibold">Trend</span>
+            <Sparkline values={amounts} width={120} height={28} color="auto" />
+          </div>
+          <div className="max-h-[420px] overflow-y-auto overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 z-10 bg-[var(--gray-50)] text-[var(--gray-500)]">
+                <tr>
+                  <th className="text-left px-4 py-2.5 font-medium">Ex-Date</th>
+                  <th className="text-left px-4 py-2.5 font-medium">Pay Date</th>
+                  <th className="text-right px-4 py-2.5 font-medium">Amount</th>
+                  <th className="text-right px-4 py-2.5 font-medium">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-[var(--gray-100)]">
+                {distributions.map((d, i) => {
+                  const prior = distributions[i + 1]?.amount ?? null;
+                  const delta = d.amount != null && prior != null ? d.amount - prior : null;
+                  return (
+                    <tr
+                      key={`${d.ex_date}-${i}`}
+                      className={`hover:bg-[var(--gray-100)]/60 transition-colors ${i % 2 === 1 ? "bg-[var(--gray-50)]/50" : ""}`}
+                    >
+                      <td className="px-4 py-2.5 text-[var(--gray-600)]">{d.ex_date}</td>
+                      <td className="px-4 py-2.5 text-[var(--gray-600)]">{d.pay_date}</td>
+                      <td className="px-4 py-2.5 text-right font-semibold tabular-nums">
+                        {fmtMoney(d.amount)}
+                        {delta != null && delta !== 0 && (
+                          <span className={`ml-1.5 text-xs ${delta > 0 ? "text-emerald-700" : "text-red-700"}`}>
+                            {delta > 0 ? "▲" : "▼"}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5 text-right">
+                        <Badge variant={d.amount != null ? "green" : "neutral"}>
+                          {d.amount != null ? "Paid" : "Upcoming"}
+                        </Badge>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     ),
@@ -636,17 +667,21 @@ export function yearlyBreakdownSection(data: ArticleData): Section | null {
   }
   const years = [...byYear.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1));
   const lifetimeTotal = paid.reduce((a, d) => a + d.amount!, 0);
+  const bestYear = [...byYear.entries()].sort((a, b) => b[1].total - a[1].total)[0];
 
   return {
     id: "yearly-breakdown",
     heading: `${ticker} Dividend History by Year`,
     body: (
-      <div>
-        <p>
-          Across {paid.length} recorded payments, {ticker} has paid a combined{" "}
-          <strong>${lifetimeTotal.toFixed(2)}</strong> per share on CRADY&apos;s record.
-        </p>
-        <div className="not-prose border border-[var(--gray-200)] rounded-xl overflow-hidden mt-4">
+      <div className="space-y-3">
+        <KeyTakeaways
+          heading="Key Takeaways"
+          items={[
+            `${paid.length} recorded payments totaling $${lifetimeTotal.toFixed(2)} per share.`,
+            ...(bestYear ? [`Highest-paying year: ${bestYear[0]} ($${bestYear[1].total.toFixed(2)} across ${bestYear[1].count} payments).`] : []),
+          ]}
+        />
+        <div className="not-prose border border-[var(--gray-200)] rounded-xl overflow-hidden">
           <div className="max-h-[420px] overflow-y-auto overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10 bg-[var(--gray-50)] text-[var(--gray-500)]">
@@ -654,19 +689,33 @@ export function yearlyBreakdownSection(data: ArticleData): Section | null {
                   <th className="text-left px-4 py-2.5 font-medium">Year</th>
                   <th className="text-right px-4 py-2.5 font-medium">Payments</th>
                   <th className="text-right px-4 py-2.5 font-medium">Total Paid</th>
+                  <th className="text-right px-4 py-2.5 font-medium">YoY</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--gray-100)]">
-                {years.map(([year, bucket], i) => (
-                  <tr
-                    key={year}
-                    className={`hover:bg-[var(--gray-100)]/60 transition-colors ${i % 2 === 1 ? "bg-[var(--gray-50)]/50" : ""}`}
-                  >
-                    <td className="px-4 py-2.5 font-semibold">{year}</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums">{bucket.count}</td>
-                    <td className="px-4 py-2.5 text-right font-semibold tabular-nums">${bucket.total.toFixed(2)}</td>
-                  </tr>
-                ))}
+                {years.map(([year, bucket], i) => {
+                  const prior = years[i + 1]?.[1].total ?? null;
+                  const yoyDelta = prior != null && prior > 0 ? ((bucket.total - prior) / prior) * 100 : null;
+                  return (
+                    <tr
+                      key={year}
+                      className={`hover:bg-[var(--gray-100)]/60 transition-colors ${i % 2 === 1 ? "bg-[var(--gray-50)]/50" : ""}`}
+                    >
+                      <td className="px-4 py-2.5 font-semibold">{year}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums">{bucket.count}</td>
+                      <td className="px-4 py-2.5 text-right font-semibold tabular-nums">${bucket.total.toFixed(2)}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums">
+                        {yoyDelta != null ? (
+                          <Badge variant={yoyDelta >= 0 ? "green" : "red"}>
+                            {yoyDelta >= 0 ? "▲" : "▼"} {Math.abs(yoyDelta).toFixed(0)}%
+                          </Badge>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -732,43 +781,70 @@ export function comparisonTableSection(data: ArticleData, peers: ComparisonPeer[
 
   const heading = peers.length === 1 ? `${ticker} vs ${peers[0].ticker}: Side-by-Side` : `${ticker} vs ${peers.map((p) => p.ticker).join(" vs ")}: Side-by-Side`;
 
+  const bestYield = [...columns].filter((c) => c.yield != null).sort((a, b) => b.yield! - a.yield!)[0];
+  const bestScore = [...columns].filter((c) => c.score != null).sort((a, b) => b.score! - a.score!)[0];
+
+  const RISK_BADGE_VARIANT: Record<string, "green" | "blue" | "accent" | "red"> = {
+    SAFE: "green",
+    NORMAL: "blue",
+    RISKY: "accent",
+    EXTREME: "red",
+  };
+
   return {
     id: "comparison-table",
     heading,
     body: (
-      <div className="not-prose border border-[var(--gray-200)] rounded-xl overflow-hidden overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-[var(--gray-50)] text-[var(--gray-500)]">
-            <tr>
-              <th className="text-left px-4 py-2 font-medium">Metric</th>
-              {columns.map((c) => (
-                <th key={c.ticker} className="text-right px-4 py-2 font-medium whitespace-nowrap">{c.ticker}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[var(--gray-100)]">
-            <tr className="hover:bg-[var(--gray-100)]/60 transition-colors">
-              <td className="px-4 py-2.5 text-[var(--gray-500)]">Provider</td>
-              {columns.map((c) => <td key={c.ticker} className="px-4 py-2.5 text-right font-semibold">{providerLabel(c.provider)}</td>)}
-            </tr>
-            <tr className="bg-[var(--gray-50)]/50 hover:bg-[var(--gray-100)]/60 transition-colors">
-              <td className="px-4 py-2.5 text-[var(--gray-500)]">Est. Annualized Yield</td>
-              {columns.map((c) => <td key={c.ticker} className="px-4 py-2.5 text-right font-semibold tabular-nums text-[#92400e]">{fmtPct(c.yield)}</td>)}
-            </tr>
-            <tr className="hover:bg-[var(--gray-100)]/60 transition-colors">
-              <td className="px-4 py-2.5 text-[var(--gray-500)]">CRADY Score</td>
-              {columns.map((c) => <td key={c.ticker} className="px-4 py-2.5 text-right font-semibold tabular-nums">{c.score != null ? `${c.score.toFixed(1)}/100` : "—"}</td>)}
-            </tr>
-            <tr className="bg-[var(--gray-50)]/50 hover:bg-[var(--gray-100)]/60 transition-colors">
-              <td className="px-4 py-2.5 text-[var(--gray-500)]">Risk Level</td>
-              {columns.map((c) => <td key={c.ticker} className="px-4 py-2.5 text-right font-semibold">{c.riskLevel ? (RISK_LABEL[c.riskLevel] ?? c.riskLevel) : "—"}</td>)}
-            </tr>
-            <tr className="hover:bg-[var(--gray-100)]/60 transition-colors">
-              <td className="px-4 py-2.5 text-[var(--gray-500)]">Payout Frequency</td>
-              {columns.map((c) => <td key={c.ticker} className="px-4 py-2.5 text-right font-semibold capitalize">{c.freq ?? "—"}</td>)}
-            </tr>
-          </tbody>
-        </table>
+      <div className="space-y-3">
+        <KeyTakeaways
+          heading="Key Takeaways"
+          items={[
+            ...(bestYield ? [`Highest estimated yield: ${bestYield.ticker} at ${fmtPct(bestYield.yield)}.`] : []),
+            ...(bestScore ? [`Highest CRADY Score: ${bestScore.ticker} at ${bestScore.score!.toFixed(1)}/100.`] : []),
+          ]}
+        />
+        <div className="not-prose border border-[var(--gray-200)] rounded-xl overflow-hidden overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-[var(--gray-50)] text-[var(--gray-500)]">
+              <tr>
+                <th className="text-left px-4 py-2 font-medium">Metric</th>
+                {columns.map((c) => (
+                  <th key={c.ticker} className="text-right px-4 py-2 font-medium whitespace-nowrap">{c.ticker}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--gray-100)]">
+              <tr className="hover:bg-[var(--gray-100)]/60 transition-colors">
+                <td className="px-4 py-2.5 text-[var(--gray-500)]">Provider</td>
+                {columns.map((c) => <td key={c.ticker} className="px-4 py-2.5 text-right font-semibold">{providerLabel(c.provider)}</td>)}
+              </tr>
+              <tr className="bg-[var(--gray-50)]/50 hover:bg-[var(--gray-100)]/60 transition-colors">
+                <td className="px-4 py-2.5 text-[var(--gray-500)]">Est. Annualized Yield</td>
+                {columns.map((c) => <td key={c.ticker} className="px-4 py-2.5 text-right font-semibold tabular-nums text-[#92400e]">{fmtPct(c.yield)}</td>)}
+              </tr>
+              <tr className="hover:bg-[var(--gray-100)]/60 transition-colors">
+                <td className="px-4 py-2.5 text-[var(--gray-500)]">CRADY Score</td>
+                {columns.map((c) => <td key={c.ticker} className="px-4 py-2.5 text-right font-semibold tabular-nums">{c.score != null ? `${c.score.toFixed(1)}/100` : "—"}</td>)}
+              </tr>
+              <tr className="bg-[var(--gray-50)]/50 hover:bg-[var(--gray-100)]/60 transition-colors">
+                <td className="px-4 py-2.5 text-[var(--gray-500)]">Risk Level</td>
+                {columns.map((c) => (
+                  <td key={c.ticker} className="px-4 py-2.5 text-right">
+                    {c.riskLevel ? (
+                      <Badge variant={RISK_BADGE_VARIANT[c.riskLevel] ?? "neutral"}>{RISK_LABEL[c.riskLevel] ?? c.riskLevel}</Badge>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                ))}
+              </tr>
+              <tr className="hover:bg-[var(--gray-100)]/60 transition-colors">
+                <td className="px-4 py-2.5 text-[var(--gray-500)]">Payout Frequency</td>
+                {columns.map((c) => <td key={c.ticker} className="px-4 py-2.5 text-right font-semibold capitalize">{c.freq ?? "—"}</td>)}
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     ),
   };
@@ -870,6 +946,69 @@ export function featuredSnippetSection(data: ArticleData): Section | null {
   }
 
   return null;
+}
+
+/** SEO Authority Phase 2, Magazine hero improvement: a richer top-of-page
+ * block for the two flagship article types (next-dividend-prediction,
+ * dividend-guide) — "Why it matters" / "3 Key Insights" / "Investor
+ * Takeaway" / "TL;DR", all rule-based from data already fetched for this
+ * page. Additive to the section list, inserted right after
+ * featuredSnippetSection — that section's own id/empty-heading contract is
+ * untouched, this is a new id with its own visible heading. */
+export function articleHeroInsightsSection(data: ArticleData): Section | null {
+  const { ticker, risk, annualYieldPct, prediction, latestPaidDistribution } = data;
+  if (risk?.crady_score == null && annualYieldPct == null) return null;
+
+  const yieldTier =
+    annualYieldPct == null ? null : annualYieldPct >= 50 ? "very high" : annualYieldPct >= 20 ? "high" : "moderate";
+  const riskLabel = risk?.risk_level ? (RISK_LABEL[risk.risk_level] ?? risk.risk_level) : null;
+
+  const insights: string[] = [];
+  if (yieldTier && annualYieldPct != null) {
+    insights.push(`Estimated annualized yield of ${fmtPct(annualYieldPct)} — a ${yieldTier}-yield tier fund.`);
+  }
+  if (riskLabel && risk?.crady_score != null) {
+    insights.push(`CRADY Score of ${risk.crady_score.toFixed(1)}/100, classified as ${riskLabel.toLowerCase()} risk.`);
+  }
+  if (prediction?.confidence_score != null) {
+    insights.push(`Next-dividend prediction confidence: ${fmtPct(prediction.confidence_score * 100, 0)}.`);
+  } else {
+    insights.push("No confident next-dividend prediction available yet.");
+  }
+
+  const whyItMatters =
+    annualYieldPct != null
+      ? `${ticker}'s yield tier and risk classification together determine how much of its distribution is likely sustainable income versus volatility-driven payout.`
+      : `${ticker}'s risk classification is the main factor income-focused investors should weigh before comparing it on yield alone.`;
+
+  const investorTakeaway =
+    prediction?.predicted_amount != null
+      ? `Investors tracking ${ticker} typically watch both the next predicted payment and the fund's risk trend together, not yield in isolation.`
+      : `Investors considering ${ticker} typically wait for a confirmed payment history before relying on any yield projection.`;
+
+  const tldr =
+    latestPaidDistribution?.amount != null
+      ? `${ticker} last paid $${latestPaidDistribution.amount.toFixed(4)} per share; CRADY Score ${
+          risk?.crady_score != null ? risk.crady_score.toFixed(1) : "—"
+        }/100.`
+      : `${ticker} CRADY Score: ${risk?.crady_score != null ? risk.crady_score.toFixed(1) : "—"}/100.`;
+
+  return {
+    id: "article-hero-insights",
+    heading: "Why It Matters",
+    body: (
+      <div className="space-y-4">
+        <p>{whyItMatters}</p>
+        <KeyTakeaways heading="3 Key Insights" items={insights} />
+        <p className="text-sm text-[var(--gray-600)]">
+          <strong className="text-[var(--gray-800)]">Investor Takeaway:</strong> {investorTakeaway}
+        </p>
+        <p className="text-xs text-[var(--gray-500)] border-t border-[var(--gray-200)] pt-3">
+          <strong>TL;DR:</strong> {tldr}
+        </p>
+      </div>
+    ),
+  };
 }
 
 /** A compact "Quick Facts" strip — Web UX/SEO Phase 2, Part 2: every
@@ -1352,23 +1491,3 @@ export function faqSectionKo(items: FaqItem[]): Section | null {
   };
 }
 
-export function relatedLinksSection(data: ArticleData, links: { href: string; label: string }[]): Section | null {
-  if (links.length === 0) return null;
-  return {
-    id: "related-links",
-    heading: "Related Reading",
-    body: (
-      <div className="not-prose flex flex-wrap gap-2">
-        {links.map((l) => (
-          <Link
-            key={l.href}
-            href={l.href}
-            className="px-3 py-1.5 border border-[var(--gray-200)] rounded-full text-sm hover:border-black transition-colors"
-          >
-            {l.label}
-          </Link>
-        ))}
-      </div>
-    ),
-  };
-}

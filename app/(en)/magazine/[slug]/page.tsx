@@ -1,13 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { getAllTickers, providerLabel } from "@/lib/data";
+import { getAllTickers, getHomeSnapshot, providerLabel } from "@/lib/data";
 import { getArticleData, getComparisonPeersData } from "@/lib/magazine/data";
 import { buildArticleMeta, buildSections } from "@/lib/magazine/recipes";
 import { buildFaqItems, buildFaqItemsKo } from "@/lib/magazine/faq";
 import { buildInternalLinks } from "@/lib/magazine/links";
-import { buildArticleJsonLd, buildFaqJsonLd, buildWebPageJsonLd, buildDatasetJsonLd } from "@/lib/magazine/jsonld";
-import { relatedLinksSection } from "@/lib/magazine/sections";
+import {
+  buildArticleJsonLd,
+  buildFaqJsonLd,
+  buildWebPageJsonLd,
+  buildDatasetJsonLd,
+  buildItemListJsonLd,
+} from "@/lib/magazine/jsonld";
 import { hasRiskContent, hasFutureSchedule, hasDistributionOrStrategyContent } from "@/lib/magazine/quality";
 import { pickComparisonPeerTicker, pickComparisonPeerTickers } from "@/lib/magazine/comparison";
 import { resolveSlug } from "@/lib/magazine/slugs";
@@ -21,6 +26,8 @@ import { EtfAppCta } from "@/components/EtfAppCta";
 import { ViewEtfHubCta } from "@/components/magazine/ViewEtfHubCta";
 import { PageAppCta } from "@/components/PageAppCta";
 import { HubArticleList } from "@/components/magazine/HubArticleList";
+import { RelatedContent } from "@/components/RelatedContent";
+import { PageTrustFooter } from "@/components/seo/PageTrustFooter";
 
 export const revalidate = 3600;
 
@@ -173,7 +180,6 @@ export default async function MagazinePage({
   const links = buildInternalLinks(data, type, {
     comparisonPeerTicker: comparisonPeers[0]?.ticker ?? null,
   });
-  const relatedSection = relatedLinksSection(data, links);
   const url = `https://crady.net/magazine/${slug}`;
   const lastUpdated = data.risk?.calculated_at ?? new Date().toISOString();
 
@@ -268,16 +274,20 @@ export default async function MagazinePage({
           </section>
         ))}
 
-        {relatedSection && (
-          <section>
-            <h2 className="text-lg sm:text-xl font-bold mb-3">{relatedSection.heading}</h2>
-            {relatedSection.body}
-          </section>
-        )}
       </div>
+
+      <RelatedContent
+        lang="en"
+        articles={links.articles}
+        etfs={links.etfs}
+        rankings={links.rankings}
+        guides={links.guides}
+        nextReading={links.nextReading}
+      />
 
       <ViewEtfHubCta ticker={ticker} />
       <EtfAppCta ticker={ticker} />
+      <PageTrustFooter lang="en" />
     </div>
   );
 }
@@ -285,6 +295,21 @@ export default async function MagazinePage({
 async function HubPage({ slug }: { slug: keyof typeof HUB_DEFINITIONS }) {
   const def = HUB_DEFINITIONS[slug];
   const url = `https://crady.net/magazine/${slug}`;
+
+  // SEO Authority Phase 2, Rich Snippet maximization: hub pages are ranked
+  // ETF lists — previously emitted only BreadcrumbList. Reuses the exact
+  // WebPage+ItemList combo already proven on /ranking and /distributions,
+  // rather than inventing a new schema shape for the same kind of content.
+  const snapshot = await getHomeSnapshot();
+  const items = snapshot.filter(def.filter).sort(def.sort).slice(0, 20);
+  const webPageJsonLd = buildWebPageJsonLd({ name: def.h1, description: def.description, url });
+  const itemListJsonLd = buildItemListJsonLd({
+    name: def.h1,
+    items: items.map((etf) => ({
+      name: etf.ticker,
+      url: `https://crady.net/magazine/${etf.ticker.toLowerCase()}-next-dividend-prediction`,
+    })),
+  });
 
   return (
     <div className="mx-auto max-w-4xl px-4 sm:px-6 py-10">
@@ -295,6 +320,10 @@ async function HubPage({ slug }: { slug: keyof typeof HUB_DEFINITIONS }) {
           { name: def.h1, url },
         ]}
       />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }} />
+      {itemListJsonLd && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }} />
+      )}
       <nav className="text-xs text-[var(--gray-600)] mb-4">
         <Link href="/magazine" className="hover:text-black">
           Magazine
@@ -308,6 +337,7 @@ async function HubPage({ slug }: { slug: keyof typeof HUB_DEFINITIONS }) {
         <HubArticleList hubSlug={slug} />
       </div>
       <PageAppCta lang="en" />
+      <PageTrustFooter lang="en" />
     </div>
   );
 }
@@ -316,6 +346,15 @@ async function CalendarHubPage({ slug }: { slug: CalendarHubId }) {
   const def = CALENDAR_HUB_DEFINITIONS[slug];
   const url = `https://crady.net/magazine/${slug}`;
   const events = await def.fetcher();
+
+  const webPageJsonLd = buildWebPageJsonLd({ name: def.h1, description: def.description, url });
+  const itemListJsonLd = buildItemListJsonLd({
+    name: def.h1,
+    items: events.slice(0, 20).map((e) => ({
+      name: `${e.ticker} — ${e.pay_date}`,
+      url: `https://crady.net/magazine/${e.ticker.toLowerCase()}-next-dividend-prediction`,
+    })),
+  });
 
   return (
     <div className="mx-auto max-w-3xl px-4 sm:px-6 py-10">
@@ -326,6 +365,10 @@ async function CalendarHubPage({ slug }: { slug: CalendarHubId }) {
           { name: def.h1, url },
         ]}
       />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }} />
+      {itemListJsonLd && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }} />
+      )}
       <nav className="text-xs text-[var(--gray-600)] mb-4">
         <Link href="/magazine" className="hover:text-black">
           Magazine
@@ -380,6 +423,7 @@ async function CalendarHubPage({ slug }: { slug: CalendarHubId }) {
         )}
       </div>
       <PageAppCta lang="en" />
+      <PageTrustFooter lang="en" />
     </div>
   );
 }
@@ -388,6 +432,26 @@ async function StandalonePage({ slug }: { slug: StandalonePageId }) {
   const def = STANDALONE_PAGES[slug];
   const url = `https://crady.net/magazine/${slug}`;
   const faqJsonLd = buildFaqJsonLd(def.faqItems);
+  // SEO Authority Phase 2: standalone pages are genuinely authored
+  // educational articles — previously emitted only BreadcrumbList+FAQPage.
+  // Reuses the existing Article/WebPage builders verbatim (same as every
+  // per-ticker magazine article), not a new schema shape. Evergreen
+  // content has no real per-page publish date, so a fixed date this phase
+  // shipped is used for both — truthful (this is when the page was
+  // authored) rather than a fabricated "recently updated" claim.
+  const PILLAR_PAGE_DATE = "2026-08-03T00:00:00.000Z";
+  const articleJsonLd = buildArticleJsonLd({
+    headline: def.h1,
+    description: def.description,
+    url,
+    datePublished: PILLAR_PAGE_DATE,
+    dateModified: PILLAR_PAGE_DATE,
+  });
+  const webPageJsonLd = buildWebPageJsonLd({ name: def.h1, description: def.description, url });
+
+  const relatedEtfs = def.relatedEtfsQuery
+    ? (await getHomeSnapshot()).filter(def.relatedEtfsQuery.filter).sort(def.relatedEtfsQuery.sort).slice(0, def.relatedEtfsQuery.limit ?? 6)
+    : [];
 
   return (
     <div className="mx-auto max-w-2xl px-4 sm:px-6 py-10">
@@ -398,6 +462,8 @@ async function StandalonePage({ slug }: { slug: StandalonePageId }) {
           { name: def.h1, url },
         ]}
       />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }} />
       {faqJsonLd && (
         <script
           type="application/ld+json"
@@ -426,8 +492,29 @@ async function StandalonePage({ slug }: { slug: StandalonePageId }) {
             ))}
           </div>
         </section>
+
+        {relatedEtfs.length > 0 && def.relatedEtfsQuery && (
+          <section>
+            <h2 className="text-lg sm:text-xl font-bold mb-3">{def.relatedEtfsQuery.heading}</h2>
+            <div className="not-prose flex flex-wrap gap-2">
+              {relatedEtfs.map((etf) => (
+                <Link
+                  key={etf.ticker}
+                  href={`/magazine/${etf.ticker.toLowerCase()}-next-dividend-prediction`}
+                  className="px-3 py-1.5 border border-[var(--gray-200)] rounded-full text-sm hover:border-black transition-colors"
+                >
+                  {etf.ticker}
+                  {etf.annualYieldPct != null && (
+                    <span className="ml-1.5 text-[var(--gray-500)]">{etf.annualYieldPct.toFixed(1)}%</span>
+                  )}
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
       <PageAppCta lang="en" />
+      <PageTrustFooter lang="en" />
     </div>
   );
 }

@@ -93,6 +93,28 @@ export function buildDatasetJsonLd(opts: { name: string; description: string; ur
   };
 }
 
+/** ItemList for a ranked/listed page (Magazine hub and calendar-hub pages)
+ * — the exact same shape already proven on /ranking and /distributions
+ * (app/(en)/ranking/page.tsx), reused here rather than a new schema shape,
+ * per the SEO Authority Phase 2 audit finding that hub pages emitted no
+ * schema beyond BreadcrumbList. Returns null on an empty list rather than
+ * an empty/meaningless ItemList. */
+export function buildItemListJsonLd(opts: { name: string; items: { name: string; url: string }[] }) {
+  if (opts.items.length === 0) return null;
+  return {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: opts.name,
+    inLanguage: "en",
+    itemListElement: opts.items.map((item, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: item.name,
+      url: item.url,
+    })),
+  };
+}
+
 export function buildFaqJsonLd(items: FaqItem[]) {
   if (items.length === 0) return null;
   return {

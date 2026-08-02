@@ -2,7 +2,7 @@ import { KpiGrid, type KpiItem } from "@/components/ui/KpiCard";
 import { Badge, type BadgeVariant } from "@/components/ui/Badge";
 import { LazyMount } from "./LazyMount";
 import { VoteWidget } from "./InteractiveIslands/VoteWidget";
-import type { ActivityStreamEntry, ActivitySource, VoteSummary } from "@/lib/activity/types";
+import type { ActivityItem, ActivityStreamEntry, ActivitySource, VoteSummary } from "@/lib/activity/types";
 import type { ActivityConfidence } from "@/lib/activity/aiOutlook";
 
 const T = {
@@ -14,6 +14,11 @@ const T = {
   none: { en: "None scheduled", ko: "예정 없음" },
   activityConfidence: { en: "Activity Confidence", ko: "활동 신뢰도" },
   streamEmpty: { en: "No activity yet today — check back soon.", ko: "오늘은 아직 활동이 없습니다 — 곧 업데이트됩니다." },
+  trendingTopics: { en: "Trending Topics", ko: "인기 토픽" },
+  trendingEmpty: { en: "No trending topics yet.", ko: "아직 인기 토픽이 없습니다." },
+  latestDiscussions: { en: "Latest Discussions", ko: "최신 토론" },
+  latestEmpty: { en: "No discussions yet — be the first to ask a question.", ko: "아직 토론이 없습니다 — 첫 질문을 남겨보세요." },
+  replies: { en: "replies", ko: "개 답글" },
 } as const;
 
 const SOURCE_LABEL: Record<ActivitySource, { en: string; ko: string; variant: BadgeVariant }> = {
@@ -58,6 +63,8 @@ export function EtfActivityStream({
   nextCatalystDate,
   confidence,
   streamEntries,
+  trendingTopics = [],
+  latestDiscussions = [],
 }: {
   ticker: string;
   lang?: "en" | "ko";
@@ -67,6 +74,13 @@ export function EtfActivityStream({
   nextCatalystDate: string | null;
   confidence: ActivityConfidence;
   streamEntries: ActivityStreamEntry[];
+  /** SEO Authority Phase 2, "Community-ready" — real query results
+   * (lib/activity/data.ts's getTrendingTopics), never a placeholder; an
+   * empty array renders the honest "No trending topics yet" state. */
+  trendingTopics?: { id: string; title: string; replyCount: number }[];
+  /** The same getTopLevelItems(ticker, 3) result InvestorDiscussion uses
+   * for its full board, just previewed here — not a second query. */
+  latestDiscussions?: ActivityItem[];
 }) {
   const statItems: KpiItem[] = [
     {
@@ -127,6 +141,46 @@ export function EtfActivityStream({
             </div>
           ))
         )}
+      </div>
+
+      <div className="mt-4 grid sm:grid-cols-2 gap-3">
+        <div className="border border-[var(--gray-200)] rounded-xl p-4">
+          <div className="text-xs font-semibold text-[var(--gray-500)] uppercase tracking-wide mb-2">
+            {T.trendingTopics[lang]}
+          </div>
+          {trendingTopics.length === 0 ? (
+            <p className="text-sm text-[var(--gray-400)]">{T.trendingEmpty[lang]}</p>
+          ) : (
+            <ul className="space-y-1.5">
+              {trendingTopics.map((topic) => (
+                <li key={topic.id} className="text-sm">
+                  <a href={`#activity-item-${topic.id}`} className="text-[var(--gray-700)] hover:text-black hover:underline">
+                    {topic.title}
+                  </a>
+                  <span className="text-[var(--gray-400)]"> · {topic.replyCount} {T.replies[lang]}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className="border border-[var(--gray-200)] rounded-xl p-4">
+          <div className="text-xs font-semibold text-[var(--gray-500)] uppercase tracking-wide mb-2">
+            {T.latestDiscussions[lang]}
+          </div>
+          {latestDiscussions.length === 0 ? (
+            <p className="text-sm text-[var(--gray-400)]">{T.latestEmpty[lang]}</p>
+          ) : (
+            <ul className="space-y-1.5">
+              {latestDiscussions.map((item) => (
+                <li key={item.id} className="text-sm">
+                  <a href={`#activity-item-${item.id}`} className="text-[var(--gray-700)] hover:text-black hover:underline truncate block">
+                    {item.title ?? item.body.slice(0, 60)}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
     </section>
   );

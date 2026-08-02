@@ -85,6 +85,7 @@ export function EtfHero({
   changeFromLastPct,
   recentPayments = [],
   trend12mo = null,
+  directAnswer,
   lang = "en",
 }: {
   ticker: string;
@@ -112,6 +113,11 @@ export function EtfHero({
    * reused as-is rather than recomputed, so the Hero's trend figure can
    * never drift from the Magazine system's own trend numbers. */
   trend12mo?: TrendWindow | null;
+  /** One short, self-contained "direct answer" sentence (SEO Authority
+   * Phase 2, lib/ticker/directAnswer.ts) — deliberately the single most
+   * prominent position on the page, above the yield headline, distinct
+   * from the longer ProfileSnippet paragraph rendered below the Hero. */
+  directAnswer?: string;
   lang?: "en" | "ko";
 }) {
   const glow = PROVIDER_GLOW[providerId] ?? "none";
@@ -158,6 +164,12 @@ export function EtfHero({
               </span>
             )}
           </div>
+
+          {directAnswer && (
+            <p className="mt-3 text-sm sm:text-[15px] text-[var(--gray-700)] leading-relaxed max-w-2xl">
+              {directAnswer}
+            </p>
+          )}
 
           {/* Headline number — same visual weight as the homepage Hero */}
           <div className="mt-6 sm:mt-8">
