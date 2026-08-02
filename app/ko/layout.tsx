@@ -127,6 +127,11 @@ export default async function KoreanRootLayout({
                       </Link>
                     </li>
                     <li>
+                      <Link href="/data-terms" className="text-[var(--gray-600)] hover:text-black">
+                        데이터 이용 약관
+                      </Link>
+                    </li>
+                    <li>
                       <Link href="/account-deletion" className="text-[var(--gray-600)] hover:text-black">
                         계정 삭제
                       </Link>

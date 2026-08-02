@@ -181,6 +181,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8,
     },
     {
+      // English-only, like /magazine above — no Korean tree exists for it.
+      url: "https://crady.net/data-terms",
+      changeFrequency: "monthly",
+      priority: 0.3,
+    },
+    {
       url: "https://crady.net/about",
       lastModified: mostRecentCalculatedAt ?? undefined,
       changeFrequency: "monthly",

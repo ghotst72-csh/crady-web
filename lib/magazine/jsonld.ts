@@ -71,7 +71,14 @@ export function buildWebPageJsonLd(opts: {
 
 /** Marks the page's historical distribution table as a Dataset — a real,
  * Google Dataset Search-eligible type, only emitted when the page actually
- * renders that table (see the datasetJsonLd guard in [slug]/page.tsx). */
+ * renders that table (see the datasetJsonLd guard in [slug]/page.tsx).
+ *
+ * `license` points at /data-terms rather than a Creative Commons license:
+ * the underlying dates/amounts are collected from each ETF issuer's public
+ * disclosures (see /about#methodology) — CRADY doesn't own that data and
+ * can't grant blanket redistribution rights over it, so the license field
+ * links to CRADY's own truthful usage terms for the compiled table instead
+ * (GSC "missing field license" fix, non-critical Dataset issue). */
 export function buildDatasetJsonLd(opts: { name: string; description: string; url: string }) {
   return {
     "@context": "https://schema.org",
@@ -80,7 +87,9 @@ export function buildDatasetJsonLd(opts: { name: string; description: string; ur
     description: opts.description,
     url: opts.url,
     inLanguage: "en",
-    creator: { "@type": "Organization", name: "CRADY" },
+    creator: { "@type": "Organization", name: "CRADY", url: "https://crady.net" },
+    license: "https://crady.net/data-terms",
+    isAccessibleForFree: true,
   };
 }
 

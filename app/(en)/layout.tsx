@@ -130,6 +130,11 @@ export default async function EnglishRootLayout({
                       </Link>
                     </li>
                     <li>
+                      <Link href="/data-terms" className="text-[var(--gray-600)] hover:text-black">
+                        Data &amp; Usage Terms
+                      </Link>
+                    </li>
+                    <li>
                       <Link href="/account-deletion" className="text-[var(--gray-600)] hover:text-black">
                         Account Deletion
                       </Link>
