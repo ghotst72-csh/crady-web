@@ -39,7 +39,12 @@ import {
 } from "@/lib/ticker/enrichment";
 import { ProfileSnippet, ProfileFaq } from "@/components/ticker/ProfileSeoBlock";
 import { buildFaqJsonLd, buildWebPageJsonLd } from "@/lib/magazine/jsonld";
-import { ActivitySection, InvestorDiscussionSection, ActivityWeeklyRecap } from "@/components/activity/ActivitySection";
+import {
+  ActivitySection,
+  InvestorDiscussionSection,
+  TodaysActivitySummarySection,
+  ActivityWeeklyRecap,
+} from "@/components/activity/ActivitySection";
 import { getRelevantGuidesForEtf, GUIDE_LABELS } from "@/lib/magazine/topicalLinks";
 import { RelatedContent } from "@/components/RelatedContent";
 import { PageTrustFooter } from "@/components/seo/PageTrustFooter";
@@ -375,6 +380,9 @@ export default async function TickerPage({
       />
 
       <div className="mx-auto max-w-4xl px-4 sm:px-6">
+        <Suspense fallback={null}>
+          <TodaysActivitySummarySection ticker={ticker} lang="en" priceHistory={history} />
+        </Suspense>
         <ProfileSnippet text={profileSnippetText} />
       </div>
 
@@ -422,7 +430,15 @@ export default async function TickerPage({
         </Suspense>
         <div id="investor-discussion" className="scroll-mt-4" />
         <Suspense fallback={null}>
-          <InvestorDiscussionSection ticker={ticker} lang="en" />
+          <InvestorDiscussionSection
+            ticker={ticker}
+            lang="en"
+            annualYieldPct={annualYieldPct}
+            riskLevel={risk?.risk_level ?? null}
+            dividendTrendPct={trend12mo?.avgChangePct ?? null}
+            payoutFrequency={etf.payout_frequency}
+            nextPredictedExDate={prediction?.target_ex_date ?? null}
+          />
         </Suspense>
       </div>
 
@@ -724,6 +740,8 @@ export default async function TickerPage({
             lang="en"
             priceHistory={history}
             recentDistributions={distributions.map((d) => ({ pay_date: d.pay_date, amount: d.amount }))}
+            nextPredictedExDate={prediction?.target_ex_date ?? null}
+            nextPredictedPayDate={prediction?.target_pay_date ?? null}
           />
         </Suspense>
 

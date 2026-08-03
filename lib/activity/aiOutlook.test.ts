@@ -99,35 +99,51 @@ describe("buildActivityConfidence", () => {
 });
 
 describe("buildWeeklyRecap", () => {
-  it("reports no activity honestly when there is none", () => {
-    const recap = buildWeeklyRecap(
-      {
-        ticker: "TSLY",
-        priceDeltaPct7d: null,
-        distributionsPaid7d: 0,
-        totalPaidAmount7d: null,
-        newQuestions7d: 0,
-        newComments7d: 0,
-      },
-      "en"
-    );
-    expect(recap).toMatch(/no new investor discussion/i);
+  const EMPTY_WEEK = {
+    ticker: "TSLY",
+    priceDeltaPct7d: null,
+    distributionsPaid7d: 0,
+    totalPaidAmount7d: null,
+    newQuestions7d: 0,
+    newComments7d: 0,
+    forecastChangeHeadlines: [],
+    upcomingDate: null,
+  };
+
+  it("reports each section's no-activity state honestly when there is none, never fabricating filler", () => {
+    const recap = buildWeeklyRecap(EMPTY_WEEK, "en");
+    expect(recap.investorActivity).toMatch(/no new investor discussion/i);
+    expect(recap.distributionActivity).toMatch(/no distributions were paid/i);
+    expect(recap.forecastChange).toBe("No major distribution or forecast changes were recorded this week.");
+    expect(recap.priceMovement).toBeNull();
+    expect(recap.whatToWatch).toBeNull();
   });
 
-  it("summarizes real weekly numbers", () => {
+  it("summarizes real weekly numbers per section", () => {
     const recap = buildWeeklyRecap(
       {
-        ticker: "TSLY",
+        ...EMPTY_WEEK,
         priceDeltaPct7d: -1.8,
         distributionsPaid7d: 1,
         totalPaidAmount7d: 0.5,
         newQuestions7d: 2,
         newComments7d: 5,
+        forecastChangeHeadlines: ["CRADY's next-dividend prediction for TSLY changed from $0.42 to $0.45 per share."],
+        upcomingDate: { label: "next ex-dividend date", date: "2026-08-15" },
       },
       "en"
     );
-    expect(recap).toContain("-1.8%");
-    expect(recap).toContain("$0.5000");
-    expect(recap).toContain("2 new question");
+    expect(recap.oneSentence).toContain("-1.8%");
+    expect(recap.priceMovement).toContain("-1.8%");
+    expect(recap.distributionActivity).toContain("$0.5000");
+    expect(recap.investorActivity).toContain("2 new question");
+    expect(recap.forecastChange).toContain("$0.45");
+    expect(recap.whatToWatch).toContain("2026-08-15");
+  });
+
+  it("renders Korean copy", () => {
+    const recap = buildWeeklyRecap(EMPTY_WEEK, "ko");
+    expect(recap.investorActivity).toBe("이번 주 새로운 투자자 논의는 없었습니다.");
+    expect(recap.distributionActivity).toBe("이번 주 지급된 배당은 없었습니다.");
   });
 });

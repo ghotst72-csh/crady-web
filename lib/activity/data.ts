@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import type { ActivityAuthor, ActivityCounts, ActivityItem, OfficialEvent, VoteSummary } from "./types";
+import type { ActivityAuthor, ActivityCounts, ActivityItem, AutomatedActivityItem, OfficialEvent, VoteSummary } from "./types";
 
 const FALLBACK_AUTHOR: ActivityAuthor = { displayName: "Investor", expertiseBadge: null };
 
@@ -258,4 +258,200 @@ export async function getWeeklyActivityCounts(
   ]);
 
   return { newQuestions7d: newQuestions7d ?? 0, newReplies7d: newReplies7d ?? 0 };
+}
+
+// ── CRADY Activity Engine — Phase 2 ──────────────────────────────────────────
+
+type AutomatedItemRow = {
+  id: string;
+  ticker: string;
+  source: string;
+  type: string;
+  title: string | null;
+  body: string;
+  occurred_at: string | null;
+  source_url: string | null;
+  supporting_metrics: Record<string, unknown> | null;
+  language: string;
+};
+
+function toAutomatedItem(r: AutomatedItemRow): AutomatedActivityItem {
+  return {
+    id: r.id,
+    ticker: r.ticker,
+    source: r.source as AutomatedActivityItem["source"],
+    type: r.type,
+    title: r.title ?? r.body.slice(0, 80),
+    body: r.body,
+    occurredAt: r.occurred_at ?? "", // always set by the generator in practice
+    sourceUrl: r.source_url,
+    supportingMetrics: r.supporting_metrics,
+    language: (r.language as "en" | "ko") ?? "en",
+  };
+}
+
+/** Official/Market/CRADY Analysis rows written by generate_activity_items.py
+ * — real, deduplicated, already rendered in the requested language (the
+ * generator writes one EN row and one KO row per event, never translates on
+ * read). Returns [] (not an error) if the Phase 2 migration hasn't been
+ * applied yet or the pipeline hasn't run since — same honest-empty
+ * discipline as every other function in this file. */
+export async function getAutomatedActivityItems(
+  ticker: string,
+  lang: "en" | "ko" = "en",
+  limit = 10
+): Promise<AutomatedActivityItem[]> {
+  const { data, error } = await supabase
+    .from("activity_items")
+    .select("id, ticker, source, type, title, body, occurred_at, source_url, supporting_metrics, language")
+    .eq("ticker", ticker)
+    .eq("status", "visible")
+    .eq("language", lang)
+    .in("source", ["official", "market", "crady", "ai"])
+    .order("occurred_at", { ascending: false })
+    .limit(limit);
+  if (error) return []; // schema not migrated yet on this deploy, or a transient error — never break the page for this
+  return ((data ?? []) as AutomatedItemRow[]).map(toAutomatedItem);
+}
+
+/** Real, zero-fabrication inputs for the "Today's Activity" summary card —
+ * every field is independently honest-nullable; the card omits whatever
+ * isn't real rather than inventing a placeholder. "Today" highlights
+ * (distribution/CRADY outlook) are gated to events that actually occurred
+ * within the last 24h — showing yesterday's distribution under a "today"
+ * label would be the kind of fabricated-freshness this whole engine exists
+ * to avoid. */
+export type TodaysActivitySummaryInput = {
+  newActivityCount: number;
+  distributionToday: { amount: number; exDate: string } | null;
+  cradyHeadlineToday: string | null;
+};
+
+export async function getTodaysActivitySummaryInputs(
+  ticker: string,
+  lang: "en" | "ko" = "en"
+): Promise<TodaysActivitySummaryInput> {
+  const todayStart = new Date();
+  todayStart.setUTCHours(0, 0, 0, 0);
+  const todayIso = todayStart.toISOString();
+  const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+  const [countResp, automatedItems] = await Promise.all([
+    supabase
+      .from("activity_items")
+      .select("id", { count: "exact", head: true })
+      .eq("ticker", ticker)
+      .eq("status", "visible")
+      .or(`occurred_at.gte.${todayIso},created_at.gte.${todayIso}`),
+    getAutomatedActivityItems(ticker, lang, 5),
+  ]);
+
+  const isRecent = (i: AutomatedActivityItem) => new Date(i.occurredAt) >= since24h;
+  const distributionItem = automatedItems.find((i) => i.type === "distribution_event" && isRecent(i)) ?? null;
+  const cradyItem =
+    automatedItems.find((i) => (i.source === "crady" || i.source === "ai") && isRecent(i)) ?? null;
+
+  const metrics = distributionItem?.supportingMetrics as { amount?: number } | null;
+
+  return {
+    newActivityCount: countResp.count ?? 0,
+    distributionToday:
+      distributionItem && metrics?.amount != null
+        ? { amount: metrics.amount, exDate: distributionItem.occurredAt.slice(0, 10) }
+        : null,
+    cradyHeadlineToday: cradyItem?.title ?? null,
+  };
+}
+
+/** Sitewide Activity entry points for Home/Ranking (product requirement:
+ * small, real, 3-5 items each, always linking back to the ETF's own page —
+ * never a full community feed on these pages). Each list is independently
+ * honest-empty; a site with no real activity yet returns [] for all four,
+ * and the caller renders nothing rather than a placeholder. */
+export type SitewideActivityHighlights = {
+  mostActiveToday: { ticker: string; count: number }[];
+  latestDistributions: { ticker: string; title: string; occurredAt: string }[];
+  mostDiscussed: { ticker: string; title: string; replyCount: number }[];
+  newOutlooks: { ticker: string; title: string; occurredAt: string }[];
+};
+
+export async function getSitewideActivityHighlights(
+  lang: "en" | "ko" = "en",
+  limit = 5
+): Promise<SitewideActivityHighlights> {
+  const todayStart = new Date();
+  todayStart.setUTCHours(0, 0, 0, 0);
+  const todayIso = todayStart.toISOString();
+
+  const [todayItemsResp, distResp, discussedResp, outlookResp] = await Promise.all([
+    supabase
+      .from("activity_items")
+      .select("ticker")
+      .eq("status", "visible")
+      .or(`occurred_at.gte.${todayIso},created_at.gte.${todayIso}`)
+      .limit(300),
+    supabase
+      .from("activity_items")
+      .select("ticker, title, occurred_at")
+      .eq("status", "visible")
+      .eq("language", lang)
+      .eq("source", "official")
+      .eq("type", "distribution_event")
+      .order("occurred_at", { ascending: false })
+      .limit(limit * 3),
+    supabase
+      .from("activity_items")
+      .select("ticker, title, body, reply_count")
+      .eq("status", "visible")
+      .eq("source", "investor")
+      .is("parent_id", null)
+      .gt("reply_count", 0)
+      .order("reply_count", { ascending: false })
+      .limit(limit * 3),
+    supabase
+      .from("activity_items")
+      .select("ticker, title, occurred_at")
+      .eq("status", "visible")
+      .eq("language", lang)
+      .in("source", ["crady", "ai"])
+      .order("occurred_at", { ascending: false })
+      .limit(limit * 3),
+  ]);
+
+  const countByTicker = new Map<string, number>();
+  for (const row of todayItemsResp.data ?? []) {
+    countByTicker.set(row.ticker, (countByTicker.get(row.ticker) ?? 0) + 1);
+  }
+  const mostActiveToday = [...countByTicker.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([ticker, count]) => ({ ticker, count }));
+
+  function dedupeByTicker<T extends { ticker: string }>(rows: T[]): T[] {
+    const seen = new Set<string>();
+    const out: T[] = [];
+    for (const r of rows) {
+      if (seen.has(r.ticker)) continue;
+      seen.add(r.ticker);
+      out.push(r);
+      if (out.length >= limit) break;
+    }
+    return out;
+  }
+
+  const latestDistributions = dedupeByTicker(
+    (distResp.data ?? []).map((r) => ({ ticker: r.ticker, title: r.title ?? "", occurredAt: r.occurred_at ?? "" }))
+  );
+  const mostDiscussed = dedupeByTicker(
+    (discussedResp.data ?? []).map((r) => ({
+      ticker: r.ticker,
+      title: r.title ?? r.body.slice(0, 60),
+      replyCount: r.reply_count,
+    }))
+  );
+  const newOutlooks = dedupeByTicker(
+    (outlookResp.data ?? []).map((r) => ({ ticker: r.ticker, title: r.title ?? "", occurredAt: r.occurred_at ?? "" }))
+  );
+
+  return { mostActiveToday, latestDistributions, mostDiscussed, newOutlooks };
 }

@@ -18,6 +18,8 @@ import { OfficialAnnouncementsPreview } from "@/components/home/OfficialAnnounce
 import { RankingPreview } from "@/components/RankingPreview";
 import { MagazineTeaser } from "@/components/home/MagazineTeaser";
 import { AppPromoSection } from "@/components/AppPromoSection";
+import { Suspense } from "react";
+import { SitewideActivitySection } from "@/components/activity/SitewideActivitySection";
 
 export const revalidate = 3600;
 
@@ -140,6 +142,12 @@ export default async function KoreanHomePage() {
         lang="ko"
         basePath="/ko"
       />
+
+      <section className="mx-auto max-w-6xl px-4 sm:px-6 py-8 border-t border-[var(--gray-200)]">
+        <Suspense fallback={null}>
+          <SitewideActivitySection lang="ko" />
+        </Suspense>
+      </section>
 
       <MagazineTeaser snapshot={snapshot} lang="ko" />
 

@@ -1,14 +1,25 @@
 import { KpiGrid, type KpiItem } from "@/components/ui/KpiCard";
-import { Badge, type BadgeVariant } from "@/components/ui/Badge";
+import { Badge } from "@/components/ui/Badge";
 import { LazyMount } from "./LazyMount";
 import { VoteWidget } from "./InteractiveIslands/VoteWidget";
-import type { ActivityItem, ActivityStreamEntry, ActivitySource, VoteSummary } from "@/lib/activity/types";
+import type { ActivityItem, ActivityStreamEntry, VoteSummary } from "@/lib/activity/types";
 import type { ActivityConfidence } from "@/lib/activity/aiOutlook";
+import { activityBadgeLabel, activityBadgeVariant } from "@/lib/activity/badges";
+import type { FeaturedTopic } from "@/lib/activity/fallback";
+import { ActivityStreamDetailRow } from "./ActivityStreamDetailRow";
+
+// Below this many real votes, a percentage split would overstate confidence
+// (e.g. a single voter reading as "100% Bullish") — show the honest
+// not-enough-responses state instead. Matches the threshold already used
+// for ActivityConfidence's "building" tier (lib/activity/aiOutlook.ts).
+const MIN_SENTIMENT_SAMPLE = 5;
 
 const T = {
   heading: { en: "Today's Activity", ko: "오늘의 활동" },
   sentiment: { en: "Sentiment", ko: "투자 심리" },
   notEnoughData: { en: "Not enough data yet", ko: "아직 데이터가 부족합니다" },
+  notEnoughResponses: { en: "Not enough responses yet", ko: "아직 응답이 충분하지 않습니다" },
+  votes: { en: "votes", ko: "표" },
   mostDiscussed: { en: "Most Discussed", ko: "가장 많이 논의된 주제" },
   nextCatalyst: { en: "Next Catalyst", ko: "다음 이벤트" },
   none: { en: "None scheduled", ko: "예정 없음" },
@@ -21,22 +32,14 @@ const T = {
   replies: { en: "replies", ko: "개 답글" },
 } as const;
 
-const SOURCE_LABEL: Record<ActivitySource, { en: string; ko: string; variant: BadgeVariant }> = {
-  official: { en: "Official", ko: "공식", variant: "blue" },
-  ai: { en: "AI", ko: "AI", variant: "violet" },
-  crady: { en: "CRADY", ko: "CRADY", variant: "accent" },
-  investor: { en: "Investor", ko: "투자자", variant: "neutral" },
-  // Reserved, unused in Phase 1 (no code path emits a moderator-sourced
-  // entry yet) — included so the Record stays exhaustive against
-  // ActivitySource without a future addition breaking this switch silently.
-  moderator: { en: "Moderator", ko: "운영자", variant: "red" },
-};
-
 function formatSentiment(votes: VoteSummary, lang: "en" | "ko"): string {
   if (votes.total === 0) return T.notEnoughData[lang];
+  if (votes.total < MIN_SENTIMENT_SAMPLE) return `${T.notEnoughResponses[lang]} (${votes.total})`;
   const bullPct = Math.round((votes.bull / votes.total) * 100);
   const bearPct = Math.round((votes.bear / votes.total) * 100);
-  return lang === "ko" ? `상승 ${bullPct}% · 하락 ${bearPct}%` : `Bull ${bullPct}% · Bear ${bearPct}%`;
+  return lang === "ko"
+    ? `상승 ${bullPct}% · 하락 ${bearPct}% (${votes.total}${T.votes.ko})`
+    : `Bull ${bullPct}% · Bear ${bearPct}% (${votes.total} ${T.votes.en})`;
 }
 
 function formatTimestamp(iso: string, lang: "en" | "ko"): string {
@@ -70,14 +73,19 @@ export function EtfActivityStream({
   lang?: "en" | "ko";
   priceDeltaPct: number | null;
   voteSummary: VoteSummary;
-  mostDiscussed: { title: string; replyCount: number } | null;
+  /** Activity Engine Phase 2: real investor topic if one exists, else the
+   * most recent real Official/CRADY Analysis item — see
+   * lib/activity/fallback.ts. Still never fabricated; `null` only once
+   * every real tier is exhausted. */
+  mostDiscussed: FeaturedTopic | null;
   nextCatalystDate: string | null;
   confidence: ActivityConfidence;
   streamEntries: ActivityStreamEntry[];
-  /** SEO Authority Phase 2, "Community-ready" — real query results
-   * (lib/activity/data.ts's getTrendingTopics), never a placeholder; an
-   * empty array renders the honest "No trending topics yet" state. */
-  trendingTopics?: { id: string; title: string; replyCount: number }[];
+  /** Real investor topics padded out with recent Official/CRADY items when
+   * there aren't enough (lib/activity/fallback.ts) — an empty array (no
+   * real content anywhere) renders the honest "No trending topics yet"
+   * state. */
+  trendingTopics?: FeaturedTopic[];
   /** The same getTopLevelItems(ticker, 3) result InvestorDiscussion uses
    * for its full board, just previewed here — not a second query. */
   latestDiscussions?: ActivityItem[];
@@ -123,23 +131,27 @@ export function EtfActivityStream({
         {streamEntries.length === 0 ? (
           <p className="px-4 py-4 text-sm text-[var(--gray-400)]">{T.streamEmpty[lang]}</p>
         ) : (
-          streamEntries.map((entry) => (
-            <div key={entry.id} className="flex items-center gap-3 px-4 py-2.5">
-              <span className="text-xs text-[var(--gray-500)] tabular-nums w-12 shrink-0">
-                {formatTimestamp(entry.timestamp, lang)}
-              </span>
-              <Badge variant={SOURCE_LABEL[entry.source].variant} className="shrink-0">
-                {SOURCE_LABEL[entry.source][lang]}
-              </Badge>
-              {entry.href ? (
-                <a href={entry.href} className="text-sm text-[var(--gray-700)] hover:text-black hover:underline truncate">
-                  {entry.label}
-                </a>
-              ) : (
-                <span className="text-sm text-[var(--gray-700)] truncate">{entry.label}</span>
-              )}
-            </div>
-          ))
+          streamEntries.map((entry) =>
+            entry.detail ? (
+              <ActivityStreamDetailRow key={entry.id} entry={entry} lang={lang} />
+            ) : (
+              <div key={entry.id} className="flex items-center gap-3 px-4 py-2.5">
+                <span className="text-xs text-[var(--gray-500)] tabular-nums w-12 shrink-0">
+                  {formatTimestamp(entry.timestamp, lang)}
+                </span>
+                <Badge variant={activityBadgeVariant(entry.source)} className="shrink-0">
+                  {activityBadgeLabel(entry.source, lang)}
+                </Badge>
+                {entry.href ? (
+                  <a href={entry.href} className="text-sm text-[var(--gray-700)] hover:text-black hover:underline truncate">
+                    {entry.label}
+                  </a>
+                ) : (
+                  <span className="text-sm text-[var(--gray-700)] truncate">{entry.label}</span>
+                )}
+              </div>
+            )
+          )
         )}
       </div>
 
@@ -152,12 +164,19 @@ export function EtfActivityStream({
             <p className="text-sm text-[var(--gray-400)]">{T.trendingEmpty[lang]}</p>
           ) : (
             <ul className="space-y-1.5">
-              {trendingTopics.map((topic) => (
-                <li key={topic.id} className="text-sm">
-                  <a href={`#activity-item-${topic.id}`} className="text-[var(--gray-700)] hover:text-black hover:underline">
+              {trendingTopics.map((topic, i) => (
+                <li key={`${topic.kind}-${i}`} className="text-sm flex items-center gap-1.5">
+                  {topic.kind !== "investor-discussion" && (
+                    <Badge variant={topic.kind === "official" ? "blue" : "accent"} className="shrink-0">
+                      {activityBadgeLabel(topic.kind === "official" ? "official" : "crady", lang)}
+                    </Badge>
+                  )}
+                  <a href={topic.href} className="text-[var(--gray-700)] hover:text-black hover:underline truncate">
                     {topic.title}
                   </a>
-                  <span className="text-[var(--gray-400)]"> · {topic.replyCount} {T.replies[lang]}</span>
+                  {topic.replyCount != null && (
+                    <span className="text-[var(--gray-400)] shrink-0"> · {topic.replyCount} {T.replies[lang]}</span>
+                  )}
                 </li>
               ))}
             </ul>

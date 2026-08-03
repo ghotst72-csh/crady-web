@@ -190,43 +190,90 @@ export type WeeklyRecapInput = {
   totalPaidAmount7d: number | null;
   newQuestions7d: number;
   newComments7d: number;
+  /** Real prediction/confidence-change headlines from the trailing 7 days
+   * (Activity Engine Phase 2's prediction_change/confidence_change events)
+   * — never re-derived here, just passed through for display. */
+  forecastChangeHeadlines: string[];
+  /** A real, upcoming (not-yet-passed) date to watch — next predicted
+   * ex-dividend or payment date. Omitted from the report if none exists. */
+  upcomingDate: { label: string; date: string } | null;
 };
 
-/** Rule-based rollup, computed at render time — not a stored/cron artifact. */
-export function buildWeeklyRecap(input: WeeklyRecapInput, lang: "en" | "ko" = "en"): string {
-  const { ticker, priceDeltaPct7d, distributionsPaid7d, totalPaidAmount7d, newQuestions7d, newComments7d } = input;
+export type WeeklyRecapReport = {
+  oneSentence: string;
+  priceMovement: string | null;
+  distributionActivity: string;
+  forecastChange: string;
+  investorActivity: string;
+  whatToWatch: string | null;
+};
 
-  if (lang === "ko") {
-    const parts: string[] = [];
-    parts.push(
-      priceDeltaPct7d != null
-        ? `${ticker}는 지난 7일간 ${fmtPct(priceDeltaPct7d, "ko")} 움직였습니다.`
-        : `${ticker}의 최근 7일 가격 데이터가 충분하지 않습니다.`
-    );
-    if (distributionsPaid7d > 0 && totalPaidAmount7d != null) {
-      parts.push(`이 기간 동안 배당 ${distributionsPaid7d}건, 총 ${fmtMoney(totalPaidAmount7d)}가 지급되었습니다.`);
-    }
-    if (newQuestions7d > 0 || newComments7d > 0) {
-      parts.push(`새 질문 ${newQuestions7d}건, 새 댓글 ${newComments7d}건이 등록되었습니다.`);
-    } else {
-      parts.push("이번 주 새로운 투자자 논의는 없었습니다.");
-    }
-    return parts.join(" ");
-  }
+/** Rule-based rollup, computed at render time — not a stored/cron artifact.
+ * Every section is independently honest: real data renders as a real
+ * sentence, no real data for a section this week renders the explicit "no
+ * change" sentence the product spec asks for (never omitted silently and
+ * never invented filler) — the one exception being priceMovement/
+ * whatToWatch, which are omitted entirely when there's truly no underlying
+ * data point at all (not even a "no change" state to report). */
+export function buildWeeklyRecap(input: WeeklyRecapInput, lang: "en" | "ko" = "en"): WeeklyRecapReport {
+  const {
+    ticker,
+    priceDeltaPct7d,
+    distributionsPaid7d,
+    totalPaidAmount7d,
+    newQuestions7d,
+    newComments7d,
+    forecastChangeHeadlines,
+    upcomingDate,
+  } = input;
 
-  const parts: string[] = [];
-  parts.push(
-    priceDeltaPct7d != null
-      ? `${ticker} moved ${fmtPct(priceDeltaPct7d, "en")} over the past 7 days.`
-      : `Not enough 7-day price data for ${ticker} yet.`
-  );
-  if (distributionsPaid7d > 0 && totalPaidAmount7d != null) {
-    parts.push(`${distributionsPaid7d} distribution(s) totaling ${fmtMoney(totalPaidAmount7d)} were paid this week.`);
-  }
-  if (newQuestions7d > 0 || newComments7d > 0) {
-    parts.push(`${newQuestions7d} new question(s) and ${newComments7d} new comment(s) were posted.`);
-  } else {
-    parts.push("No new investor discussion this week.");
-  }
-  return parts.join(" ");
+  const ko = lang === "ko";
+
+  const oneSentence = ko
+    ? priceDeltaPct7d != null
+      ? `${ticker}는 이번 주 ${fmtPct(priceDeltaPct7d, "ko")} 움직였습니다.`
+      : `${ticker}의 이번 주 요약입니다.`
+    : priceDeltaPct7d != null
+      ? `${ticker} moved ${fmtPct(priceDeltaPct7d, "en")} this week.`
+      : `Here's ${ticker}'s week.`;
+
+  const priceMovement =
+    priceDeltaPct7d == null
+      ? null
+      : ko
+        ? `주가는 지난 7일간 ${fmtPct(priceDeltaPct7d, "ko")} 변동했습니다.`
+        : `The share price moved ${fmtPct(priceDeltaPct7d, "en")} over the past 7 days.`;
+
+  const distributionActivity =
+    distributionsPaid7d > 0 && totalPaidAmount7d != null
+      ? ko
+        ? `이번 주 배당 ${distributionsPaid7d}건, 총 ${fmtMoney(totalPaidAmount7d)}가 지급되었습니다.`
+        : `${distributionsPaid7d} distribution(s) totaling ${fmtMoney(totalPaidAmount7d)} were paid this week.`
+      : ko
+        ? "이번 주 지급된 배당은 없었습니다."
+        : "No distributions were paid this week.";
+
+  const forecastChange =
+    forecastChangeHeadlines.length > 0
+      ? forecastChangeHeadlines.join(" ")
+      : ko
+        ? "이번 주 배당 예측이나 신뢰도에 큰 변화는 없었습니다."
+        : "No major distribution or forecast changes were recorded this week.";
+
+  const investorActivity =
+    newQuestions7d > 0 || newComments7d > 0
+      ? ko
+        ? `새 질문 ${newQuestions7d}건, 새 댓글 ${newComments7d}건이 등록되었습니다.`
+        : `${newQuestions7d} new question(s) and ${newComments7d} new comment(s) were posted.`
+      : ko
+        ? "이번 주 새로운 투자자 논의는 없었습니다."
+        : "No new investor discussion this week.";
+
+  const whatToWatch = !upcomingDate
+    ? null
+    : ko
+      ? `다음 주 주목할 점: ${upcomingDate.label} ${upcomingDate.date}.`
+      : `What to watch next week: ${upcomingDate.label} on ${upcomingDate.date}.`;
+
+  return { oneSentence, priceMovement, distributionActivity, forecastChange, investorActivity, whatToWatch };
 }

@@ -2,18 +2,23 @@ import { EtfActivityStream } from "./EtfActivityStream";
 import { AiOutlook } from "./AiOutlook";
 import { InvestorDiscussion } from "./InvestorDiscussion";
 import { WeeklyRecap } from "./WeeklyRecap";
+import { TodaysActivityCard } from "./TodaysActivityCard";
 import {
   getTopLevelItems,
   getRepliesForItems,
   getTickerVoteSummary,
   getActivityCounts,
-  getRecentOfficialEvents,
+  getAutomatedActivityItems,
   getMostDiscussedItem,
   getTrendingTopics,
   getWeeklyActivityCounts,
+  getTodaysActivitySummaryInputs,
 } from "@/lib/activity/data";
 import { buildActivityStreamEntries } from "@/lib/activity/stream";
 import { buildAiOutlook, buildActivityConfidence, buildWeeklyRecap } from "@/lib/activity/aiOutlook";
+import { buildTodaysActivitySummary } from "@/lib/activity/todaysSummary";
+import { pickMostDiscussedFallback, pickTrendingFallback } from "@/lib/activity/fallback";
+import { buildDiscussionQuestion } from "@/lib/activity/discussionQuestion";
 
 export type ActivitySectionInput = {
   ticker: string;
@@ -45,6 +50,42 @@ function computePriceDeltaPct(history: { close_price: number | null }[]): number
   const [prev, last] = [closes[closes.length - 2], closes[closes.length - 1]];
   if (prev === 0) return null;
   return ((last - prev) / prev) * 100;
+}
+
+/** The Hero-adjacent "Today's Activity" presence booster (Activity Engine
+ * Phase 2) — its own Suspense boundary/call site, positioned directly under
+ * EtfHero in page.tsx, deliberately separate from ActivitySection below so
+ * it can render (or render nothing) without waiting on the larger
+ * stream/AiOutlook fetch. Same try/catch-to-null safety as every other
+ * section in this file. */
+export async function TodaysActivitySummarySection({
+  ticker,
+  lang = "en",
+  priceHistory,
+}: {
+  ticker: string;
+  lang?: "en" | "ko";
+  priceHistory: { trade_date: string; close_price: number | null }[];
+}) {
+  try {
+    return await renderTodaysActivitySummarySection({ ticker, lang, priceHistory });
+  } catch {
+    return null;
+  }
+}
+
+async function renderTodaysActivitySummarySection({
+  ticker,
+  lang,
+  priceHistory,
+}: {
+  ticker: string;
+  lang: "en" | "ko";
+  priceHistory: { trade_date: string; close_price: number | null }[];
+}) {
+  const input = await getTodaysActivitySummaryInputs(ticker, lang);
+  const summary = buildTodaysActivitySummary(input, computePriceDeltaPct(priceHistory), lang);
+  return <TodaysActivityCard summary={summary} lang={lang} />;
 }
 
 /** Orchestrator for the two sections that make up the top of the ETF Hub
@@ -85,11 +126,11 @@ async function renderActivitySection(input: ActivitySectionInput) {
   const { ticker, lang = "en", providerId, priceHistory, risk, annualYieldPct, dividendTrendPct, latestPaidDistribution, prediction } =
     input;
 
-  const [topLevelItems, voteSummary, activityCounts, officialEvents, mostDiscussed, trendingTopics] = await Promise.all([
+  const [topLevelItems, voteSummary, activityCounts, automatedItems, mostDiscussed, trendingTopics] = await Promise.all([
     getTopLevelItems(ticker),
     getTickerVoteSummary(ticker),
     getActivityCounts(ticker),
-    getRecentOfficialEvents(ticker),
+    getAutomatedActivityItems(ticker, lang),
     getMostDiscussedItem(ticker),
     getTrendingTopics(ticker, 3),
   ]);
@@ -101,9 +142,15 @@ async function renderActivitySection(input: ActivitySectionInput) {
   const riskCalculatedAt = risk?.calculated_at ?? null;
 
   const streamEntries = buildActivityStreamEntries(
-    { ticker, officialEvents, riskCalculatedAt, topLevelItems },
+    { ticker, automatedItems, riskCalculatedAt, topLevelItems },
     lang
   );
+
+  // Most Discussed / Trending never show an empty box while there's ANY
+  // real content to point to — falls back through official, then CRADY
+  // Analysis, before the honest empty state. See lib/activity/fallback.ts.
+  const featuredMostDiscussed = pickMostDiscussedFallback(mostDiscussed, automatedItems);
+  const featuredTrending = pickTrendingFallback(trendingTopics, automatedItems, 3);
 
   const confidence = buildActivityConfidence(
     {
@@ -146,8 +193,8 @@ async function renderActivitySection(input: ActivitySectionInput) {
         lang={lang}
         priceDeltaPct={priceDeltaPct}
         voteSummary={voteSummary}
-        mostDiscussed={mostDiscussed}
-        trendingTopics={trendingTopics}
+        mostDiscussed={featuredMostDiscussed}
+        trendingTopics={featuredTrending}
         latestDiscussions={latestDiscussions}
         nextCatalystDate={nextCatalystDate}
         confidence={confidence}
@@ -158,32 +205,57 @@ async function renderActivitySection(input: ActivitySectionInput) {
   );
 }
 
+export type InvestorDiscussionSectionInput = {
+  ticker: string;
+  lang?: "en" | "ko";
+  /** Real ETF characteristics already computed on the ticker page — passed
+   * through (not re-fetched) purely to pick a per-ETF discussion question
+   * (lib/activity/discussionQuestion.ts). None of these are queried here. */
+  annualYieldPct: number | null;
+  riskLevel: string | null;
+  dividendTrendPct: number | null;
+  payoutFrequency: string | null;
+  nextPredictedExDate: string | null;
+};
+
 /** InvestorDiscussion's own Suspense boundary/call site — see the doc
  * comment on ActivitySection above for why this is separate rather than
  * folded back in. Re-fetches topLevelItems independently (a second, cheap
  * indexed query) rather than threading it through from ActivitySection,
  * since the two are now genuinely independent streamed subtrees with no
  * shared parent render to pass it through. */
-export async function InvestorDiscussionSection({
-  ticker,
-  lang = "en",
-}: {
-  ticker: string;
-  lang?: "en" | "ko";
-}) {
+export async function InvestorDiscussionSection(input: InvestorDiscussionSectionInput) {
   try {
-    return await renderInvestorDiscussionSection({ ticker, lang });
+    return await renderInvestorDiscussionSection(input);
   } catch {
     return null;
   }
 }
 
-async function renderInvestorDiscussionSection({ ticker, lang }: { ticker: string; lang: "en" | "ko" }) {
+async function renderInvestorDiscussionSection({
+  ticker,
+  lang = "en",
+  annualYieldPct,
+  riskLevel,
+  dividendTrendPct,
+  payoutFrequency,
+  nextPredictedExDate,
+}: InvestorDiscussionSectionInput) {
   const topLevelItems = await getTopLevelItems(ticker);
   const repliesByParent = await getRepliesForItems(topLevelItems.map((i) => i.id));
+  const discussionQuestion = buildDiscussionQuestion(
+    { ticker, annualYieldPct, riskLevel, dividendTrendPct, payoutFrequency, nextPredictedExDate },
+    lang
+  );
 
   return (
-    <InvestorDiscussion ticker={ticker} lang={lang} topLevelItems={topLevelItems} repliesByParent={repliesByParent} />
+    <InvestorDiscussion
+      ticker={ticker}
+      lang={lang}
+      topLevelItems={topLevelItems}
+      repliesByParent={repliesByParent}
+      discussionQuestion={discussionQuestion}
+    />
   );
 }
 
@@ -196,6 +268,8 @@ export async function ActivityWeeklyRecap(props: {
   lang?: "en" | "ko";
   priceHistory: { trade_date: string; close_price: number | null }[];
   recentDistributions: { pay_date: string; amount: number | null }[];
+  nextPredictedExDate?: string | null;
+  nextPredictedPayDate?: string | null;
 }) {
   try {
     return await renderActivityWeeklyRecap(props);
@@ -209,13 +283,18 @@ async function renderActivityWeeklyRecap({
   lang = "en",
   priceHistory,
   recentDistributions,
+  nextPredictedExDate = null,
+  nextPredictedPayDate = null,
 }: {
   ticker: string;
   lang?: "en" | "ko";
   priceHistory: { trade_date: string; close_price: number | null }[];
   recentDistributions: { pay_date: string; amount: number | null }[];
+  nextPredictedExDate?: string | null;
+  nextPredictedPayDate?: string | null;
 }) {
   const weekly = await getWeeklyActivityCounts(ticker);
+  const automatedItems = await getAutomatedActivityItems(ticker, lang, 20);
 
   // new Date() rather than Date.now() — the latter is flagged as an impure
   // call inside a Server Component's render body by this repo's
@@ -237,7 +316,31 @@ async function renderActivityWeeklyRecap({
   const totalPaidAmount7d =
     paidThisWeek.length > 0 ? paidThisWeek.reduce((sum, d) => sum + (d.amount ?? 0), 0) : null;
 
-  const text = buildWeeklyRecap(
+  const sevenDaysAgoIso = sevenDaysAgoDate.toISOString();
+  const forecastChangeHeadlines = automatedItems
+    .filter(
+      (i) => (i.type === "prediction_change" || i.type === "confidence_change") && i.occurredAt >= sevenDaysAgoIso
+    )
+    .map((i) => i.body);
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const nextDate = nextPredictedExDate ?? nextPredictedPayDate;
+  const upcomingDate =
+    nextDate && nextDate >= todayStr
+      ? {
+          label:
+            nextDate === nextPredictedExDate
+              ? lang === "ko"
+                ? "다음 배당락일"
+                : "next ex-dividend date"
+              : lang === "ko"
+                ? "다음 지급일"
+                : "next payment date",
+          date: nextDate,
+        }
+      : null;
+
+  const report = buildWeeklyRecap(
     {
       ticker,
       priceDeltaPct7d,
@@ -245,9 +348,11 @@ async function renderActivityWeeklyRecap({
       totalPaidAmount7d,
       newQuestions7d: weekly.newQuestions7d,
       newComments7d: weekly.newReplies7d,
+      forecastChangeHeadlines,
+      upcomingDate,
     },
     lang
   );
 
-  return <WeeklyRecap text={text} lang={lang} />;
+  return <WeeklyRecap report={report} lang={lang} />;
 }

@@ -4,6 +4,7 @@ import { PostComposer } from "./InteractiveIslands/PostComposer";
 import { CommentComposer } from "./InteractiveIslands/CommentComposer";
 import { CommentActionsBar } from "./InteractiveIslands/CommentActionsBar";
 import type { ActivityItem } from "@/lib/activity/types";
+import type { DiscussionQuestion } from "@/lib/activity/discussionQuestion";
 
 const T = {
   heading: { en: "Investor Discussion", ko: "투자자 토론" },
@@ -13,6 +14,7 @@ const T = {
     ko: "아직 질문이나 토론이 없습니다 — 이 ETF에 대해 처음으로 게시해보세요.",
   },
   moreReplies: { en: "more replies", ko: "개 답글 더보기" },
+  suggestedBy: { en: "CRADY suggests this discussion topic", ko: "CRADY가 제안한 토론 주제" },
 } as const;
 
 const EXPERTISE_LABEL: Record<string, { en: string; ko: string }> = {
@@ -42,15 +44,28 @@ export function InvestorDiscussion({
   lang = "en",
   topLevelItems,
   repliesByParent,
+  discussionQuestion,
 }: {
   ticker: string;
   lang?: "en" | "ko";
   topLevelItems: ActivityItem[];
   repliesByParent: Map<string, ActivityItem[]>;
+  /** Activity Engine Phase 2 — a data-driven, per-ETF discussion starter
+   * (lib/activity/discussionQuestion.ts), always labeled as CRADY's own
+   * suggestion, never posted as a user. Optional so existing callers/tests
+   * that don't pass one still render correctly. */
+  discussionQuestion?: DiscussionQuestion | null;
 }) {
   return (
     <section className="mt-8">
       <h2 className="text-lg font-bold mb-3">{T.heading[lang]}</h2>
+
+      {discussionQuestion && (
+        <div className="mb-3 border-l-4 border-[var(--crady-accent)] pl-4">
+          <p className="text-sm font-semibold">{discussionQuestion.text}</p>
+          <p className="mt-0.5 text-xs text-[var(--gray-500)]">{T.suggestedBy[lang]}</p>
+        </div>
+      )}
 
       <LazyMount minHeight={140} className="mb-4">
         <PostComposer ticker={ticker} lang={lang} />

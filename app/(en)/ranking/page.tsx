@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import {
   getHomeSnapshot,
   topByAnnualYield,
@@ -9,6 +10,7 @@ import {
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { RankingTable } from "@/components/RankingTable";
 import { PageAppCta } from "@/components/PageAppCta";
+import { SitewideActivitySection } from "@/components/activity/SitewideActivitySection";
 
 export const revalidate = 3600;
 
@@ -71,6 +73,13 @@ export default async function RankingPage() {
       <div className="mt-6">
         <RankingTable rankings={rankings} lang="en" />
       </div>
+
+      <div className="mt-8">
+        <Suspense fallback={null}>
+          <SitewideActivitySection lang="en" />
+        </Suspense>
+      </div>
+
       <PageAppCta lang="en" />
     </div>
   );
