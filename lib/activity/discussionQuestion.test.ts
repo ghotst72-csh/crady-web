@@ -53,4 +53,36 @@ describe("buildDiscussionQuestion", () => {
     expect(q.text).toContain("TSLY");
     expect(q.text).toContain("배당");
   });
+
+  // Regression guard for a reporting mix-up caught during Activity Engine
+  // Phase 2 live verification (the code and the live HTML were both
+  // already correct — MDTE genuinely rendered "What's your outlook on
+  // MDTE?" — but the final report's summary table was mistranscribed as
+  // "TSLY 전망은?" for the MDTE row). This test makes that specific class
+  // of error mechanically impossible to miss in the future: every sample
+  // ticker, run through every selectable question branch, must produce
+  // text containing its OWN ticker and none of the others'.
+  const SAMPLE_TICKERS = ["TSLY", "MSTY", "CONY", "QDTE", "MDTE"];
+  const SIGNAL_VARIANTS: { name: string; input: Omit<DiscussionQuestionInput, "ticker"> }[] = [
+    { name: "dividend_trend_down", input: { annualYieldPct: null, riskLevel: null, dividendTrendPct: -8, payoutFrequency: null, nextPredictedExDate: null } },
+    { name: "high_yield_high_risk", input: { annualYieldPct: 90, riskLevel: "RISKY", dividendTrendPct: null, payoutFrequency: null, nextPredictedExDate: null } },
+    { name: "upcoming_ex_date", input: { annualYieldPct: null, riskLevel: null, dividendTrendPct: null, payoutFrequency: null, nextPredictedExDate: "2026-08-15" } },
+    { name: "weekly_frequency", input: { annualYieldPct: null, riskLevel: null, dividendTrendPct: null, payoutFrequency: "weekly", nextPredictedExDate: null } },
+    { name: "generic (low-data fallback)", input: { annualYieldPct: null, riskLevel: null, dividendTrendPct: null, payoutFrequency: null, nextPredictedExDate: null } },
+  ];
+
+  for (const ticker of SAMPLE_TICKERS) {
+    for (const variant of SIGNAL_VARIANTS) {
+      for (const lang of ["en", "ko"] as const) {
+        it(`${ticker} / ${variant.name} / ${lang}: question mentions only ${ticker}, never another sample ticker`, () => {
+          const q = buildDiscussionQuestion({ ticker, ...variant.input }, lang);
+          expect(q.text).toContain(ticker);
+          for (const other of SAMPLE_TICKERS) {
+            if (other === ticker) continue;
+            expect(q.text).not.toContain(other);
+          }
+        });
+      }
+    }
+  }
 });
