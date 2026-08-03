@@ -49,7 +49,7 @@ export function InvestorDiscussion({
   repliesByParent: Map<string, ActivityItem[]>;
 }) {
   return (
-    <section id="investor-discussion" className="mt-8 scroll-mt-4">
+    <section className="mt-8">
       <h2 className="text-lg font-bold mb-3">{T.heading[lang]}</h2>
 
       <LazyMount minHeight={140} className="mb-4">

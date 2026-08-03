@@ -39,7 +39,7 @@ import {
 } from "@/lib/ticker/enrichment";
 import { ProfileSnippet, ProfileFaq } from "@/components/ticker/ProfileSeoBlock";
 import { buildFaqJsonLd, buildWebPageJsonLd } from "@/lib/magazine/jsonld";
-import { ActivitySection, ActivityWeeklyRecap } from "@/components/activity/ActivitySection";
+import { ActivitySection, InvestorDiscussionSection, ActivityWeeklyRecap } from "@/components/activity/ActivitySection";
 import { getRelevantGuidesForEtf, GUIDE_LABELS } from "@/lib/magazine/topicalLinks";
 import { RelatedContent } from "@/components/RelatedContent";
 import { PageTrustFooter } from "@/components/seo/PageTrustFooter";
@@ -384,8 +384,15 @@ export default async function TickerPage({
           should notice this ETF has activity immediately, not after
           scrolling through the whole page. Own Suspense boundary + own
           Promise.all, fully separate from the fetch above — never blocks
-          Hero/Prediction from rendering first. */}
+          Hero/Prediction from rendering first.
+
+          The two static anchor divs (id + scroll-mt-4) live in this
+          synchronous shell rather than on the streamed sections themselves
+          — see the doc comment on ActivitySection in ActivitySection.tsx
+          for why: it's what keeps each anchor id unique in the DOM even
+          during Next.js's brief out-of-order-streaming swap window. */}
       <div className="mx-auto max-w-4xl px-4 sm:px-6">
+        <div id="etf-activity" className="scroll-mt-4" />
         <Suspense fallback={null}>
           <ActivitySection
             ticker={ticker}
@@ -412,6 +419,10 @@ export default async function TickerPage({
                 : null
             }
           />
+        </Suspense>
+        <div id="investor-discussion" className="scroll-mt-4" />
+        <Suspense fallback={null}>
+          <InvestorDiscussionSection ticker={ticker} lang="en" />
         </Suspense>
       </div>
 

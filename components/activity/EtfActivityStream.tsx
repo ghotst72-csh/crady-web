@@ -103,7 +103,7 @@ export function EtfActivityStream({
   ];
 
   return (
-    <section id="etf-activity" className="mt-8 scroll-mt-4">
+    <section className="mt-8">
       <h2 className="text-lg font-bold mb-3">
         {ticker} {T.heading[lang]}
       </h2>

@@ -47,12 +47,23 @@ function computePriceDeltaPct(history: { close_price: number | null }[]): number
   return ((last - prev) / prev) * 100;
 }
 
-/** Orchestrator for the three sections that make up the heart of the ETF
- * Hub page — EtfActivityStream, AiOutlook, InvestorDiscussion — inserted
- * right after the existing Hero/ProfileSnippet, well before the rest of the
+/** Orchestrator for the two sections that make up the top of the ETF Hub
+ * page's activity block — EtfActivityStream, AiOutlook — inserted right
+ * after the existing Hero/ProfileSnippet, well before the rest of the
  * page's existing (untouched) financial content. Runs its own Promise.all
  * against the Activity tables, fully separate from the ticker page's
  * existing 12-call fetch.
+ *
+ * InvestorDiscussion is a *separate* Suspense boundary/call site
+ * (InvestorDiscussionSection, below) rather than folded in here, even
+ * though it used to be: giving each streamed section its own boundary lets
+ * page.tsx place a real, always-present anchor element (id="etf-activity",
+ * id="investor-discussion") in the synchronous shell immediately before
+ * each one. Next.js's out-of-order streaming swap otherwise leaves a
+ * transient `<div hidden id="S:n">` clone of the streamed subtree in the
+ * DOM for a few seconds — harmless (inert, invisible, self-removing) but a
+ * real duplicate-id if that subtree carries its own id, which a shared
+ * boundary around two separately-anchored sections would have forced.
  *
  * Wrapped in try/catch and fails to `null` (renders nothing) rather than
  * throwing: the Activity migration is reviewed-but-manually-applied, per
@@ -85,8 +96,6 @@ async function renderActivitySection(input: ActivitySectionInput) {
   // "Latest Discussions" reuses the already-fetched topLevelItems — not a
   // second query, per the SEO Authority Phase 2 plan.
   const latestDiscussions = topLevelItems.slice(0, 3);
-
-  const repliesByParent = await getRepliesForItems(topLevelItems.map((i) => i.id));
 
   const priceDeltaPct = computePriceDeltaPct(priceHistory);
   const riskCalculatedAt = risk?.calculated_at ?? null;
@@ -145,13 +154,36 @@ async function renderActivitySection(input: ActivitySectionInput) {
         streamEntries={streamEntries}
       />
       <AiOutlook outlook={outlook} lang={lang} />
-      <InvestorDiscussion
-        ticker={ticker}
-        lang={lang}
-        topLevelItems={topLevelItems}
-        repliesByParent={repliesByParent}
-      />
     </>
+  );
+}
+
+/** InvestorDiscussion's own Suspense boundary/call site — see the doc
+ * comment on ActivitySection above for why this is separate rather than
+ * folded back in. Re-fetches topLevelItems independently (a second, cheap
+ * indexed query) rather than threading it through from ActivitySection,
+ * since the two are now genuinely independent streamed subtrees with no
+ * shared parent render to pass it through. */
+export async function InvestorDiscussionSection({
+  ticker,
+  lang = "en",
+}: {
+  ticker: string;
+  lang?: "en" | "ko";
+}) {
+  try {
+    return await renderInvestorDiscussionSection({ ticker, lang });
+  } catch {
+    return null;
+  }
+}
+
+async function renderInvestorDiscussionSection({ ticker, lang }: { ticker: string; lang: "en" | "ko" }) {
+  const topLevelItems = await getTopLevelItems(ticker);
+  const repliesByParent = await getRepliesForItems(topLevelItems.map((i) => i.id));
+
+  return (
+    <InvestorDiscussion ticker={ticker} lang={lang} topLevelItems={topLevelItems} repliesByParent={repliesByParent} />
   );
 }
 

@@ -39,7 +39,7 @@ import {
 } from "@/lib/ticker/enrichment";
 import { ProfileSnippet, ProfileFaq } from "@/components/ticker/ProfileSeoBlock";
 import { buildFaqJsonLd, buildWebPageJsonLd } from "@/lib/magazine/jsonld";
-import { ActivitySection, ActivityWeeklyRecap } from "@/components/activity/ActivitySection";
+import { ActivitySection, InvestorDiscussionSection, ActivityWeeklyRecap } from "@/components/activity/ActivitySection";
 import { getRelevantGuidesForEtf, GUIDE_LABELS } from "@/lib/magazine/topicalLinks";
 import { RelatedContent } from "@/components/RelatedContent";
 import { PageTrustFooter } from "@/components/seo/PageTrustFooter";
@@ -371,8 +371,11 @@ export default async function KoreanTickerPage({
       </div>
 
       {/* ETF Activity — see app/(en)/[ticker]/page.tsx for the full
-          rationale on why this sits here instead of at the bottom. */}
+          rationale on why this sits here instead of at the bottom, and for
+          why the two static anchor divs live in this synchronous shell
+          rather than on the streamed sections themselves. */}
       <div className="mx-auto max-w-4xl px-4 sm:px-6">
+        <div id="etf-activity" className="scroll-mt-4" />
         <Suspense fallback={null}>
           <ActivitySection
             ticker={ticker}
@@ -399,6 +402,10 @@ export default async function KoreanTickerPage({
                 : null
             }
           />
+        </Suspense>
+        <div id="investor-discussion" className="scroll-mt-4" />
+        <Suspense fallback={null}>
+          <InvestorDiscussionSection ticker={ticker} lang="ko" />
         </Suspense>
       </div>
 
