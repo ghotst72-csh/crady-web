@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
+import { logAuthEvent } from "@/lib/auth/authLog";
 import { AuthModal } from "./AuthModal";
 
 type AuthContextValue = {
@@ -27,10 +28,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
+      logAuthEvent({ call: "getSession", phase: "init", authEvent: data.session ? "restored" : "none" });
       setSession(data.session);
       setLoading(false);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, next) => {
+      logAuthEvent({ call: "onAuthStateChange", phase: "listener", authEvent: event });
       setSession(next);
     });
     return () => sub.subscription.unsubscribe();
