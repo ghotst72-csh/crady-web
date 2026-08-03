@@ -730,6 +730,12 @@ export const STANDALONE_PAGES: Record<StandalonePageId, StandalonePageDefinition
           "CRADY's Official Distribution Center tracks per-distribution figures, including distribution rate, when an issuer publishes them alongside an official announcement.",
       },
     ],
+    relatedEtfsQuery: {
+      heading: "ETFs With the Highest Run-Rate Yield",
+      filter: (e) => e.annualYieldPct != null,
+      sort: byYieldDesc,
+      limit: 8,
+    },
   },
   "sec-yield-guide": {
     slug: "sec-yield-guide",
@@ -795,6 +801,12 @@ export const STANDALONE_PAGES: Record<StandalonePageId, StandalonePageDefinition
           "Most registered funds do, since it's an SEC requirement, though the figure isn't always prominently published or up to date for every fund. CRADY's Official Distribution Center tracks it when available.",
       },
     ],
+    relatedEtfsQuery: {
+      heading: "High Run-Rate-Yield ETFs Where This Gap Is Largest",
+      filter: (e) => e.annualYieldPct != null,
+      sort: byYieldDesc,
+      limit: 8,
+    },
   },
   "nav-erosion-guide": {
     slug: "nav-erosion-guide",
@@ -931,6 +943,12 @@ export const STANDALONE_PAGES: Record<StandalonePageId, StandalonePageDefinition
           "Your brokerage's 1099-DIV breaks distributions down by category. CRADY's Official Distribution Center also tracks ROC percentage on official announcements when the issuer publishes it.",
       },
     ],
+    relatedEtfsQuery: {
+      heading: "High-Yield ETFs Where ROC Commonly Applies",
+      filter: (e) => e.annualYieldPct != null,
+      sort: byYieldDesc,
+      limit: 8,
+    },
   },
 };
 
