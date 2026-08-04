@@ -75,6 +75,11 @@ const T = {
   last30Days: { en: "Last 30 Days", ko: "최근 30일" },
   price: { en: "Price", ko: "가격" },
   dividend: { en: "Dividend", ko: "배당" },
+  noPriceData: { en: "No price data available yet", ko: "아직 가격 데이터가 없습니다" },
+  noPriceDataSub: {
+    en: "Price history for this ETF hasn't been recorded yet.",
+    ko: "이 ETF의 가격 이력이 아직 기록되지 않았습니다.",
+  },
 } as const;
 
 export type EtfHeroQuickLink = { href: string; label: string };
@@ -226,14 +231,26 @@ export function EtfHero({
           <div className="mt-6 sm:mt-8 rounded-2xl border border-[var(--gray-200)] bg-gradient-to-br from-white to-[var(--gray-50)] p-5 sm:p-6">
             {priceSummary?.currentPrice != null ? (
               <PriceBlock summary={priceSummary} asOfLabel={priceAsOfLabel} lang={lang} />
-            ) : (
+            ) : yieldPct != null ? (
               <div>
                 <div className="text-hero-number text-5xl sm:text-7xl text-[var(--crady-accent)]">
-                  {yieldPct != null ? `${yieldPct.toFixed(1)}%` : "—"}
+                  {yieldPct.toFixed(1)}%
                 </div>
                 <div className="mt-2 text-sm font-semibold text-[var(--gray-600)]">
                   {T.yieldLabel[lang]}
                 </div>
+              </div>
+            ) : (
+              // A bare "—" at hero-number size (48-72px) rendered as a
+              // near-invisible sliver with no visual weight — worse than no
+              // treatment at all. In practice yieldPct is derived from the
+              // same price data as priceSummary, so this branch (no price
+              // AND no yield) is the realistic one, not the yieldPct-only
+              // branch above; a real, modestly-sized empty state reads far
+              // better than forcing a dash into giant-number styling.
+              <div className="py-1.5">
+                <div className="text-lg font-bold text-[var(--gray-500)]">{T.noPriceData[lang]}</div>
+                <div className="mt-1 text-sm text-[var(--gray-400)]">{T.noPriceDataSub[lang]}</div>
               </div>
             )}
 
