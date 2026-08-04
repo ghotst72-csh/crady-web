@@ -200,6 +200,11 @@ async function renderActivitySection(input: ActivitySectionInput) {
         confidence={confidence}
         streamEntries={streamEntries}
       />
+      {/* Static anchor for the Hero's "AI Outlook" Quick Link (ETF Detail
+          Page v3) — same synchronous-shell-anchor pattern as #etf-activity/
+          #investor-discussion in page.tsx, just placed here since AiOutlook
+          itself is what's being linked to, not the whole ActivitySection. */}
+      <div id="ai-outlook" className="scroll-mt-4" />
       <AiOutlook outlook={outlook} lang={lang} />
     </>
   );

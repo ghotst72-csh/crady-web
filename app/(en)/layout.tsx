@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { GeistSans } from "geist/font/sans";
 import { Header } from "@/components/Header";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { FooterLanguageLink } from "@/components/i18n/FooterLanguageLink";
@@ -49,7 +50,7 @@ export default async function EnglishRootLayout({
   const searchIndex = toSearchIndex(snapshot);
 
   return (
-    <html lang="en">
+    <html lang="en" className={GeistSans.variable}>
       <body className="min-h-screen flex flex-col antialiased">
         <script
           type="application/ld+json"

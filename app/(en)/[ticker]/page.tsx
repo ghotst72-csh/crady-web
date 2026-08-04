@@ -13,9 +13,12 @@ import {
   getDistributionsSince,
   getNextPrediction,
   getSameProviderEtfs,
+  getHomeSnapshot,
   computeRunRateAnnualYieldPct,
   providerLabel,
 } from "@/lib/data";
+import { buildPriceSummary, buildDividendPriceComparison } from "@/lib/ticker/priceSummary";
+import { computeYieldPercentile } from "@/lib/ticker/yieldContext";
 import { RESERVED_PATHS } from "@/lib/reserved";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { DividendStagePill } from "@/components/DividendLifecycle";
@@ -152,11 +155,15 @@ export default async function TickerPage({
     allTickers,
     officialDistribution,
     predictionVsOfficial,
+    homeSnapshot,
   ] = await Promise.all([
     getRiskMetrics(ticker),
     getRegimeProfile(ticker),
     getLatestPrice(ticker),
-    getPriceHistory(ticker, 30),
+    // 260 trading days (~1Y) — enough for the Hero's 1W/1M/3M sparkline
+    // windows *and* the 52-week high/low range (ETF Detail Page v3),
+    // still comfortably under PostgREST's row cap.
+    getPriceHistory(ticker, 260),
     getDistributions(ticker, 12),
     getDistributionsSince(ticker, 90),
     getDistributionsSince(ticker, 395),
@@ -165,6 +172,7 @@ export default async function TickerPage({
     getAllTickers(),
     getLatestOfficialDistributionForTicker(ticker),
     getPredictionVsOfficial(ticker),
+    getHomeSnapshot(),
   ]);
   const trend12mo = computeDividendTrend(yearOfDistributions).find((w) => w.days === 365) ?? null;
 
@@ -188,6 +196,17 @@ export default async function TickerPage({
         100
       : null;
 
+  // ETF Detail Page v3 — Investor Dashboard Redesign. All derived purely
+  // from data already fetched above (history, recentDistributions,
+  // homeSnapshot) — see lib/ticker/priceSummary.ts / lib/ticker/yieldContext.ts.
+  const priceSummary = buildPriceSummary(history);
+  const dividendPriceComparison = buildDividendPriceComparison(history, recentDistributions);
+  const yieldContext = computeYieldPercentile(
+    annualYieldPct,
+    homeSnapshot.map((s) => s.annualYieldPct),
+    "en"
+  );
+
   const comparisonPeerTicker = pickComparisonPeerTicker(ticker, etf.provider_id, allTickers);
   const MAGAZINE_TYPES: ArticleTypeId[] = [
     "next-dividend-prediction",
@@ -204,6 +223,18 @@ export default async function TickerPage({
   // lib/magazine/data.ts) — no new query pattern.
   const similarEtfTickers = pickComparisonPeerTickers(ticker, etf.provider_id, allTickers, 4);
   const similarEtfs = similarEtfTickers.length > 0 ? await getComparisonPeersData(similarEtfTickers) : [];
+
+  // ETF Detail Page v3 — Hero Quick Links (requirement #10). Every
+  // destination is a real anchor id already (or newly) present further
+  // down this same page; a link is simply omitted when the section behind
+  // it wouldn't actually be rendered (e.g. no Similar ETFs peers).
+  const heroQuickLinks = [
+    { href: "#price-chart", label: "Price History" },
+    { href: "#dividend-history", label: "Dividend History" },
+    similarEtfs.length > 0 ? { href: "#similar-etfs", label: "Compare Similar ETFs" } : null,
+    { href: "#ai-outlook", label: "AI Outlook" },
+    { href: "#etf-activity", label: "Activity" },
+  ].filter((l): l is { href: string; label: string } => l != null);
 
   const enrichmentInput: EnrichmentInput = {
     ticker,
@@ -376,6 +407,10 @@ export default async function TickerPage({
         recentPayments={distributions.slice(0, 3).map((d) => ({ amount: d.amount, payDate: d.pay_date }))}
         trend12mo={trend12mo}
         directAnswer={directAnswer}
+        priceSummary={priceSummary}
+        dividendPriceComparison={dividendPriceComparison}
+        yieldContext={yieldContext}
+        quickLinks={heroQuickLinks}
         lang="en"
       />
 
@@ -449,8 +484,8 @@ export default async function TickerPage({
           lang="en"
         />
 
-        <div className="mt-8">
-          <h2 className="text-lg font-bold mb-3">Current Price</h2>
+        <div id="price-chart" className="mt-8 scroll-mt-4">
+          <h2 className="text-lg font-bold mb-3">Price History</h2>
           <div className="grid sm:grid-cols-[auto_1fr] gap-3">
             <Stat
               label="Close Price"
@@ -646,7 +681,7 @@ export default async function TickerPage({
           )}
 
           {similarEtfs.length > 0 && (
-            <div>
+            <div id="similar-etfs" className="scroll-mt-4">
               <h2 className="text-lg font-bold mb-3">Similar ETFs</h2>
               <div className="grid sm:grid-cols-2 gap-3">
                 {similarEtfs.map((peer) => (

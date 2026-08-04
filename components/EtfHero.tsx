@@ -2,7 +2,12 @@ import Link from "next/link";
 import { providerLabel } from "@/lib/data";
 import { DividendStagePill } from "./DividendLifecycle";
 import { Sparkline } from "./ui/Sparkline";
+import { RangeBar } from "./ui/RangeBar";
+import { Badge } from "./ui/Badge";
+import { PriceBlock } from "./ticker/PriceBlock";
 import type { TrendWindow } from "@/lib/magazine/trend";
+import type { PriceSummary, DividendPriceComparison } from "@/lib/ticker/priceSummary";
+import type { YieldPercentileResult } from "@/lib/ticker/yieldContext";
 
 function daysUntil(dateStr: string): number {
   const target = new Date(dateStr + "T00:00:00");
@@ -59,15 +64,20 @@ const T = {
     en: "No prediction available yet.",
     ko: "아직 예측 데이터가 없습니다.",
   },
-  viewHistory: { en: "View Dividend History ↓", ko: "배당 내역 보기 ↓" },
   dueToday: { en: "Paying today", ko: "오늘 지급" },
   daysLeft: { en: (n: number) => `D-${n}`, ko: (n: number) => `D-${n}` },
   recentPayments: { en: "Last 3 Payments", ko: "최근 3회 지급" },
   trend12mo: { en: "12-Month Trend", ko: "최근 12개월 추세" },
   payments: { en: "payments", ko: "회" },
-  upDown: { en: (up: number, down: number) => `${up}↑ / ${down}↓`, ko: (up: number, down: number) => `${up}↑ / ${down}↓` },
   avgChange: { en: "avg. change per payment", ko: "지급당 평균 변동" },
+  asOf: { en: "As of", ko: "" },
+  asOfSuffix: { en: "", ko: " 기준" },
+  last30Days: { en: "Last 30 Days", ko: "최근 30일" },
+  price: { en: "Price", ko: "가격" },
+  dividend: { en: "Dividend", ko: "배당" },
 } as const;
+
+export type EtfHeroQuickLink = { href: string; label: string };
 
 export function EtfHero({
   ticker,
@@ -86,6 +96,10 @@ export function EtfHero({
   recentPayments = [],
   trend12mo = null,
   directAnswer,
+  priceSummary = null,
+  dividendPriceComparison = null,
+  yieldContext = null,
+  quickLinks = [],
   lang = "en",
 }: {
   ticker: string;
@@ -118,6 +132,22 @@ export function EtfHero({
    * prominent position on the page, above the yield headline, distinct
    * from the longer ProfileSnippet paragraph rendered below the Hero. */
   directAnswer?: string;
+  /** Investor Dashboard Redesign (ETF Detail Page v3) — real current
+   * price, today's change, and 1W/1M/3M sparkline data, built by
+   * lib/ticker/priceSummary.ts from the same price history array already
+   * fetched for the rest of the page. Null/currentPrice-null falls back
+   * to the yield-only headline rather than showing a fabricated price. */
+  priceSummary?: PriceSummary | null;
+  /** "Price vs Dividend, Last 30 Days" (requirement #4). */
+  dividendPriceComparison?: DividendPriceComparison | null;
+  /** Sitewide yield-percentile context for the bare yield % (requirement
+   * #6) — null when the sample is too small to be meaningful. */
+  yieldContext?: YieldPercentileResult | null;
+  /** Click-through row replacing the old single "View Dividend History"
+   * button (requirement #10) — built by the page from real, existing
+   * section anchors; a destination is simply omitted if that section
+   * isn't rendered for this ticker (e.g. no Similar ETFs peers). */
+  quickLinks?: EtfHeroQuickLink[];
   lang?: "en" | "ko";
 }) {
   const glow = PROVIDER_GLOW[providerId] ?? "none";
@@ -127,6 +157,24 @@ export function EtfHero({
     (prediction.predictedAmount != null || prediction.targetPayDate != null);
   const riskLabel = riskLevel ? (RISK_LABEL[lang][riskLevel] ?? riskLevel) : null;
   const dDay = prediction?.targetPayDate ? daysUntil(prediction.targetPayDate) : null;
+
+  const priceAsOfLabel =
+    priceSummary?.asOfDate != null
+      ? lang === "ko"
+        ? `${priceSummary.asOfDate}${T.asOfSuffix.ko}`
+        : `${T.asOf.en} ${priceSummary.asOfDate}`
+      : null;
+
+  const hasRange =
+    priceSummary?.rangeLabel != null &&
+    priceSummary.rangeHigh != null &&
+    priceSummary.rangeLow != null &&
+    priceSummary.currentPrice != null;
+
+  const hasTrendCard =
+    dividendPriceComparison != null &&
+    (dividendPriceComparison.priceChangePct != null ||
+      dividendPriceComparison.dividendChangePct != null);
 
   return (
     <section className="mx-auto max-w-6xl px-4 sm:px-6 pt-6">
@@ -171,64 +219,104 @@ export function EtfHero({
             </p>
           )}
 
-          {/* Headline number — same visual weight as the homepage Hero */}
-          <div className="mt-6 sm:mt-8">
-            <div className="text-5xl sm:text-7xl font-black text-[var(--crady-accent)] tabular-nums leading-none">
-              {yieldPct != null ? `${yieldPct.toFixed(1)}%` : "—"}
-            </div>
-            <div className="mt-2 text-sm font-semibold text-[var(--gray-600)]">
-              {lang === "ko" ? (
-                <>
-                  연환산 분배율{" "}
-                  <span className="font-normal text-[var(--gray-400)]">
-                    Annual Distribution Yield
-                  </span>
-                </>
-              ) : (
-                T.yieldLabel.en
-              )}
+          {/* Price & Dividend — the single most important card on the page
+              (requirement #3): current price + trend fused with the
+              dividend numbers that explain *why* the price behaves the way
+              it does, instead of three unrelated floating figures. */}
+          <div className="mt-6 sm:mt-8 rounded-2xl border border-[var(--gray-200)] bg-gradient-to-br from-white to-[var(--gray-50)] p-5 sm:p-6">
+            {priceSummary?.currentPrice != null ? (
+              <PriceBlock summary={priceSummary} asOfLabel={priceAsOfLabel} lang={lang} />
+            ) : (
+              <div>
+                <div className="text-hero-number text-5xl sm:text-7xl text-[var(--crady-accent)]">
+                  {yieldPct != null ? `${yieldPct.toFixed(1)}%` : "—"}
+                </div>
+                <div className="mt-2 text-sm font-semibold text-[var(--gray-600)]">
+                  {T.yieldLabel[lang]}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-5 pt-5 border-t border-[var(--gray-200)] grid grid-cols-3 gap-3 sm:gap-4">
+              <MiniStat
+                label={T.nextPayDate[lang]}
+                value={prediction?.predictedAmount != null ? `$${prediction.predictedAmount.toFixed(4)}` : "—"}
+                sub={prediction?.targetPayDate ?? T.tbd[lang]}
+              />
+              <MiniStat
+                label={T.recentDividend[lang]}
+                value={latestDividend ? `$${latestDividend.amount.toFixed(4)}` : "—"}
+                sub={latestDividend?.payDate}
+              />
+              <MiniStat
+                label={T.yieldLabel[lang]}
+                value={yieldPct != null ? `${yieldPct.toFixed(1)}%` : "—"}
+                accent
+                badge={yieldContext?.label}
+              />
             </div>
           </div>
 
-          {/* KPI grid — everything a "MSST ETF" search visitor needs, above
-              the fold, no scrolling required. */}
-          <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {/* 52-week range + Price-vs-Dividend 30-day comparison
+              (requirements #4/#5) — omitted individually when there isn't
+              enough real data behind either one. */}
+          {(hasRange || hasTrendCard) && (
+            <div className="mt-4 grid sm:grid-cols-2 gap-3">
+              {hasRange && (
+                <RangeBar
+                  low={priceSummary!.rangeLow!}
+                  high={priceSummary!.rangeHigh!}
+                  current={priceSummary!.currentPrice!}
+                  rangeLabel={priceSummary!.rangeLabel!}
+                  lang={lang}
+                />
+              )}
+              {hasTrendCard && (
+                <div className="rounded-xl border border-[var(--gray-200)] bg-white/70 p-4">
+                  <div className="text-caption">{T.last30Days[lang]}</div>
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <TrendCell label={T.price[lang]} changePct={dividendPriceComparison!.priceChangePct} />
+                    <TrendCell label={T.dividend[lang]} changePct={dividendPriceComparison!.dividendChangePct} />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Secondary KPI grid — CRADY / Stability / Risk / Frequency.
+              Current Price, Today's Change, Next/Recent Dividend and
+              Annual Yield already have their own prominent slots above, so
+              they aren't repeated here (Web UX request #7's priority order
+              is reflected in *where* each figure lives, not by cramming
+              all 8 into one undifferentiated grid). */}
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
             <KpiCard
+              icon={<IconGauge />}
               label={T.cradyScore[lang]}
               englishLabel={lang === "ko" ? "CRADY Score" : undefined}
               value={cradyScore != null ? cradyScore.toFixed(1) : "—"}
               accent
             />
             <KpiCard
-              label={T.recentDividend[lang]}
-              englishLabel={lang === "ko" ? "Recent Dividend" : undefined}
-              value={latestDividend ? `$${latestDividend.amount.toFixed(4)}` : "—"}
-              sub={latestDividend?.payDate}
+              icon={<IconShield />}
+              label={T.stability[lang]}
+              englishLabel={lang === "ko" ? "Dividend Stability" : undefined}
+              value={dividendStabilityScore != null ? dividendStabilityScore.toFixed(1) : "—"}
             />
             <KpiCard
-              label={T.nextPayDate[lang]}
-              englishLabel={lang === "ko" ? "Next Dividend" : undefined}
-              value={prediction?.targetPayDate ?? T.tbd[lang]}
+              icon={<IconAlertTriangle />}
+              label={T.risk[lang]}
+              englishLabel={lang === "ko" ? "Risk" : undefined}
+              value={riskLabel ?? "—"}
             />
             <KpiCard
+              icon={<IconCalendar />}
               label={T.frequency[lang]}
               englishLabel={lang === "ko" ? "Dividend Frequency" : undefined}
               value={
                 payoutFrequency && payoutFrequency.toLowerCase() !== "unknown"
                   ? payoutFrequency
                   : "—"
-              }
-            />
-            <KpiCard
-              label={T.risk[lang]}
-              englishLabel={lang === "ko" ? "Risk" : undefined}
-              value={riskLabel ?? "—"}
-            />
-            <KpiCard
-              label={T.stability[lang]}
-              englishLabel={lang === "ko" ? "Dividend Stability" : undefined}
-              value={
-                dividendStabilityScore != null ? dividendStabilityScore.toFixed(1) : "—"
               }
             />
           </div>
@@ -285,11 +373,9 @@ export function EtfHero({
           {(recentPayments.length > 0 || (trend12mo && trend12mo.count > 0)) && (
             <div className="mt-4 grid sm:grid-cols-2 gap-3">
               {recentPayments.length > 0 && (
-                <div className="border border-[var(--gray-200)] rounded-xl p-3 bg-white/70">
+                <div className="card-interactive border border-[var(--gray-200)] rounded-xl p-4 bg-white/70">
                   <div className="flex items-center justify-between mb-1.5">
-                    <div className="text-[11px] font-semibold text-[var(--gray-500)] uppercase tracking-wide">
-                      {T.recentPayments[lang]}
-                    </div>
+                    <div className="text-caption">{T.recentPayments[lang]}</div>
                     <Sparkline
                       values={[...recentPayments].reverse().map((p) => p.amount)}
                       color="auto"
@@ -321,10 +407,8 @@ export function EtfHero({
                 </div>
               )}
               {trend12mo && trend12mo.count > 0 && (
-                <div className="border border-[var(--gray-200)] rounded-xl p-3 bg-white/70">
-                  <div className="text-[11px] font-semibold text-[var(--gray-500)] uppercase tracking-wide mb-1.5">
-                    {T.trend12mo[lang]}
-                  </div>
+                <div className="card-interactive border border-[var(--gray-200)] rounded-xl p-4 bg-white/70">
+                  <div className="text-caption mb-1.5">{T.trend12mo[lang]}</div>
                   <div className="text-sm">
                     <span className="font-semibold tabular-nums">
                       <span className="text-emerald-700">{trend12mo.increases}↑</span>
@@ -346,25 +430,97 @@ export function EtfHero({
             </div>
           )}
 
-          <Link
-            href="#dividend-history"
-            className="mt-6 inline-flex items-center justify-center px-5 py-2.5 bg-black text-white rounded-lg text-sm font-semibold hover:bg-[var(--gray-900)] transition-colors"
-          >
-            {T.viewHistory[lang]}
-          </Link>
+          {/* Quick Links (requirement #10) — encourages natural
+              navigation into the rest of the site instead of a single dead
+              -end CTA. Built by the page from real section anchors; any
+              destination without real content behind it is simply omitted
+              by the caller. */}
+          {quickLinks.length > 0 && (
+            <div className="mt-6 pt-5 border-t border-[var(--gray-200)] flex flex-wrap gap-2">
+              {quickLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="inline-flex items-center px-3.5 py-2 border border-[var(--gray-200)] rounded-lg text-sm font-medium hover:border-black hover:bg-[var(--gray-50)] transition-colors"
+                >
+                  {link.label} →
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </section>
   );
 }
 
+function MiniStat({
+  label,
+  value,
+  sub,
+  accent,
+  badge,
+}: {
+  label: string;
+  value: string;
+  sub?: string | null;
+  accent?: boolean;
+  badge?: string | null;
+}) {
+  return (
+    <div>
+      <div className="text-caption">{label}</div>
+      <div
+        className={`mt-1 text-xl sm:text-2xl font-extrabold tabular-nums ${
+          accent ? "text-[var(--crady-accent)]" : ""
+        }`}
+      >
+        {value}
+      </div>
+      {sub && <div className="text-xs text-[var(--gray-500)] mt-0.5 truncate">{sub}</div>}
+      {badge && (
+        <div className="mt-1.5">
+          <Badge variant="accent">{badge}</Badge>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TrendCell({ label, changePct }: { label: string; changePct: number | null }) {
+  if (changePct == null) {
+    return (
+      <div>
+        <div className="text-xs text-[var(--gray-500)]">{label}</div>
+        <div className="text-sm text-[var(--gray-400)] mt-0.5">—</div>
+      </div>
+    );
+  }
+  const up = changePct >= 0;
+  return (
+    <div>
+      <div className="text-xs text-[var(--gray-500)]">{label}</div>
+      <div
+        className={`text-base font-bold tabular-nums mt-0.5 ${
+          up ? "text-emerald-700" : "text-red-700"
+        }`}
+      >
+        {up ? "▲" : "▼"} {up ? "+" : ""}
+        {changePct.toFixed(1)}%
+      </div>
+    </div>
+  );
+}
+
 function KpiCard({
+  icon,
   label,
   englishLabel,
   value,
   sub,
   accent,
 }: {
+  icon?: React.ReactNode;
   label: string;
   englishLabel?: string;
   value: string;
@@ -372,15 +528,18 @@ function KpiCard({
   accent?: boolean;
 }) {
   return (
-    <div className="rounded-xl bg-white/70 border border-[var(--gray-200)] p-3">
-      <div className="text-[11px] text-[var(--gray-500)] font-medium leading-tight">
-        {label}
+    <div className="card-interactive rounded-xl bg-white/70 border border-[var(--gray-200)] p-4">
+      <div className="flex items-center gap-1.5 text-[var(--gray-400)]">
+        {icon}
+        <div className="text-[11px] text-[var(--gray-500)] font-medium leading-tight">
+          {label}
+        </div>
       </div>
       {englishLabel && (
         <div className="text-[9px] text-[var(--gray-400)] leading-tight">{englishLabel}</div>
       )}
       <div
-        className={`mt-1 text-lg font-extrabold tabular-nums ${
+        className={`mt-1.5 text-lg font-extrabold tabular-nums ${
           accent ? "text-[var(--crady-accent)]" : ""
         }`}
       >
@@ -388,5 +547,53 @@ function KpiCard({
       </div>
       {sub && <div className="text-[10px] text-[var(--gray-400)] mt-0.5">{sub}</div>}
     </div>
+  );
+}
+
+const ICON_PROPS = {
+  viewBox: "0 0 16 16",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.5,
+  className: "h-3.5 w-3.5 shrink-0",
+  "aria-hidden": true,
+} as const;
+
+function IconGauge() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M2 12a6 6 0 1 1 12 0" strokeLinecap="round" />
+      <path d="M8 12 11 7" strokeLinecap="round" />
+      <circle cx="8" cy="12" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function IconShield() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M8 1.5 13.5 3.5V7.5C13.5 11 11 13.5 8 14.5C5 13.5 2.5 11 2.5 7.5V3.5L8 1.5Z" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconAlertTriangle() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M8 2 14.5 13.5H1.5L8 2Z" strokeLinejoin="round" />
+      <path d="M8 6.5V9.5" strokeLinecap="round" />
+      <circle cx="8" cy="11.5" r="0.6" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function IconCalendar() {
+  return (
+    <svg {...ICON_PROPS}>
+      <rect x="2" y="3" width="12" height="11" rx="1.5" />
+      <path d="M2 6.5H14" strokeLinecap="round" />
+      <path d="M5 1.5V4" strokeLinecap="round" />
+      <path d="M11 1.5V4" strokeLinecap="round" />
+    </svg>
   );
 }

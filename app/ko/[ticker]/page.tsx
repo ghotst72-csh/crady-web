@@ -13,9 +13,12 @@ import {
   getDistributionsSince,
   getNextPrediction,
   getSameProviderEtfs,
+  getHomeSnapshot,
   computeRunRateAnnualYieldPct,
   providerLabel,
 } from "@/lib/data";
+import { buildPriceSummary, buildDividendPriceComparison } from "@/lib/ticker/priceSummary";
+import { computeYieldPercentile } from "@/lib/ticker/yieldContext";
 import { RESERVED_PATHS } from "@/lib/reserved";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { DividendStagePill } from "@/components/DividendLifecycle";
@@ -151,11 +154,15 @@ export default async function KoreanTickerPage({
     allTickers,
     officialDistribution,
     predictionVsOfficial,
+    homeSnapshot,
   ] = await Promise.all([
     getRiskMetrics(ticker),
     getRegimeProfile(ticker),
     getLatestPrice(ticker),
-    getPriceHistory(ticker, 30),
+    // 260 trading days (~1Y) — enough for the Hero's 1W/1M/3M sparkline
+    // windows *and* the 52-week high/low range (ETF Detail Page v3),
+    // still comfortably under PostgREST's row cap.
+    getPriceHistory(ticker, 260),
     getDistributions(ticker, 12),
     getDistributionsSince(ticker, 90),
     getDistributionsSince(ticker, 395),
@@ -164,6 +171,7 @@ export default async function KoreanTickerPage({
     getAllTickers(),
     getLatestOfficialDistributionForTicker(ticker),
     getPredictionVsOfficial(ticker),
+    getHomeSnapshot(),
   ]);
   const trend12mo = computeDividendTrend(yearOfDistributions).find((w) => w.days === 365) ?? null;
 
@@ -187,6 +195,16 @@ export default async function KoreanTickerPage({
         100
       : null;
 
+  // ETF Detail Page v3 — Investor Dashboard Redesign. See the English
+  // ticker page for the full rationale; mirrored 1:1 with lang="ko".
+  const priceSummary = buildPriceSummary(history);
+  const dividendPriceComparison = buildDividendPriceComparison(history, recentDistributions);
+  const yieldContext = computeYieldPercentile(
+    annualYieldPct,
+    homeSnapshot.map((s) => s.annualYieldPct),
+    "ko"
+  );
+
   const comparisonPeerTicker = pickComparisonPeerTicker(ticker, etf.provider_id, allTickers);
   const MAGAZINE_TYPES: ArticleTypeId[] = [
     "next-dividend-prediction",
@@ -200,6 +218,16 @@ export default async function KoreanTickerPage({
   // rationale on every addition below; mirrored 1:1 with lang="ko".
   const similarEtfTickers = pickComparisonPeerTickers(ticker, etf.provider_id, allTickers, 4);
   const similarEtfs = similarEtfTickers.length > 0 ? await getComparisonPeersData(similarEtfTickers) : [];
+
+  // ETF Detail Page v3 — Hero Quick Links (requirement #10). See the
+  // English ticker page for the full rationale; mirrored 1:1.
+  const heroQuickLinks = [
+    { href: "#price-chart", label: "가격 이력" },
+    { href: "#dividend-history", label: "배당 이력" },
+    similarEtfs.length > 0 ? { href: "#similar-etfs", label: "유사 ETF 비교" } : null,
+    { href: "#ai-outlook", label: "AI 전망" },
+    { href: "#etf-activity", label: "활동" },
+  ].filter((l): l is { href: string; label: string } => l != null);
 
   const enrichmentInput: EnrichmentInput = {
     ticker,
@@ -368,6 +396,10 @@ export default async function KoreanTickerPage({
         recentPayments={distributions.slice(0, 3).map((d) => ({ amount: d.amount, payDate: d.pay_date }))}
         trend12mo={trend12mo}
         directAnswer={directAnswer}
+        priceSummary={priceSummary}
+        dividendPriceComparison={dividendPriceComparison}
+        yieldContext={yieldContext}
+        quickLinks={heroQuickLinks}
         lang="ko"
       />
 
@@ -432,8 +464,8 @@ export default async function KoreanTickerPage({
           lang="ko"
         />
 
-        <div className="mt-8">
-          <h2 className="text-lg font-bold mb-3">현재 가격</h2>
+        <div id="price-chart" className="mt-8 scroll-mt-4">
+          <h2 className="text-lg font-bold mb-3">가격 이력</h2>
           <div className="grid sm:grid-cols-[auto_1fr] gap-3">
             <Stat
               label="종가"
@@ -619,7 +651,7 @@ export default async function KoreanTickerPage({
           )}
 
           {similarEtfs.length > 0 && (
-            <div>
+            <div id="similar-etfs" className="scroll-mt-4">
               <h2 className="text-lg font-bold mb-3">유사 ETF</h2>
               <div className="grid sm:grid-cols-2 gap-3">
                 {similarEtfs.map((peer) => (
