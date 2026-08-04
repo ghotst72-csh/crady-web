@@ -49,7 +49,7 @@ export function ActivityStreamDetailRow({ entry, lang }: { entry: ActivityStream
         <Badge variant={activityBadgeVariant(entry.source)} className="shrink-0">
           {activityBadgeLabel(entry.source, lang)}
         </Badge>
-        <span className="text-sm text-[var(--gray-700)] truncate flex-1">{entry.label}</span>
+        <span className="min-w-0 text-sm text-[var(--gray-700)] truncate flex-1">{entry.label}</span>
         <span className="text-[var(--gray-400)] text-xs shrink-0 transition-transform group-open:rotate-180">▾</span>
       </summary>
 

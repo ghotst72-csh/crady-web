@@ -143,11 +143,11 @@ export function EtfActivityStream({
                   {activityBadgeLabel(entry.source, lang)}
                 </Badge>
                 {entry.href ? (
-                  <a href={entry.href} className="text-sm text-[var(--gray-700)] hover:text-black hover:underline truncate">
+                  <a href={entry.href} className="min-w-0 flex-1 text-sm text-[var(--gray-700)] hover:text-black hover:underline truncate">
                     {entry.label}
                   </a>
                 ) : (
-                  <span className="text-sm text-[var(--gray-700)] truncate">{entry.label}</span>
+                  <span className="min-w-0 flex-1 text-sm text-[var(--gray-700)] truncate">{entry.label}</span>
                 )}
               </div>
             )
@@ -155,8 +155,8 @@ export function EtfActivityStream({
         )}
       </div>
 
-      <div className="mt-4 grid sm:grid-cols-2 gap-3">
-        <div className="border border-[var(--gray-200)] rounded-xl p-4">
+      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="border border-[var(--gray-200)] rounded-xl p-4 min-w-0">
           <div className="text-xs font-semibold text-[var(--gray-500)] uppercase tracking-wide mb-2">
             {T.trendingTopics[lang]}
           </div>
@@ -171,7 +171,13 @@ export function EtfActivityStream({
                       {activityBadgeLabel(topic.kind === "official" ? "official" : "crady", lang)}
                     </Badge>
                   )}
-                  <a href={topic.href} className="text-[var(--gray-700)] hover:text-black hover:underline truncate">
+                  {/* min-w-0 — a flex item's implicit min-width is auto (its
+                      content's intrinsic width), not 0, so `truncate` alone
+                      does nothing here; without this the <a> refuses to
+                      shrink and stretches the whole grid track past the
+                      viewport on mobile. Same root cause documented in
+                      app/(en)/layout.tsx re: the mobile carousel. */}
+                  <a href={topic.href} className="min-w-0 flex-1 text-[var(--gray-700)] hover:text-black hover:underline truncate">
                     {topic.title}
                   </a>
                   {topic.replyCount != null && (
@@ -182,7 +188,7 @@ export function EtfActivityStream({
             </ul>
           )}
         </div>
-        <div className="border border-[var(--gray-200)] rounded-xl p-4">
+        <div className="border border-[var(--gray-200)] rounded-xl p-4 min-w-0">
           <div className="text-xs font-semibold text-[var(--gray-500)] uppercase tracking-wide mb-2">
             {T.latestDiscussions[lang]}
           </div>

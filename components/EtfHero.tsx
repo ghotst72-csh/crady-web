@@ -237,7 +237,12 @@ export function EtfHero({
               </div>
             )}
 
-            <div className="mt-5 pt-5 border-t border-[var(--gray-200)] grid grid-cols-3 gap-3 sm:gap-4">
+            {/* Stacked on mobile, not a rigid 3-col grid — at 390px each
+                column was too narrow for the yield-percentile badge
+                ("Top 25% among covered-call ETFs"), which pushed past the
+                viewport edge. Verified via a real Playwright overflow scan
+                against production, not assumed. */}
+            <div className="mt-5 pt-5 border-t border-[var(--gray-200)] grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
               <MiniStat
                 label={T.nextPayDate[lang]}
                 value={prediction?.predictedAmount != null ? `$${prediction.predictedAmount.toFixed(4)}` : "—"}
@@ -480,7 +485,13 @@ function MiniStat({
       {sub && <div className="text-xs text-[var(--gray-500)] mt-0.5 truncate">{sub}</div>}
       {badge && (
         <div className="mt-1.5">
-          <Badge variant="accent">{badge}</Badge>
+          {/* whitespace-normal override — Badge defaults to nowrap, which
+              is right for short tags but this one ("Top 25% among
+              covered-call ETFs") is long enough to need to wrap even in a
+              full-width mobile column. */}
+          <Badge variant="accent" className="whitespace-normal text-left">
+            {badge}
+          </Badge>
         </div>
       )}
     </div>
