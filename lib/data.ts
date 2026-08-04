@@ -32,6 +32,14 @@ export type RiskMetricsRow = {
   recent_return_30d: number | null;
   recent_return_90d: number | null;
   calculated_at: string | null;
+  /** Populated for 27 of 73 tracked tickers (confirmed by direct query) —
+   * always check for null. See lib/ticker/nextDividendIntelligence.ts's
+   * classifyEtfType for the broader fallback used when this is absent. */
+  strategy_type: string | null;
+  underlying_ticker: string | null;
+  income_score: number | null;
+  safety_score: number | null;
+  momentum_score: number | null;
 };
 
 export type RegimeProfileRow = {
@@ -104,7 +112,8 @@ export async function getRiskMetrics(
     .from("etf_risk_metrics")
     .select(
       "ticker, crady_score, risk_level, profile_type, dividend_stability_score, " +
-        "volatility_30d, volatility_90d, max_drawdown, recent_return_30d, recent_return_90d, calculated_at"
+        "volatility_30d, volatility_90d, max_drawdown, recent_return_30d, recent_return_90d, calculated_at, " +
+        "strategy_type, underlying_ticker, income_score, safety_score, momentum_score"
     )
     .eq("ticker", ticker)
     .order("calculated_at", { ascending: false })

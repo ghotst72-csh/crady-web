@@ -158,6 +158,19 @@ export default function KoreanAboutPage() {
           </div>
 
           <div>
+            <div className="font-semibold text-sm">포트폴리오 Health Score</div>
+            <p className="text-sm text-[var(--gray-600)] mt-1 leading-relaxed">
+              포트폴리오 분석기에 실제 보유 종목을 입력했을 때만 계산되는, 100점 만점에 8개
+              항목으로 명시적으로 배분된 점수입니다 — 총수익 하나로 전체 점수가 결정되지
+              않습니다. 총수익(20점), 낙폭 관리(15), 인컴 강도(10), 인컴 안정성(15), 분산도(15),
+              운용사 집중도(10), 기초자산 집중도(5), 데이터 품질(10)로 구성됩니다. 각 항목은
+              포트폴리오의 실제 수치를 고정된 척도로 환산해 점수화하며(예: 낙폭 관리는 낙폭 0%를
+              만점, 60% 이상 낙폭을 0점으로 환산), 데이터가 부족한 항목은 0점 처리되지 않고
+              합계에서 제외되며 전체 점수는 실제로 계산 가능했던 항목 기준으로 재조정됩니다.
+            </p>
+          </div>
+
+          <div>
             <div className="font-semibold text-sm">데이터 출처</div>
             <p className="text-sm text-[var(--gray-600)] mt-1 leading-relaxed">
               가격, 배당 지급 내역, 배당 일정은 각 ETF 운용사가 공개하는

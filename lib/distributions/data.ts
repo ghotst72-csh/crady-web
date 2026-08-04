@@ -253,6 +253,14 @@ export type PredictionVsOfficial = {
   evaluatedAt: string;
 };
 
+/** Real terminal evaluation outcomes written by the C:\CRADY pipeline's
+ * evaluate_predictions.py — "pending" (target date hasn't resolved yet) and
+ * "legacy" (pre-this-scheme rows) are excluded as not-yet-evaluated. The
+ * literal string "evaluated" does not appear anywhere in this column — a
+ * prior version of this file filtered for it and silently matched zero rows
+ * sitewide, confirmed by direct query before this fix. */
+const EVALUATED_STATUSES = ["matched", "close", "high_error"] as const;
+
 /** The most recent EVALUATED prediction for a ticker (Part 6) — reads the
  * existing dividend_predictions table (already populated + evaluated by the
  * C:\CRADY pipeline's evaluate_predictions.py against real distributions
@@ -264,7 +272,7 @@ export async function getPredictionVsOfficial(ticker: string): Promise<Predictio
     .from("dividend_predictions")
     .select("predicted_amount, actual_amount, target_pay_date, prediction_error_pct, evaluation_status, created_at")
     .eq("ticker", ticker)
-    .eq("evaluation_status", "evaluated")
+    .in("evaluation_status", EVALUATED_STATUSES)
     .order("target_pay_date", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -279,4 +287,53 @@ export async function getPredictionVsOfficial(ticker: string): Promise<Predictio
     percentageError: data.prediction_error_pct,
     evaluatedAt: data.created_at,
   };
+}
+
+export type EvaluatedPredictionRow = {
+  targetPayDate: string;
+  predictedAmount: number;
+  actualAmount: number;
+  percentageError: number | null;
+  evaluationStatus: string;
+};
+
+/** Every real evaluated prediction for a ticker, most recent first, for the
+ * Prediction Track Record (§9). The pipeline re-predicts the same
+ * upcoming payment multiple times before its ex-date, so raw rows contain
+ * near-duplicates that all resolve to the same real-world event — this
+ * dedupes to one row per target_pay_date (the row Supabase returns first
+ * within that date, already ordered newest-created first) so "last 8
+ * predictions" means 8 distinct real distributions, not 8 re-runs of the
+ * same one. */
+export async function getEvaluatedPredictionHistory(
+  ticker: string,
+  limit = 20
+): Promise<EvaluatedPredictionRow[]> {
+  const { data, error } = await supabase
+    .from("dividend_predictions")
+    .select("target_pay_date, predicted_amount, actual_amount, prediction_error_pct, evaluation_status, created_at")
+    .eq("ticker", ticker)
+    .in("evaluation_status", EVALUATED_STATUSES)
+    .not("predicted_amount", "is", null)
+    .not("actual_amount", "is", null)
+    .order("target_pay_date", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(limit * 4); // headroom for dedup — several raw rows per real event
+  if (error) throw error;
+
+  const seen = new Set<string>();
+  const out: EvaluatedPredictionRow[] = [];
+  for (const row of data ?? []) {
+    if (seen.has(row.target_pay_date)) continue;
+    seen.add(row.target_pay_date);
+    out.push({
+      targetPayDate: row.target_pay_date,
+      predictedAmount: row.predicted_amount,
+      actualAmount: row.actual_amount,
+      percentageError: row.prediction_error_pct,
+      evaluationStatus: row.evaluation_status,
+    });
+    if (out.length >= limit) break;
+  }
+  return out;
 }

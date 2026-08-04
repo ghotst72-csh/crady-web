@@ -27,7 +27,18 @@ import {
 } from "./calculations";
 import { pickAlternatives } from "./alternativePicks";
 import { buildQuickReport, type QuickReportHolding } from "./quickReport";
+import { classifyEtfType } from "@/lib/ticker/nextDividendIntelligence";
+import { computeConcentration, computeDiversificationScore, type ConcentrationHolding } from "./concentration";
+import { computeHealthScore } from "./healthScore";
+import { buildContributors } from "./contributors";
+import { buildPortfolioTimeline, type PortfolioTimeline } from "./timeline";
 import type { Holding, HoldingResult, AlternativeResult } from "./types";
+
+/** Filters out pipeline placeholder values like the literal string
+ * "unknown" — same convention as the ticker pages' own isKnown(). */
+function isKnown(v: string | null): v is string {
+  return !!v && v.trim().toLowerCase() !== "unknown";
+}
 
 /** CRADY Portfolio Analyzer Phase 1 — server-side orchestration. A Next.js
  * Server Action (not a route handler, not query-string state) so holdings
@@ -46,6 +57,13 @@ export type PortfolioAnalysis = {
   holdingResults: HoldingResult[];
   alternativesByHolding: Record<string, AlternativeResult[]>;
   quickReport: string[];
+  /** null only when there isn't a single holding with real, computable
+   * data — never a fabricated empty-looking breakdown. */
+  concentration: ReturnType<typeof computeConcentration>;
+  diversificationScore: number | null;
+  healthScore: ReturnType<typeof computeHealthScore> | null;
+  contributors: ReturnType<typeof buildContributors>;
+  timeline: PortfolioTimeline | null;
   totals: {
     totalInvested: number;
     totalCurrentValue: number;
@@ -63,20 +81,53 @@ export type PortfolioAnalysis = {
   };
 };
 
+type Display = {
+  name: string | null;
+  providerId: string | null;
+  cradyScore: number | null;
+  dividendStabilityScore: number | null;
+  payoutFrequency: string | null;
+  underlyingTicker: string | null;
+  etfType: string | null;
+  incomeScore: number | null;
+  safetyScore: number | null;
+  momentumScore: number | null;
+  riskLevel: string | null;
+};
+
+/** Internal-only shape carrying the raw price history alongside the public
+ * HoldingResult, so the portfolio timeline (§15) can be built without
+ * re-fetching — but this extra field is stripped before anything crosses
+ * back to the client (see analyzePortfolio), keeping the Server Action's
+ * response payload from ballooning with hundreds of price rows per
+ * holding. */
+type HoldingResultInternal = HoldingResult & {
+  history: { trade_date: string; close_price: number | null }[];
+};
+
 function emptyHoldingResult(
   holding: Holding,
   etfExists: boolean,
   notYetListedAtPurchase: boolean,
-  display?: { name: string | null; providerId: string | null; cradyScore: number | null; payoutFrequency: string | null }
-): HoldingResult {
+  display?: Display
+): HoldingResultInternal {
   return {
     holding,
     etfExists,
     name: display?.name ?? null,
     providerId: display?.providerId ?? null,
     cradyScore: display?.cradyScore ?? null,
+    dividendStabilityScore: display?.dividendStabilityScore ?? null,
     payoutFrequency: display?.payoutFrequency ?? null,
+    underlyingTicker: display?.underlyingTicker ?? null,
+    etfType: display?.etfType ?? null,
+    incomeScore: display?.incomeScore ?? null,
+    safetyScore: display?.safetyScore ?? null,
+    momentumScore: display?.momentumScore ?? null,
+    riskLevel: display?.riskLevel ?? null,
+    todayChangePct: null,
     notYetListedAtPurchase,
+    history: [],
     resolved: null,
     currentPrice: null,
     asOfDate: null,
@@ -99,16 +150,27 @@ function emptyHoldingResult(
   };
 }
 
-async function computeHoldingResult(holding: Holding, todayIso: string): Promise<HoldingResult> {
+async function computeHoldingResult(holding: Holding, todayIso: string): Promise<HoldingResultInternal> {
   const [etf, risk] = await Promise.all([getEtf(holding.ticker), getRiskMetrics(holding.ticker)]);
   if (!etf) return emptyHoldingResult(holding, false, false);
 
-  const display = {
+  const display: Display = {
     name: etf.name,
     providerId: etf.provider_id,
     cradyScore: risk?.crady_score ?? null,
+    dividendStabilityScore: risk?.dividend_stability_score ?? null,
     payoutFrequency:
       etf.payout_frequency && etf.payout_frequency.toLowerCase() !== "unknown" ? etf.payout_frequency : null,
+    underlyingTicker: risk?.underlying_ticker ?? null,
+    incomeScore: risk?.income_score ?? null,
+    safetyScore: risk?.safety_score ?? null,
+    momentumScore: risk?.momentum_score ?? null,
+    riskLevel: risk?.risk_level ?? null,
+    etfType: classifyEtfType({
+      strategyType: risk?.strategy_type ?? null,
+      underlyingTicker: risk?.underlying_ticker ?? null,
+      assetClass: isKnown(etf.asset_class) ? etf.asset_class : null,
+    }),
   };
 
   const [history, distributions, recentDistributions] = await Promise.all([
@@ -118,7 +180,7 @@ async function computeHoldingResult(holding: Holding, todayIso: string): Promise
   ]);
 
   const resolved = resolvePurchasePrice(history, holding.purchaseDate, holding.avgPurchasePrice);
-  if (!resolved) return emptyHoldingResult(holding, true, true, display);
+  if (!resolved) return { ...emptyHoldingResult(holding, true, true, display), history };
 
   const { shares, investmentAmount } = resolveSharesAndAmount(
     holding.shares,
@@ -189,8 +251,17 @@ async function computeHoldingResult(holding: Holding, todayIso: string): Promise
     name: display.name,
     providerId: display.providerId,
     cradyScore: display.cradyScore,
+    dividendStabilityScore: display.dividendStabilityScore,
     payoutFrequency: display.payoutFrequency,
+    underlyingTicker: display.underlyingTicker,
+    etfType: display.etfType,
+    incomeScore: display.incomeScore,
+    safetyScore: display.safetyScore,
+    momentumScore: display.momentumScore,
+    riskLevel: display.riskLevel,
+    todayChangePct: computeTodayChangePct(history),
     notYetListedAtPurchase: false,
+    history,
     resolved: {
       ticker: holding.ticker,
       requestedDate: holding.purchaseDate,
@@ -348,10 +419,86 @@ export async function analyzePortfolio(
     lang
   );
 
+  // CRADY Engagement & Intelligence Phase 2, Part B — concentration,
+  // Health Score, contributors, timeline. All built from `valid` (the
+  // same already-computed, real-data-only holding set the rest of this
+  // function uses) — no new fetches beyond what computeHoldingResult
+  // already did per holding.
+  const concentrationHoldings: ConcentrationHolding[] = valid.map((r) => ({
+    ticker: r.holding.ticker,
+    investmentAmount: r.resolved!.investmentAmount,
+    providerLabel: providerLabel(providerIdOf(homeSnapshot, r.holding.ticker)),
+    underlyingLabel: r.underlyingTicker ?? r.holding.ticker,
+    strategyLabel: ETF_TYPE_LABEL[r.etfType as keyof typeof ETF_TYPE_LABEL] ?? "Unclassified",
+    payoutFrequency: r.payoutFrequency,
+  }));
+  const concentration = computeConcentration(concentrationHoldings);
+  const diversificationScore = concentration ? computeDiversificationScore(concentration.byUnderlying) : null;
+
+  const yieldCandidates = valid.filter((r) => r.currentAnnualYieldPct != null);
+  const yieldWeight = yieldCandidates.reduce((s, r) => s + r.resolved!.investmentAmount, 0);
+  const avgCurrentYieldPct =
+    yieldWeight > 0
+      ? yieldCandidates.reduce((s, r) => s + r.currentAnnualYieldPct! * r.resolved!.investmentAmount, 0) / yieldWeight
+      : null;
+
+  const stabilityCandidates = valid.filter((r) => r.dividendStabilityScore != null);
+  const stabilityWeight = stabilityCandidates.reduce((s, r) => s + r.resolved!.investmentAmount, 0);
+  const avgDividendStabilityScore =
+    stabilityWeight > 0
+      ? stabilityCandidates.reduce((s, r) => s + r.dividendStabilityScore! * r.resolved!.investmentAmount, 0) / stabilityWeight
+      : null;
+
+  const healthScore =
+    valid.length > 0
+      ? computeHealthScore({
+          totalReturnPct,
+          maxDrawdownPct: valid.some((r) => r.maxDrawdownPct != null)
+            ? Math.min(...valid.map((r) => r.maxDrawdownPct ?? 0))
+            : null,
+          avgCurrentYieldPct,
+          avgDividendStabilityScore,
+          diversificationScore,
+          topProviderPct: concentration?.byProvider[0]?.pct ?? null,
+          topUnderlyingPct: concentration?.byUnderlying[0]?.pct ?? null,
+          dataCompletenessFraction: holdings.length > 0 ? valid.length / holdings.length : null,
+        })
+      : null;
+
+  const contributors = buildContributors(
+    valid.map((r) => ({
+      ticker: r.holding.ticker,
+      priceReturnAmount: r.priceReturnAmount,
+      totalDividendsReceived: r.totalDividendsReceived,
+      totalReturnAmount: r.totalReturnAmount,
+    }))
+  );
+
+  const timeline = buildPortfolioTimeline(
+    valid.map((r) => ({
+      ticker: r.holding.ticker,
+      purchaseDate: r.resolved!.requestedDate,
+      investmentAmount: r.resolved!.investmentAmount,
+      shares: r.resolved!.shares,
+      history: r.history,
+      eligibleDividends: r.eligibleDividends,
+    })),
+    todayIso
+  );
+
   return {
-    holdingResults,
+    // Strip `history` before crossing the Server Action boundary — it's
+    // only needed internally to build the timeline above, and sending
+    // hundreds of raw price rows per holding to the client would bloat
+    // the response for no UI benefit.
+    holdingResults: holdingResults.map(stripHistory),
     alternativesByHolding,
     quickReport,
+    concentration,
+    diversificationScore,
+    healthScore,
+    contributors,
+    timeline,
     totals: {
       totalInvested,
       totalCurrentValue,
@@ -365,6 +512,31 @@ export async function analyzePortfolio(
     },
   };
 }
+
+/** Latest close vs. the prior trading day's close — same logic already
+ * proven on the ETF Hero (components/activity/ActivitySection.tsx's
+ * computePriceDeltaPct), reimplemented locally to avoid pulling a
+ * component-layer helper into this server module. */
+function computeTodayChangePct(history: { trade_date: string; close_price: number | null }[]): number | null {
+  const closes = history.map((h) => h.close_price).filter((p): p is number => p != null);
+  if (closes.length < 2) return null;
+  const [prev, last] = [closes[closes.length - 2], closes[closes.length - 1]];
+  if (prev === 0) return null;
+  return ((last - prev) / prev) * 100;
+}
+
+function stripHistory(r: HoldingResultInternal): HoldingResult {
+  const { history, ...rest } = r;
+  void history; // deliberately discarded — see the call site's comment
+  return rest;
+}
+
+const ETF_TYPE_LABEL = {
+  "single-stock-covered-call": "Single-Stock Covered Call",
+  "index-covered-call": "Index Covered Call",
+  "traditional-dividend": "Traditional Dividend",
+  "treasury-bond": "Treasury / Bond",
+} as const;
 
 function providerIdOf(snapshot: Awaited<ReturnType<typeof getHomeSnapshot>>, ticker: string): string {
   return snapshot.find((s) => s.ticker === ticker)?.provider_id ?? "unknown";

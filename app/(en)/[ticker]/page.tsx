@@ -19,6 +19,14 @@ import {
 } from "@/lib/data";
 import { buildPriceSummary, buildDividendPriceComparison } from "@/lib/ticker/priceSummary";
 import { computeYieldPercentile } from "@/lib/ticker/yieldContext";
+import {
+  getFullNextPrediction,
+  getNextScheduleRow,
+  getRecentDeclaredDistributions,
+} from "@/lib/ticker/nextDividendData";
+import { buildNextDividendIntelligenceData } from "@/lib/ticker/buildNextDividendIntelligenceData";
+import { NextDividendIntelligence } from "@/components/ticker/NextDividendIntelligence";
+import { buildNextDividendDirectAnswer, buildNextDividendFaq } from "@/lib/ticker/nextDividendNarrative";
 import { RESERVED_PATHS } from "@/lib/reserved";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { DividendStagePill } from "@/components/DividendLifecycle";
@@ -28,7 +36,11 @@ import { articleSlug } from "@/lib/magazine/recipes";
 import { pickComparisonPeerTicker, pickComparisonPeerTickers } from "@/lib/magazine/comparison";
 import { getComparisonPeersData } from "@/lib/magazine/data";
 import { ARTICLE_TYPE_LABEL, type ArticleTypeId } from "@/lib/magazine/types";
-import { getLatestOfficialDistributionForTicker, getPredictionVsOfficial } from "@/lib/distributions/data";
+import {
+  getLatestOfficialDistributionForTicker,
+  getPredictionVsOfficial,
+  getEvaluatedPredictionHistory,
+} from "@/lib/distributions/data";
 import { OfficialDistributionBlock } from "@/components/distributions/OfficialDistributionBlock";
 import { computeDividendTrend } from "@/lib/magazine/trend";
 import { buildProfileSnippet, buildProfileFaqItems } from "@/lib/ticker/profileSeo";
@@ -156,6 +168,10 @@ export default async function TickerPage({
     officialDistribution,
     predictionVsOfficial,
     homeSnapshot,
+    fullNextPrediction,
+    nextScheduleRow,
+    recentDeclaredDistributions,
+    evaluatedPredictionHistory,
   ] = await Promise.all([
     getRiskMetrics(ticker),
     getRegimeProfile(ticker),
@@ -173,6 +189,10 @@ export default async function TickerPage({
     getLatestOfficialDistributionForTicker(ticker),
     getPredictionVsOfficial(ticker),
     getHomeSnapshot(),
+    getFullNextPrediction(ticker),
+    getNextScheduleRow(ticker),
+    getRecentDeclaredDistributions(ticker, 12),
+    getEvaluatedPredictionHistory(ticker, 20),
   ]);
   const trend12mo = computeDividendTrend(yearOfDistributions).find((w) => w.days === 365) ?? null;
 
@@ -229,6 +249,7 @@ export default async function TickerPage({
   // down this same page; a link is simply omitted when the section behind
   // it wouldn't actually be rendered (e.g. no Similar ETFs peers).
   const heroQuickLinks = [
+    { href: "#next-dividend-intelligence", label: "Next Dividend Intelligence" },
     { href: "#price-chart", label: "Price History" },
     { href: "#dividend-history", label: "Dividend History" },
     similarEtfs.length > 0 ? { href: "#similar-etfs", label: "Compare Similar ETFs" } : null,
@@ -278,6 +299,49 @@ export default async function TickerPage({
         latestPaidDistribution?.amount != null
           ? { amount: latestPaidDistribution.amount, payDate: latestPaidDistribution.pay_date }
           : null,
+    },
+    "en"
+  );
+
+  // CRADY Engagement & Intelligence Phase 2, Part A — Next Dividend
+  // Intelligence. All inputs are data already fetched above (no new
+  // queries beyond the 4 added to the Promise.all).
+  const todayStr2 = new Date().toISOString().slice(0, 10);
+  const nextDividendIntelligenceData = buildNextDividendIntelligenceData({
+    ticker,
+    scheduleRow: nextScheduleRow,
+    prediction: fullNextPrediction,
+    recentDeclared: recentDeclaredDistributions,
+    evaluatedHistory: evaluatedPredictionHistory,
+    latestEvaluated: predictionVsOfficial,
+    strategyType: risk?.strategy_type ?? null,
+    underlyingTicker: risk?.underlying_ticker ?? null,
+    assetClass: isKnown(etf.asset_class) ? etf.asset_class : null,
+    volatility30d: risk?.volatility_30d ?? null,
+    payoutFrequency: isKnown(etf.payout_frequency) ? etf.payout_frequency : null,
+    todayIso: todayStr2,
+    lang: "en",
+  });
+  const nextDividendDirectAnswer = buildNextDividendDirectAnswer(
+    {
+      ticker,
+      exDate: nextDividendIntelligenceData.schedule.exDividend.date,
+      pointEstimate: nextDividendIntelligenceData.pointEstimate,
+      isOfficial: nextDividendIntelligenceData.isOfficial,
+      officialAmount: nextDividendIntelligenceData.officialAmount,
+      payDate: nextDividendIntelligenceData.schedule.payment.date,
+    },
+    "en"
+  );
+  const nextDividendFaq = buildNextDividendFaq(
+    {
+      ticker,
+      exDate: nextDividendIntelligenceData.schedule.exDividend.date,
+      payDate: nextDividendIntelligenceData.schedule.payment.date,
+      declarationDate: nextDividendIntelligenceData.schedule.declaration.date,
+      pointEstimate: nextDividendIntelligenceData.pointEstimate,
+      isOfficial: nextDividendIntelligenceData.isOfficial,
+      officialAmount: nextDividendIntelligenceData.officialAmount,
     },
     "en"
   );
@@ -346,7 +410,7 @@ export default async function TickerPage({
         : null,
   };
   const profileSnippetText = buildProfileSnippet(profileSeoInput, "en");
-  const profileFaqItems = buildProfileFaqItems(profileSeoInput, "en");
+  const profileFaqItems = [...buildProfileFaqItems(profileSeoInput, "en"), ...nextDividendFaq];
   const faqJsonLd = buildFaqJsonLd(profileFaqItems);
   const webPageJsonLd = buildWebPageJsonLd({
     name: `${ticker} — ${etf.name ?? ticker}`,
@@ -414,6 +478,11 @@ export default async function TickerPage({
         quickLinks={heroQuickLinks}
         lang="en"
       />
+
+      {/* CRADY Engagement & Intelligence Phase 2, Part A — placed directly
+          under the Hero, before Activity/Magazine content, per the spec's
+          own placement priority. */}
+      <NextDividendIntelligence data={nextDividendIntelligenceData} directAnswer={nextDividendDirectAnswer} lang="en" />
 
       <div className="mx-auto max-w-4xl px-4 sm:px-6">
         <Suspense fallback={null}>

@@ -59,7 +59,18 @@ export type HoldingResult = {
   name: string | null;
   providerId: string | null;
   cradyScore: number | null;
+  dividendStabilityScore: number | null;
   payoutFrequency: string | null;
+  underlyingTicker: string | null;
+  /** "single-stock-covered-call" | "index-covered-call" | "traditional-dividend" | "treasury-bond" — see lib/ticker/nextDividendIntelligence.ts's classifyEtfType, reused here for concentration grouping and the ETF Card's Strategy Type field. */
+  etfType: string | null;
+  incomeScore: number | null;
+  safetyScore: number | null;
+  momentumScore: number | null;
+  riskLevel: string | null;
+  /** Latest close vs. the prior trading day's close — for the ETF Card's
+   * "Today's Change" field (Part C §21). */
+  todayChangePct: number | null;
   /** True once the requested purchase date is before the ETF's first
    * recorded trading day (i.e., not listed yet on that date). */
   notYetListedAtPurchase: boolean;

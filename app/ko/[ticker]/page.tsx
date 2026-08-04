@@ -19,6 +19,14 @@ import {
 } from "@/lib/data";
 import { buildPriceSummary, buildDividendPriceComparison } from "@/lib/ticker/priceSummary";
 import { computeYieldPercentile } from "@/lib/ticker/yieldContext";
+import {
+  getFullNextPrediction,
+  getNextScheduleRow,
+  getRecentDeclaredDistributions,
+} from "@/lib/ticker/nextDividendData";
+import { buildNextDividendIntelligenceData } from "@/lib/ticker/buildNextDividendIntelligenceData";
+import { NextDividendIntelligence } from "@/components/ticker/NextDividendIntelligence";
+import { buildNextDividendDirectAnswer, buildNextDividendFaq } from "@/lib/ticker/nextDividendNarrative";
 import { RESERVED_PATHS } from "@/lib/reserved";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { DividendStagePill } from "@/components/DividendLifecycle";
@@ -28,7 +36,11 @@ import { articleSlug } from "@/lib/magazine/recipes";
 import { pickComparisonPeerTicker, pickComparisonPeerTickers } from "@/lib/magazine/comparison";
 import { getComparisonPeersData } from "@/lib/magazine/data";
 import { ARTICLE_TYPE_LABEL, type ArticleTypeId } from "@/lib/magazine/types";
-import { getLatestOfficialDistributionForTicker, getPredictionVsOfficial } from "@/lib/distributions/data";
+import {
+  getLatestOfficialDistributionForTicker,
+  getPredictionVsOfficial,
+  getEvaluatedPredictionHistory,
+} from "@/lib/distributions/data";
 import { OfficialDistributionBlock } from "@/components/distributions/OfficialDistributionBlock";
 import { computeDividendTrend } from "@/lib/magazine/trend";
 import { buildProfileSnippet, buildProfileFaqItems } from "@/lib/ticker/profileSeo";
@@ -155,6 +167,10 @@ export default async function KoreanTickerPage({
     officialDistribution,
     predictionVsOfficial,
     homeSnapshot,
+    fullNextPrediction,
+    nextScheduleRow,
+    recentDeclaredDistributions,
+    evaluatedPredictionHistory,
   ] = await Promise.all([
     getRiskMetrics(ticker),
     getRegimeProfile(ticker),
@@ -172,6 +188,10 @@ export default async function KoreanTickerPage({
     getLatestOfficialDistributionForTicker(ticker),
     getPredictionVsOfficial(ticker),
     getHomeSnapshot(),
+    getFullNextPrediction(ticker),
+    getNextScheduleRow(ticker),
+    getRecentDeclaredDistributions(ticker, 12),
+    getEvaluatedPredictionHistory(ticker, 20),
   ]);
   const trend12mo = computeDividendTrend(yearOfDistributions).find((w) => w.days === 365) ?? null;
 
@@ -222,6 +242,7 @@ export default async function KoreanTickerPage({
   // ETF Detail Page v3 — Hero Quick Links (requirement #10). See the
   // English ticker page for the full rationale; mirrored 1:1.
   const heroQuickLinks = [
+    { href: "#next-dividend-intelligence", label: "다음 배당 인텔리전스" },
     { href: "#price-chart", label: "가격 이력" },
     { href: "#dividend-history", label: "배당 이력" },
     similarEtfs.length > 0 ? { href: "#similar-etfs", label: "유사 ETF 비교" } : null,
@@ -271,6 +292,48 @@ export default async function KoreanTickerPage({
         latestPaidDistribution?.amount != null
           ? { amount: latestPaidDistribution.amount, payDate: latestPaidDistribution.pay_date }
           : null,
+    },
+    "ko"
+  );
+
+  // CRADY Engagement & Intelligence Phase 2, Part A — see the English
+  // ticker page for the full rationale; mirrored 1:1 with lang="ko".
+  const todayStr2 = new Date().toISOString().slice(0, 10);
+  const nextDividendIntelligenceData = buildNextDividendIntelligenceData({
+    ticker,
+    scheduleRow: nextScheduleRow,
+    prediction: fullNextPrediction,
+    recentDeclared: recentDeclaredDistributions,
+    evaluatedHistory: evaluatedPredictionHistory,
+    latestEvaluated: predictionVsOfficial,
+    strategyType: risk?.strategy_type ?? null,
+    underlyingTicker: risk?.underlying_ticker ?? null,
+    assetClass: isKnown(etf.asset_class) ? etf.asset_class : null,
+    volatility30d: risk?.volatility_30d ?? null,
+    payoutFrequency: isKnown(etf.payout_frequency) ? etf.payout_frequency : null,
+    todayIso: todayStr2,
+    lang: "ko",
+  });
+  const nextDividendDirectAnswer = buildNextDividendDirectAnswer(
+    {
+      ticker,
+      exDate: nextDividendIntelligenceData.schedule.exDividend.date,
+      pointEstimate: nextDividendIntelligenceData.pointEstimate,
+      isOfficial: nextDividendIntelligenceData.isOfficial,
+      officialAmount: nextDividendIntelligenceData.officialAmount,
+      payDate: nextDividendIntelligenceData.schedule.payment.date,
+    },
+    "ko"
+  );
+  const nextDividendFaq = buildNextDividendFaq(
+    {
+      ticker,
+      exDate: nextDividendIntelligenceData.schedule.exDividend.date,
+      payDate: nextDividendIntelligenceData.schedule.payment.date,
+      declarationDate: nextDividendIntelligenceData.schedule.declaration.date,
+      pointEstimate: nextDividendIntelligenceData.pointEstimate,
+      isOfficial: nextDividendIntelligenceData.isOfficial,
+      officialAmount: nextDividendIntelligenceData.officialAmount,
     },
     "ko"
   );
@@ -334,7 +397,7 @@ export default async function KoreanTickerPage({
         : null,
   };
   const profileSnippetText = buildProfileSnippet(profileSeoInput, "ko");
-  const profileFaqItems = buildProfileFaqItems(profileSeoInput, "ko");
+  const profileFaqItems = [...buildProfileFaqItems(profileSeoInput, "ko"), ...nextDividendFaq];
   const faqJsonLd = buildFaqJsonLd(profileFaqItems);
   const webPageJsonLd = buildWebPageJsonLd({
     name: `${ticker} — ${etf.name ?? ticker}`,
@@ -403,6 +466,10 @@ export default async function KoreanTickerPage({
         quickLinks={heroQuickLinks}
         lang="ko"
       />
+
+      {/* CRADY Engagement & Intelligence Phase 2, Part A — see the English
+          ticker page for the full rationale on placement. */}
+      <NextDividendIntelligence data={nextDividendIntelligenceData} directAnswer={nextDividendDirectAnswer} lang="ko" />
 
       <div className="mx-auto max-w-4xl px-4 sm:px-6">
         <Suspense fallback={null}>

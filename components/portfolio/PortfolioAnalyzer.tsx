@@ -2,11 +2,16 @@
 
 import { useState, useEffect, useTransition } from "react";
 import { HoldingInputForm } from "./HoldingInputForm";
-import { HoldingCard } from "./HoldingCard";
+import { EtfCard, type EtfCardData, type EtfCardPosition } from "@/components/etf/EtfCard";
+import type { HoldingResult } from "@/lib/portfolio/types";
 import { PortfolioSnapshot } from "./PortfolioSnapshot";
 import { DividendHistoryTable } from "./DividendHistoryTable";
 import { AlternativeComparisonTable } from "./AlternativeComparisonTable";
 import { QuickReportCard } from "./QuickReportCard";
+import { HealthScoreCard } from "./HealthScoreCard";
+import { ConcentrationPanel } from "./ConcentrationPanel";
+import { ContributorsTable } from "./ContributorsTable";
+import { CumulativeTimelineChart } from "./CumulativeTimelineChart";
 import { loadPortfolio, savePortfolio, clearPortfolio } from "@/lib/portfolio/storage";
 import { analyzePortfolio, type PortfolioAnalysis } from "@/lib/portfolio/analyze";
 import type { Holding } from "@/lib/portfolio/types";
@@ -113,12 +118,22 @@ export function PortfolioAnalyzer({
           <PortfolioSnapshot totals={analysis.totals} lang={lang} />
           <QuickReportCard sentences={analysis.quickReport} lang={lang} />
 
+          {/* CRADY Engagement & Intelligence Phase 2, Part B — Portfolio
+              Analyzer 1.5: timeline, contributors, concentration, Health
+              Score. */}
+          <CumulativeTimelineChart timeline={analysis.timeline} lang={lang} />
+          <div className="grid sm:grid-cols-2 gap-4">
+            <ContributorsTable contributors={analysis.contributors} lang={lang} />
+            <HealthScoreCard healthScore={analysis.healthScore} lang={lang} />
+          </div>
+          <ConcentrationPanel concentration={analysis.concentration} lang={lang} />
+
           <div className="space-y-10">
             {analysis.holdingResults.map((r) => (
               <div key={r.holding.id} className="space-y-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <HoldingCard result={r} lang={lang} />
+                    <EtfCard data={toEtfCardData(r)} position={toEtfCardPosition(r)} lang={lang} />
                   </div>
                   <button
                     type="button"
@@ -159,4 +174,41 @@ export function PortfolioAnalyzer({
       )}
     </div>
   );
+}
+
+function toEtfCardData(r: HoldingResult): EtfCardData {
+  return {
+    ticker: r.holding.ticker,
+    name: r.name,
+    providerId: r.providerId,
+    etfType: r.etfType,
+    currentPrice: r.currentPrice,
+    todayChangePct: r.todayChangePct,
+    annualYieldPct: r.currentAnnualYieldPct,
+    cradyScore: r.cradyScore,
+    incomeScore: r.incomeScore,
+    stabilityScore: r.dividendStabilityScore,
+    riskDefenseScore: r.safetyScore,
+    growthScore: r.momentumScore,
+    payoutFrequency: r.payoutFrequency,
+    riskLevel: r.riskLevel,
+    asOfDate: r.asOfDate,
+    priceStatus: r.priceStatus,
+    priceStaleDays: r.priceStaleDays,
+  };
+}
+
+function toEtfCardPosition(r: HoldingResult): EtfCardPosition | null {
+  if (!r.resolved) return null;
+  return {
+    shares: r.resolved.shares,
+    purchaseDate: r.holding.purchaseDate,
+    avgPrice: r.resolved.effectivePrice,
+    isEstimatedPrice: r.resolved.isEstimatedPrice,
+    investmentAmount: r.resolved.investmentAmount,
+    currentValue: r.currentValue,
+    dividendsReceived: r.totalDividendsReceived,
+    priceReturnPct: r.priceReturnPct,
+    totalReturnPct: r.totalReturnPct,
+  };
 }

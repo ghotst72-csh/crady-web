@@ -153,6 +153,22 @@ export default function AboutPage() {
           </div>
 
           <div>
+            <div className="font-semibold text-sm">Portfolio Health Score</div>
+            <p className="text-sm text-[var(--gray-600)] mt-1 leading-relaxed">
+              An explicit 100-point allocation across 8 components, computed only in the Portfolio
+              Analyzer once you&apos;ve added real holdings — never a single &quot;total return decides
+              everything&quot; number. Total Return (20 pts), Drawdown Control (15), Income Strength
+              (10), Income Stability (15), Diversification (15), Provider Concentration (10),
+              Underlying-Asset Concentration (5), and Data Quality (10). Each component is scored
+              from your portfolio&apos;s own real numbers on a fixed scale (e.g. Drawdown Control maps
+              0% drawdown to full points and a 60%+ drawdown to zero). A component your portfolio
+              doesn&apos;t have enough data for is excluded from the total — not silently scored as
+              zero — and the overall score is rescaled to whatever components were actually
+              computable.
+            </p>
+          </div>
+
+          <div>
             <div className="font-semibold text-sm">Data Sources</div>
             <p className="text-sm text-[var(--gray-600)] mt-1 leading-relaxed">
               Prices, dividend payment history, and payment schedules are collected from each
