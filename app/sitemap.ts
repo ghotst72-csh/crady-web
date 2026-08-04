@@ -97,6 +97,32 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       },
     },
     {
+      url: "https://crady.net/portfolio",
+      lastModified: mostRecentCalculatedAt ?? undefined,
+      changeFrequency: "monthly",
+      priority: 0.7,
+      alternates: {
+        languages: {
+          en: "https://crady.net/portfolio",
+          ko: "https://crady.net/ko/portfolio",
+          "x-default": "https://crady.net/portfolio",
+        },
+      },
+    },
+    {
+      url: "https://crady.net/ko/portfolio",
+      lastModified: mostRecentCalculatedAt ?? undefined,
+      changeFrequency: "monthly",
+      priority: 0.7,
+      alternates: {
+        languages: {
+          en: "https://crady.net/portfolio",
+          ko: "https://crady.net/ko/portfolio",
+          "x-default": "https://crady.net/portfolio",
+        },
+      },
+    },
+    {
       url: "https://crady.net/calendar",
       lastModified: mostRecentCalculatedAt ?? undefined,
       changeFrequency: "daily",

@@ -234,6 +234,7 @@ export default async function TickerPage({
     similarEtfs.length > 0 ? { href: "#similar-etfs", label: "Compare Similar ETFs" } : null,
     { href: "#ai-outlook", label: "AI Outlook" },
     { href: "#etf-activity", label: "Activity" },
+    { href: `/portfolio?ticker=${ticker}`, label: "Analyze My Holdings" },
   ].filter((l): l is { href: string; label: string } => l != null);
 
   const enrichmentInput: EnrichmentInput = {

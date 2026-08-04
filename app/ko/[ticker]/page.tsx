@@ -227,6 +227,7 @@ export default async function KoreanTickerPage({
     similarEtfs.length > 0 ? { href: "#similar-etfs", label: "유사 ETF 비교" } : null,
     { href: "#ai-outlook", label: "AI 전망" },
     { href: "#etf-activity", label: "활동" },
+    { href: `/ko/portfolio?ticker=${ticker}`, label: "내 보유 ETF 분석하기" },
   ].filter((l): l is { href: string; label: string } => l != null);
 
   const enrichmentInput: EnrichmentInput = {
