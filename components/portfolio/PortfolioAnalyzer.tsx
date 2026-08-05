@@ -182,6 +182,7 @@ function toEtfCardData(r: HoldingResult): EtfCardData {
     name: r.name,
     providerId: r.providerId,
     etfType: r.etfType,
+    underlyingTicker: r.underlyingTicker,
     currentPrice: r.currentPrice,
     todayChangePct: r.todayChangePct,
     annualYieldPct: r.currentAnnualYieldPct,

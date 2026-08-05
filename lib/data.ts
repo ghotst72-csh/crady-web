@@ -304,6 +304,16 @@ export type ComparisonPeer = {
   annualYieldPct: number | null;
   cradyScore: number | null;
   riskLevel: string | null;
+  /** Design System 2.0 Compare card strip — every field below is read
+   * from the same `risk`/`price` rows already fetched above, just also
+   * surfaced on the return object; no new query, no new calculation. */
+  currentPrice: number | null;
+  incomeScore: number | null;
+  safetyScore: number | null;
+  dividendStabilityScore: number | null;
+  maxDrawdown: number | null;
+  underlyingTicker: string | null;
+  etfType: string | null;
 };
 
 /** A lean, single-ticker fetch for the "other side" of a comparison page —
@@ -329,6 +339,13 @@ export async function getComparisonPeer(ticker: string): Promise<ComparisonPeer 
     annualYieldPct: computeRunRateAnnualYieldPct(distributions, price?.close_price ?? null),
     cradyScore: risk?.crady_score ?? null,
     riskLevel: risk?.risk_level ?? null,
+    currentPrice: price?.close_price ?? null,
+    incomeScore: risk?.income_score ?? null,
+    safetyScore: risk?.safety_score ?? null,
+    dividendStabilityScore: risk?.dividend_stability_score ?? null,
+    maxDrawdown: risk?.max_drawdown ?? null,
+    underlyingTicker: risk?.underlying_ticker ?? null,
+    etfType: risk?.strategy_type ?? null,
   };
 }
 

@@ -5,6 +5,7 @@ import { Sparkline } from "./ui/Sparkline";
 import { RangeBar } from "./ui/RangeBar";
 import { Badge } from "./ui/Badge";
 import { PriceBlock } from "./ticker/PriceBlock";
+import { EtfCard, type EtfCardData } from "./etf/EtfCard";
 import type { TrendWindow } from "@/lib/magazine/trend";
 import type { PriceSummary, DividendPriceComparison } from "@/lib/ticker/priceSummary";
 import type { YieldPercentileResult } from "@/lib/ticker/yieldContext";
@@ -181,6 +182,26 @@ export function EtfHero({
     (dividendPriceComparison.priceChangePct != null ||
       dividendPriceComparison.dividendChangePct != null);
 
+  // Design System 2.0, requirement #4 — left column of the redesigned Hero
+  // is the shared Premium Card, built from the exact same props already
+  // passed into this component (no new fetch, no new calculation).
+  const heroCardData: EtfCardData = {
+    ticker,
+    name,
+    providerId,
+    etfType: null,
+    currentPrice: priceSummary?.currentPrice ?? null,
+    todayChangePct: priceSummary?.todayChangePct ?? null,
+    annualYieldPct: yieldPct,
+    cradyScore,
+    stabilityScore: dividendStabilityScore,
+    payoutFrequency,
+    riskLevel,
+    asOfDate: priceSummary?.asOfDate ?? null,
+    nextExDate: prediction?.targetExDate ?? null,
+    expectedDistribution: prediction?.predictedAmount ?? null,
+  };
+
   return (
     <section className="mx-auto max-w-6xl px-4 sm:px-6 pt-6">
       <div className="relative border border-[var(--gray-200)] rounded-2xl overflow-hidden">
@@ -189,7 +210,15 @@ export function EtfHero({
           style={{ background: glow }}
           aria-hidden
         />
-        <div className="relative p-5 sm:p-8">
+        <div className="relative p-5 sm:p-8 lg:grid lg:grid-cols-[300px_1fr] lg:gap-6 lg:items-start">
+          {/* Design System 2.0, requirement #4 — left column is the shared
+              Premium Card; right column keeps the existing dense
+              price/yield/prediction content, unchanged. */}
+          <div className="mb-6 lg:mb-0 lg:sticky lg:top-4">
+            <EtfCard data={heroCardData} lang={lang} />
+          </div>
+
+          <div className="min-w-0">
           {/* ETF identity */}
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight">{ticker}</h1>
@@ -470,6 +499,7 @@ export function EtfHero({
               ))}
             </div>
           )}
+          </div>
         </div>
       </div>
     </section>

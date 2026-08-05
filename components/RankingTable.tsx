@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { providerLabel, type EtfSnapshot } from "@/lib/data";
+import { EtfCard } from "@/components/etf/EtfCard";
+import { snapshotToCardData } from "@/lib/etf/toCardData";
 
 const RISK_LABEL: Record<"en" | "ko", Record<string, string>> = {
   en: { SAFE: "Safe", NORMAL: "Normal", RISKY: "Risky", EXTREME: "Extreme" },
@@ -30,6 +32,8 @@ const T = {
   by: { en: "ETFs by", ko: "기준 상위" },
   count: { en: "", ko: "개 ETF" },
   empty: { en: "No ETFs match this criteria yet.", ko: "해당 조건의 ETF가 아직 없습니다." },
+  viewList: { en: "List", ko: "리스트" },
+  viewCards: { en: "Cards", ko: "카드" },
   leaderEyebrow: {
     en: (label: string) => `#1 by ${label}`,
     ko: (label: string) => `${label} 1위`,
@@ -92,6 +96,7 @@ export function RankingTable({
   basePath?: string;
 }) {
   const [criterion, setCriterion] = useState<Criterion>("crady");
+  const [view, setView] = useState<"list" | "cards">("list");
   const list = rankings[criterion];
   const leader = list[0];
   const leaderMetric = leader ? metricFor(leader, criterion, lang) : null;
@@ -131,21 +136,38 @@ export function RankingTable({
         </Link>
       )}
 
-      <div className="flex gap-1 border border-[var(--gray-200)] rounded-lg p-1 w-fit overflow-x-auto max-w-full">
-        {(Object.keys(CRITERION_LABEL) as Criterion[]).map((key) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setCriterion(key)}
-            className={`px-3 py-1.5 text-xs sm:text-sm rounded-md transition-colors whitespace-nowrap ${
-              criterion === key
-                ? "bg-black text-white font-semibold"
-                : "text-[var(--gray-600)] hover:bg-[var(--gray-100)]"
-            }`}
-          >
-            {CRITERION_LABEL[key][lang]}
-          </button>
-        ))}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex gap-1 border border-[var(--gray-200)] rounded-lg p-1 w-fit overflow-x-auto max-w-full">
+          {(Object.keys(CRITERION_LABEL) as Criterion[]).map((key) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setCriterion(key)}
+              className={`px-3 py-1.5 text-xs sm:text-sm rounded-md transition-colors whitespace-nowrap ${
+                criterion === key
+                  ? "bg-black text-white font-semibold"
+                  : "text-[var(--gray-600)] hover:bg-[var(--gray-100)]"
+              }`}
+            >
+              {CRITERION_LABEL[key][lang]}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex gap-1 border border-[var(--gray-200)] rounded-lg p-1 w-fit shrink-0">
+          {(["list", "cards"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setView(v)}
+              className={`px-3 py-1.5 text-xs sm:text-sm rounded-md transition-colors ${
+                view === v ? "bg-black text-white font-semibold" : "text-[var(--gray-600)] hover:bg-[var(--gray-100)]"
+              }`}
+            >
+              {v === "list" ? T.viewList[lang] : T.viewCards[lang]}
+            </button>
+          ))}
+        </div>
       </div>
 
       <p className="text-sm text-[var(--gray-500)] mt-3">
@@ -154,6 +176,16 @@ export function RankingTable({
           : `${T.topN.en} ${list.length} ETFs ${T.by.en} ${CRITERION_LABEL[criterion].en}`}
       </p>
 
+      {view === "cards" ? (
+        <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+          {list.map((etf) => (
+            <EtfCard key={etf.ticker} data={snapshotToCardData(etf)} compact lang={lang} />
+          ))}
+          {list.length === 0 && (
+            <div className="col-span-full px-4 py-6 text-center text-sm text-[var(--gray-400)]">{T.empty[lang]}</div>
+          )}
+        </div>
+      ) : (
       <div className="mt-3 border border-[var(--gray-200)] rounded-xl overflow-hidden xl:border-0 xl:rounded-none xl:overflow-visible xl:grid xl:grid-cols-2 xl:gap-3">
         {list.map((etf, i) => {
           const metric = metricFor(etf, criterion, lang);
@@ -200,6 +232,7 @@ export function RankingTable({
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

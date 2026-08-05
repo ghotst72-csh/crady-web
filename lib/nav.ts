@@ -7,6 +7,7 @@ export type NavItem = { href: string; label: string };
 export const NAV_EN: NavItem[] = [
   { href: "/ranking", label: "Ranking" },
   { href: "/portfolio", label: "My Portfolio" },
+  { href: "/compare", label: "Compare" },
   { href: "/calendar", label: "Dividend Calendar" },
   { href: "/distributions", label: "Latest Distributions" },
   { href: "/magazine", label: "Magazine" },
@@ -16,6 +17,7 @@ export const NAV_EN: NavItem[] = [
 export const NAV_KO: NavItem[] = [
   { href: "/ko/ranking", label: "랭킹" },
   { href: "/ko/portfolio", label: "내 포트폴리오" },
+  { href: "/ko/compare", label: "비교" },
   { href: "/ko/calendar", label: "배당 일정" },
   { href: "/ko/distributions", label: "최신 분배금" },
   { href: "/magazine", label: "매거진" },

@@ -5,6 +5,7 @@ import {
   topByAnnualYield,
   topByCradyScoreSnapshot,
   topRecentlyIncreased,
+  topBySafety,
   nextDistributionsTimeline,
 } from "@/lib/data";
 import { getLatestAnnouncement, getDistributionRowsForAnnouncement, getDistributionTrustStats } from "@/lib/distributions/data";
@@ -20,6 +21,10 @@ import { MagazineTeaser } from "@/components/home/MagazineTeaser";
 import { AppPromoSection } from "@/components/AppPromoSection";
 import { Suspense } from "react";
 import { SitewideActivitySection } from "@/components/activity/SitewideActivitySection";
+import { EtfCard } from "@/components/etf/EtfCard";
+import { CardCarousel, CarouselItem } from "@/components/etf/CardCarousel";
+import { WatchlistSection } from "@/components/etf/WatchlistSection";
+import { snapshotToCardData } from "@/lib/etf/toCardData";
 
 export const revalidate = 3600;
 
@@ -66,6 +71,13 @@ export default async function KoreanHomePage() {
   const nextDistributions = nextDistributionsTimeline(snapshot, 10);
   const cradyTop = topByCradyScoreSnapshot(snapshot, 6);
   const increasedTop = topRecentlyIncreased(snapshot, 6);
+  const popularCards = topByCradyScoreSnapshot(snapshot, 6);
+  const trendingCards = topRecentlyIncreased(snapshot, 6);
+  const lowRiskCards = topBySafety(snapshot, 6);
+  const recentlyDeclaredCards = snapshot
+    .filter((e) => e.latestDividendDate != null)
+    .sort((a, b) => (a.latestDividendDate! < b.latestDividendDate! ? 1 : -1))
+    .slice(0, 6);
   const risingCount = snapshot.filter((e) => e.dividendTrend === "up").length;
   const lastUpdatedIso = snapshot.reduce<string | null>(
     (max, e) => (e.calculatedAt && (!max || e.calculatedAt > max) ? e.calculatedAt : max),
@@ -99,6 +111,10 @@ export default async function KoreanHomePage() {
         lang="ko"
       />
 
+      <section className="mx-auto max-w-6xl px-4 sm:px-6 pt-6">
+        <WatchlistSection snapshot={snapshot} lang="ko" />
+      </section>
+
       <TodaysHighlights
         data={{
           announcementCount: announcement?.etf_count ?? null,
@@ -125,6 +141,48 @@ export default async function KoreanHomePage() {
       <QuickInsights snapshot={snapshot} lang="ko" basePath="/ko" />
 
       <NextDistributionsRail items={nextDistributions} lang="ko" basePath="/ko" />
+
+      <section className="mx-auto max-w-6xl px-4 sm:px-6 py-8 border-t border-[var(--gray-200)] space-y-8">
+        <CardCarousel title="인기 ETF" subtitle="현재 CRADY 점수가 가장 높은 ETF" viewAllHref="/ko/ranking" viewAllLabel="랭킹 보기 →">
+          {popularCards.map((etf) => (
+            <CarouselItem key={etf.ticker}>
+              <EtfCard data={snapshotToCardData(etf)} compact lang="ko" />
+            </CarouselItem>
+          ))}
+        </CardCarousel>
+
+        <CardCarousel title="트렌딩" subtitle="직전 지급 대비 분배금이 증가한 ETF" viewAllHref="/ko/ranking" viewAllLabel="랭킹 보기 →">
+          {trendingCards.map((etf) => (
+            <CarouselItem key={etf.ticker}>
+              <EtfCard data={snapshotToCardData(etf)} compact lang="ko" />
+            </CarouselItem>
+          ))}
+        </CardCarousel>
+
+        <CardCarousel title="최근 발표" subtitle="가장 최근에 확정된 분배금" viewAllHref="/ko/distributions" viewAllLabel="캘린더 보기 →">
+          {recentlyDeclaredCards.map((etf) => (
+            <CarouselItem key={etf.ticker}>
+              <EtfCard data={snapshotToCardData(etf)} compact lang="ko" />
+            </CarouselItem>
+          ))}
+        </CardCarousel>
+
+        <CardCarousel title="고배당" subtitle="연환산 분배율이 가장 높은 ETF" viewAllHref="/ko/ranking" viewAllLabel="랭킹 보기 →">
+          {yieldTop10.slice(0, 6).map((etf) => (
+            <CarouselItem key={etf.ticker}>
+              <EtfCard data={snapshotToCardData(etf)} compact lang="ko" />
+            </CarouselItem>
+          ))}
+        </CardCarousel>
+
+        <CardCarousel title="저위험" subtitle="배당 안정성 점수가 가장 높은 ETF" viewAllHref="/ko/ranking" viewAllLabel="랭킹 보기 →">
+          {lowRiskCards.map((etf) => (
+            <CarouselItem key={etf.ticker}>
+              <EtfCard data={snapshotToCardData(etf)} compact lang="ko" />
+            </CarouselItem>
+          ))}
+        </CardCarousel>
+      </section>
 
       {announcement && (
         <OfficialAnnouncementsPreview

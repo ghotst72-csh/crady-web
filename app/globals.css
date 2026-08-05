@@ -69,6 +69,24 @@ body {
   }
 }
 
+/* CRADY Premium Card — same restrained lift as .card-interactive, plus a
+   soft amber glow (brand accent only, never a new color) instead of a
+   plain shadow. Deliberately subtle: no flame/sparkle/heavy 3D per the
+   Design System 2.0 motion spec. */
+.card-glow {
+  transition: border-color 200ms ease, transform 200ms ease, box-shadow 200ms ease;
+}
+.card-glow:hover {
+  border-color: var(--gray-300);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 8px 20px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(245, 158, 11, 0.08),
+    0 0 24px rgba(245, 158, 11, 0.12);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .card-glow:hover {
+    transform: translateY(-2px);
+  }
+}
+
 /* Layered (not left bare) so Tailwind utility classes like text-white can
    still override it — an unlayered rule here would always beat @layer
    utilities regardless of specificity, which silently made every black-
