@@ -1,4 +1,5 @@
 import { providerLabel, type ComparisonPeer } from "@/lib/data";
+import { formatConfidencePct } from "@/lib/confidence";
 import type { ArticleData } from "./data";
 import type { ArticleTypeId, FaqItem } from "./types";
 import { describeTiming, describeTimingKo } from "./timing";
@@ -46,7 +47,7 @@ export function buildFaqItems(
       {
         question: `How accurate is the CRADY prediction for ${ticker}?`,
         answer: prediction?.confidence_score != null
-          ? `CRADY's current confidence score for this ${ticker} prediction is ${fmtPct(prediction.confidence_score, 0)}, based on the consistency of its recent distribution history and, when available, its officially announced payment schedule.`
+          ? `CRADY's current confidence score for this ${ticker} prediction is ${formatConfidencePct(prediction.confidence_score, 0)}, based on the consistency of its recent distribution history and, when available, its officially announced payment schedule.`
           : `CRADY assigns a confidence score to each prediction based on distribution history consistency, but none is available for ${ticker} yet.`,
       },
       {

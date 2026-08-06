@@ -5,6 +5,7 @@ import { KpiCard, KpiGrid, type KpiItem } from "@/components/ui/KpiCard";
 import { Sparkline } from "@/components/ui/Sparkline";
 import { Badge } from "@/components/ui/Badge";
 import { KeyTakeaways } from "@/components/ui/KeyTakeaways";
+import { formatConfidencePct } from "@/lib/confidence";
 import type { ArticleData } from "./data";
 import type { FaqItem, Section } from "./types";
 import type { TrendWindow } from "./trend";
@@ -971,7 +972,7 @@ export function articleHeroInsightsSection(data: ArticleData): Section | null {
     insights.push(`CRADY Score of ${risk.crady_score.toFixed(1)}/100, classified as ${riskLabel.toLowerCase()} risk.`);
   }
   if (prediction?.confidence_score != null) {
-    insights.push(`Next-dividend prediction confidence: ${fmtPct(prediction.confidence_score * 100, 0)}.`);
+    insights.push(`Next-dividend prediction confidence: ${formatConfidencePct(prediction.confidence_score, 0)}.`);
   } else {
     insights.push("No confident next-dividend prediction available yet.");
   }

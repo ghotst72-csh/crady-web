@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { NextDistributionEntry } from "@/lib/data";
+import { formatConfidencePct } from "@/lib/confidence";
 
 function daysUntil(dateStr: string): number {
   const target = new Date(dateStr + "T00:00:00");
@@ -96,7 +97,7 @@ export function NextDistributionsRail({
                 </div>
                 <div className="mt-0.5">
                   {etf.nextPredictedConfidence != null
-                    ? `${T.confidence[lang]} ${etf.nextPredictedConfidence.toFixed(0)}%`
+                    ? `${T.confidence[lang]} ${formatConfidencePct(etf.nextPredictedConfidence, 0)}`
                     : T.awaiting[lang]}
                 </div>
               </div>

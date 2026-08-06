@@ -1,4 +1,5 @@
 import { providerLabel } from "@/lib/providers";
+import { formatConfidencePct } from "@/lib/confidence";
 
 const RISK_LABEL: Record<"en" | "ko", Record<string, string>> = {
   en: { SAFE: "low", NORMAL: "moderate", RISKY: "elevated", EXTREME: "very high" },
@@ -104,7 +105,7 @@ export function buildAiOutlook(input: AiOutlookInput, lang: "en" | "ko" = "en"):
         : "위험도 데이터가 아직 계산되지 않았습니다.",
       dividendConfidence:
         prediction?.predictedAmount != null && prediction.confidenceScore != null
-          ? `다음 예상 배당금은 주당 ${fmtMoney(prediction.predictedAmount)}, 예측 신뢰도는 ${(prediction.confidenceScore * 100).toFixed(0)}%입니다.`
+          ? `다음 예상 배당금은 주당 ${fmtMoney(prediction.predictedAmount)}, 예측 신뢰도는 ${formatConfidencePct(prediction.confidenceScore, 0)}입니다.`
           : "아직 신뢰할 만한 다음 배당 예측이 없습니다.",
       whatInvestorsAreWatching: mostDiscussed
         ? `투자자들은 "${mostDiscussed.title}"에 대해 가장 활발히 논의하고 있습니다.`
@@ -139,7 +140,7 @@ export function buildAiOutlook(input: AiOutlookInput, lang: "en" | "ko" = "en"):
       : "Risk metrics haven't been calculated yet.",
     dividendConfidence:
       prediction?.predictedAmount != null && prediction.confidenceScore != null
-        ? `The next predicted dividend is ${fmtMoney(prediction.predictedAmount)} per share, at ${(prediction.confidenceScore * 100).toFixed(0)}% confidence.`
+        ? `The next predicted dividend is ${fmtMoney(prediction.predictedAmount)} per share, at ${formatConfidencePct(prediction.confidenceScore, 0)} confidence.`
         : "No confident next-dividend prediction yet.",
     whatInvestorsAreWatching: mostDiscussed
       ? `Investors are most actively discussing "${mostDiscussed.title}."`

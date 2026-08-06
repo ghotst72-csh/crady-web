@@ -6,6 +6,7 @@ import type { DividendSchedule, DateStatus, ExpectedRange, EstimateDriver, Track
 import type { EstimateFactors } from "@/lib/ticker/nextDividendNarrative";
 import { ICON } from "@/lib/ui/icons";
 import { Tooltip } from "@/components/ui/Tooltip";
+import { formatConfidencePct } from "@/lib/confidence";
 
 /** CRADY Engagement & Intelligence Phase 2, Part A. Placed directly under
  * the Hero, before Activity/Magazine content (§1). Client component only
@@ -236,7 +237,7 @@ export function NextDividendIntelligence({
                   {T.aiConfidence[lang]}
                   <Tooltip text={T.confidenceExplain[lang]} />
                 </div>
-                <div className="mt-1 text-lg font-bold tabular-nums">{confidence.toFixed(0)}%</div>
+                <div className="mt-1 text-lg font-bold tabular-nums">{formatConfidencePct(confidence, 0)}</div>
               </div>
             )}
           </div>

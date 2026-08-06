@@ -34,7 +34,13 @@ const POPULATED_INPUT: AiOutlookInput = {
     targetPayDate: "2026-08-08",
     targetExDate: "2026-08-06",
     predictedAmount: 0.48,
-    confidenceScore: 0.82,
+    // Real-world confidenceScore values flowing through the app come from
+    // next_predictions.confidence_score, which is stored 0-100 (not 0-1)
+    // — confirmed by direct query. Using a 0-1 fixture here previously
+    // masked the double-scaling bug (see the dedicated regression test
+    // below) because the old buggy code's extra *100 only broke on real,
+    // already-0-100 input.
+    confidenceScore: 82,
     predictionMethod: "weighted_average",
   },
   mostDiscussed: { title: "Will TSLY reduce its dividend?", replyCount: 12 },
@@ -65,6 +71,23 @@ describe("buildAiOutlook", () => {
     expect(outlook.dividendConfidence).toMatch(/82%/);
     expect(outlook.whatInvestorsAreWatching).toContain("Will TSLY reduce its dividend?");
     expect(outlook.upcomingCatalyst).toContain("2026-08-06");
+  });
+
+  it("regression: never renders an impossible confidence like the reported 8378% bug", () => {
+    // The exact real-world shape that produced the bug report: a
+    // next_predictions.confidence_score of 83.78 (already 0-100).
+    const outlook = buildAiOutlook(
+      { ...POPULATED_INPUT, prediction: { ...POPULATED_INPUT.prediction!, confidenceScore: 83.78 } },
+      "en"
+    );
+    expect(outlook.dividendConfidence).toMatch(/84%/);
+    expect(outlook.dividendConfidence).not.toContain("8378%");
+
+    const outlookKo = buildAiOutlook(
+      { ...POPULATED_INPUT, prediction: { ...POPULATED_INPUT.prediction!, confidenceScore: 83.78 } },
+      "ko"
+    );
+    expect(outlookKo.dividendConfidence).not.toContain("8378%");
   });
 
   it("stays within a reasonable overall word budget (~150 words across all subsections)", () => {

@@ -1,3 +1,5 @@
+import { formatConfidencePct } from "@/lib/confidence";
+
 /** Short "how this was calculated" line per automated activity `type` —
  * the transparency requirement behind the expandable detail view. Kept as
  * one small lookup table rather than free text on every row, so every
@@ -72,7 +74,7 @@ function formatMetricValue(key: string, value: unknown): string {
     if (key.includes("pct") || key.includes("percent") || key.includes("ratio")) {
       return `${value >= 0 ? "+" : ""}${(key.includes("ratio") ? value * 100 : value).toFixed(1)}%`;
     }
-    if (key === "confidence" || key === "previous_confidence") return `${(value * 100).toFixed(0)}%`;
+    if (key === "confidence" || key === "previous_confidence") return formatConfidencePct(value, 0) ?? "—";
     if (key === "amount" || key === "previous_amount" || key === "predicted_amount" || key === "close_price") {
       return `$${value.toFixed(4)}`;
     }

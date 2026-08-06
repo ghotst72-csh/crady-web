@@ -6,6 +6,7 @@ import { RangeBar } from "./ui/RangeBar";
 import { Badge } from "./ui/Badge";
 import { PriceBlock } from "./ticker/PriceBlock";
 import { EtfCard, type EtfCardData } from "./etf/EtfCard";
+import { formatConfidencePct } from "@/lib/confidence";
 import type { TrendWindow } from "@/lib/magazine/trend";
 import type { PriceSummary, DividendPriceComparison } from "@/lib/ticker/priceSummary";
 import type { YieldPercentileResult } from "@/lib/ticker/yieldContext";
@@ -409,7 +410,7 @@ export function EtfHero({
                   {changeFromLastPct != null &&
                     ` (${T.vsLast[lang]} ${changeFromLastPct > 0 ? "+" : ""}${changeFromLastPct.toFixed(1)}%)`}
                   {prediction!.confidenceScore != null &&
-                    ` · ${T.confidence[lang]} ${prediction!.confidenceScore.toFixed(0)}%`}
+                    ` · ${T.confidence[lang]} ${formatConfidencePct(prediction!.confidenceScore, 0)}`}
                 </span>
               </div>
             ) : (
