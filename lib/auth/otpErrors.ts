@@ -113,7 +113,14 @@ export function classifyVerifyError(e: unknown): OtpErrorInfo {
 }
 
 /** Client-side pre-check, run before ever calling the API — the one case
- * where "invalid" is something we can actually determine ourselves. */
+ * where "invalid" is something we can actually determine ourselves.
+ *
+ * Exactly 8 digits — confirmed against a real production email: this
+ * project's Supabase instance issues 8-digit numeric OTP codes (e.g.
+ * "30038211"), not the GoTrue default of 6. Do not widen this back to a
+ * range "just in case" — a wrong-length code should fail this check
+ * immediately rather than being sent to the API and coming back as a
+ * generic "invalid" error. */
 export function isWellFormedOtpCode(code: string): boolean {
-  return /^\d{6,10}$/.test(code);
+  return /^\d{8}$/.test(code);
 }

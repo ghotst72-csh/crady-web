@@ -95,6 +95,53 @@ describe("AuthModal — verifying the code", () => {
     await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 
+  it("shows an 8-digit placeholder, not the old 6-digit one", async () => {
+    const user = userEvent.setup();
+    render(<AuthModal onClose={vi.fn()} />);
+    await reachOtpStep(user);
+    expect(screen.getByLabelText("Verification code")).toHaveAttribute("placeholder", "12345678");
+  });
+
+  it("caps the input at 8 digits — typing more never produces a longer value", async () => {
+    const user = userEvent.setup();
+    render(<AuthModal onClose={vi.fn()} />);
+    await reachOtpStep(user);
+    const input = screen.getByLabelText("Verification code") as HTMLInputElement;
+    expect(input).toHaveAttribute("maxlength", "8");
+    await user.type(input, "1234567890"); // 10 digits typed
+    expect(input.value).toBe("12345678"); // only the first 8 land in state
+  });
+
+  it("pasting a real 8-digit production code preserves every digit exactly, with no transformation", async () => {
+    verifyOtp.mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
+    const user = userEvent.setup();
+    render(<AuthModal onClose={vi.fn()} />);
+    await reachOtpStep(user);
+    const input = screen.getByLabelText("Verification code") as HTMLInputElement;
+    await user.click(input);
+    await user.paste("30038211"); // the exact real code example confirmed in production
+    expect(input.value).toBe("30038211");
+    await user.click(screen.getByRole("button", { name: "Verify" }));
+    expect(verifyOtp).toHaveBeenCalledWith({ email: "user@example.com", token: "30038211", type: "email" });
+  });
+
+  it("keeps Verify disabled for a 6-digit code — the old GoTrue default is no longer accepted as well-formed", async () => {
+    const user = userEvent.setup();
+    render(<AuthModal onClose={vi.fn()} />);
+    await reachOtpStep(user);
+    await user.type(screen.getByLabelText("Verification code"), "123456");
+    expect(screen.getByRole("button", { name: "Verify" })).toBeDisabled();
+    expect(verifyOtp).not.toHaveBeenCalled();
+  });
+
+  it("keeps Verify disabled for a 7-digit code (one short of the real length)", async () => {
+    const user = userEvent.setup();
+    render(<AuthModal onClose={vi.fn()} />);
+    await reachOtpStep(user);
+    await user.type(screen.getByLabelText("Verification code"), "1234567");
+    expect(screen.getByRole("button", { name: "Verify" })).toBeDisabled();
+  });
+
   it("shows a wrong/expired-code error and keeps the OTP screen visible (never falls back to the email step)", async () => {
     verifyOtp.mockResolvedValue({ data: { user: null }, error: OTP_EXPIRED_ERROR });
     const user = userEvent.setup();

@@ -17,7 +17,7 @@ const T = {
   sending: { en: "Sending…", ko: "전송 중…" },
   codeSentTo: { en: "We sent a code to", ko: "인증코드를 발송했습니다:" },
   codeLabel: { en: "Verification code", ko: "인증코드" },
-  codePlaceholder: { en: "123456", ko: "123456" },
+  codePlaceholder: { en: "12345678", ko: "12345678" },
   verify: { en: "Verify", ko: "확인" },
   verifying: { en: "Verifying…", ko: "확인 중…" },
   resend: { en: "Resend code", ko: "코드 재전송" },
@@ -249,8 +249,10 @@ export function AuthModal({
               <input
                 type="text"
                 inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={8}
                 value={code}
-                onChange={(e) => dispatch({ type: "CODE_CHANGED", code: e.target.value.replace(/\D/g, "").slice(0, 10) })}
+                onChange={(e) => dispatch({ type: "CODE_CHANGED", code: e.target.value.replace(/\D/g, "").slice(0, 8) })}
                 placeholder={T.codePlaceholder[lang]}
                 autoFocus
                 className={`${INPUT_CLASS} mt-1 tracking-widest text-center`}

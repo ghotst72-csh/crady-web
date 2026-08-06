@@ -57,7 +57,7 @@ describe("modalReducer", () => {
   });
 
   it("a successful resend clears the stale code and sets a new cooldown", () => {
-    const mid = at("otp", { resending: true, code: "123456" });
+    const mid = at("otp", { resending: true, code: "12345678" });
     const result = modalReducer(mid, { type: "RESEND_SUCCEEDED", cooldownUntil: 5000 });
     expect(result.code).toBe("");
     expect(result.resendCooldownUntil).toBe(5000);

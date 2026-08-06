@@ -6,14 +6,19 @@ function authError(overrides: { name?: string; message?: string; status?: number
 }
 
 describe("isWellFormedOtpCode", () => {
-  it("accepts 6-10 digit numeric codes", () => {
-    expect(isWellFormedOtpCode("123456")).toBe(true);
-    expect(isWellFormedOtpCode("12345678")).toBe(true); // the real 8-digit length this project issues
+  it("accepts exactly the real 8-digit length this project's Supabase instance issues", () => {
+    expect(isWellFormedOtpCode("12345678")).toBe(true);
+    expect(isWellFormedOtpCode("30038211")).toBe(true); // a real code received in production
   });
-  it("rejects anything shorter, non-numeric, or empty", () => {
+  it("rejects the old 6-digit GoTrue default — this project does not use it", () => {
+    expect(isWellFormedOtpCode("123456")).toBe(false);
+  });
+  it("rejects anything shorter, longer, non-numeric, or empty", () => {
+    expect(isWellFormedOtpCode("1234567")).toBe(false); // 7 digits
+    expect(isWellFormedOtpCode("123456789")).toBe(false); // 9 digits
     expect(isWellFormedOtpCode("12345")).toBe(false);
     expect(isWellFormedOtpCode("")).toBe(false);
-    expect(isWellFormedOtpCode("12a456")).toBe(false);
+    expect(isWellFormedOtpCode("12a45678")).toBe(false);
   });
 });
 

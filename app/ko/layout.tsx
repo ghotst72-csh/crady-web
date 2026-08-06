@@ -60,7 +60,7 @@ export default async function KoreanRootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(WEBSITE_JSON_LD) }}
         />
-        <AuthProvider>
+        <AuthProvider lang="ko">
         <Header lang="ko" searchIndex={searchIndex} />
 
         {/* min-w-0: see the matching comment in app/(en)/layout.tsx — same

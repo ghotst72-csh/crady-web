@@ -19,8 +19,14 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 /** Mounted once in the root layout (both EN and KO trees) so any island
  * anywhere on the page — vote button, composer, comment actions — can read
  * sign-in state and trigger the shared modal without prop-drilling through
- * server components. */
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+ * server components.
+ *
+ * `lang` is which tree mounted this provider (app/(en)/layout.tsx passes
+ * "en", app/ko/layout.tsx passes "ko") — fixed for the whole page load, so
+ * it's read once here rather than threaded through every `openAuthModal()`
+ * call site. Previously not accepted at all, which meant the modal always
+ * rendered in English even when triggered from the Korean tree. */
+export function AuthProvider({ children, lang = "en" }: { children: React.ReactNode; lang?: "en" | "ko" }) {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,7 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{ session, loading, openAuthModal: () => setModalOpen(true) }}
     >
       {children}
-      {modalOpen && <AuthModal onClose={() => setModalOpen(false)} />}
+      {modalOpen && <AuthModal lang={lang} onClose={() => setModalOpen(false)} />}
     </AuthContext.Provider>
   );
 }

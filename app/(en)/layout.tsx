@@ -60,7 +60,7 @@ export default async function EnglishRootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(WEBSITE_JSON_LD) }}
         />
-        <AuthProvider>
+        <AuthProvider lang="en">
         <Header lang="en" searchIndex={searchIndex} />
 
         {/* min-w-0: body is flex flex-col, and a flex item's implicit
