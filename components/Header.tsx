@@ -114,7 +114,7 @@ export function Header({
           <div className="hidden sm:block shrink-0">
             <LanguageSwitcher lang={lang} />
           </div>
-          <div className="hidden sm:block w-[260px] shrink-0">
+          <div className="hidden sm:block w-[225px] shrink-0">
             <TickerSearch index={searchIndex} lang={lang} basePath={basePath} />
           </div>
           <div className="hidden sm:block shrink-0">

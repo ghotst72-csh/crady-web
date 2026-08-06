@@ -17,7 +17,7 @@ describe("MobileNav", () => {
     const menu = screen.getByRole("menu");
     expect(menu).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Ranking" })).toHaveAttribute("href", "/ranking");
-    expect(screen.getByRole("menuitem", { name: "Dividend Calendar" })).toHaveAttribute("href", "/calendar");
+    expect(screen.getByRole("menuitem", { name: "Calendar" })).toHaveAttribute("href", "/calendar");
     expect(screen.getByRole("menuitem", { name: "Magazine" })).toHaveAttribute("href", "/magazine");
     expect(screen.getByRole("menuitem", { name: "About" })).toHaveAttribute("href", "/about");
   });

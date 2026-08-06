@@ -6,10 +6,10 @@ export type NavItem = { href: string; label: string };
 // mobile hamburger menu (MobileNav.tsx) so the two can't drift apart.
 export const NAV_EN: NavItem[] = [
   { href: "/ranking", label: "Ranking" },
-  { href: "/portfolio", label: "My Portfolio" },
+  { href: "/portfolio", label: "Portfolio" },
   { href: "/compare", label: "Compare" },
-  { href: "/calendar", label: "Dividend Calendar" },
-  { href: "/distributions", label: "Latest Distributions" },
+  { href: "/calendar", label: "Calendar" },
+  { href: "/distributions", label: "Distributions" },
   { href: "/magazine", label: "Magazine" },
   { href: "/about", label: "About" },
 ];
