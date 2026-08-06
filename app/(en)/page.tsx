@@ -9,6 +9,12 @@ import {
   nextDistributionsTimeline,
 } from "@/lib/data";
 import { getLatestAnnouncement, getDistributionRowsForAnnouncement, getDistributionTrustStats } from "@/lib/distributions/data";
+import { getRecentChangeEvents } from "@/lib/activity/data";
+import { buildHomeIntelligence } from "@/lib/home/intelligence";
+import { buildWeeklyIntelligence } from "@/lib/home/weekly";
+import { HomeIntelligence } from "@/components/home/HomeIntelligence";
+import { WeeklyIntelligencePreview } from "@/components/home/WeeklyIntelligencePreview";
+import { WatchlistIntelligence } from "@/components/etf/WatchlistIntelligence";
 import { HeroSection } from "@/components/home/Hero";
 import { TrustBar } from "@/components/home/TrustBar";
 import { TodaysHighlights } from "@/components/home/TodaysHighlights";
@@ -59,13 +65,21 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const [snapshot, keyMetrics, announcement, trustStats] = await Promise.all([
+  const [snapshot, keyMetrics, announcement, trustStats, changeEventsToday, changeEvents7d] = await Promise.all([
     getHomeSnapshot(),
     getKeyMetrics(),
     getLatestAnnouncement(),
     getDistributionTrustStats(),
+    getRecentChangeEvents({ days: 1, lang: "en" }),
+    getRecentChangeEvents({ days: 7, lang: "en" }),
   ]);
   const announcementRows = announcement ? await getDistributionRowsForAnnouncement(announcement.id) : [];
+
+  // CRADY Intelligence 4.0, Items #3/#10/#13 — Home/Weekly/Watchlist
+  // Intelligence, all built from the two change-event queries above plus
+  // the already-fetched snapshot. Zero additional queries.
+  const homeIntelligence = buildHomeIntelligence(snapshot, changeEventsToday, "en");
+  const weeklyIntelligence = buildWeeklyIntelligence(snapshot, changeEvents7d);
 
   const yieldTop10 = topByAnnualYield(snapshot, 10);
   const nextDistributions = nextDistributionsTimeline(snapshot, 10);
@@ -115,7 +129,9 @@ export default async function HomePage() {
         lang="en"
       />
 
-      <section className="mx-auto max-w-6xl px-4 sm:px-6 pt-6">
+      <section className="mx-auto max-w-6xl px-4 sm:px-6 pt-6 space-y-4">
+        <HomeIntelligence data={homeIntelligence} lang="en" />
+        <WatchlistIntelligence changeEventsToday={changeEventsToday} lang="en" />
         <WatchlistSection snapshot={snapshot} lang="en" />
       </section>
 
@@ -184,6 +200,8 @@ export default async function HomePage() {
             </CarouselItem>
           ))}
         </CardCarousel>
+
+        <WeeklyIntelligencePreview data={weeklyIntelligence} lang="en" />
       </section>
 
       {announcement && (

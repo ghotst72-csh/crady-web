@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { buildWhyThisEstimate, buildNextDividendDirectAnswer, buildNextDividendFaq } from "./nextDividendNarrative";
+import {
+  buildWhyThisEstimate,
+  buildNextDividendDirectAnswer,
+  buildNextDividendFaq,
+  buildEstimateFactors,
+  buildWhatWouldChangeThis,
+} from "./nextDividendNarrative";
 
 describe("buildWhyThisEstimate", () => {
   it("names the real underlying ticker for a single-stock covered-call fund", () => {
@@ -125,5 +131,69 @@ describe("buildNextDividendFaq", () => {
       "en"
     );
     expect(items.some((i) => i.question.includes("declare"))).toBe(false);
+  });
+});
+
+describe("buildEstimateFactors", () => {
+  it("puts sufficient real history and low underlying volatility in positive", () => {
+    const factors = buildEstimateFactors(
+      {
+        recentAmountsCount: 8,
+        isOfficiallyDeclared: false,
+        underlyingVolatility30d: 23.5,
+        hasUnderlyingTicker: true,
+        underlyingTicker: "AAPL",
+      },
+      "en"
+    );
+    expect(factors.positive.some((f) => f.includes("pattern"))).toBe(true);
+    expect(factors.positive.some((f) => f.includes("AAPL"))).toBe(true);
+    expect(factors.negative).toHaveLength(0);
+  });
+
+  it("puts high underlying volatility in negative, real number included", () => {
+    const factors = buildEstimateFactors(
+      {
+        recentAmountsCount: 8,
+        isOfficiallyDeclared: false,
+        underlyingVolatility30d: 65.7,
+        hasUnderlyingTicker: true,
+        underlyingTicker: "TSLA",
+      },
+      "en"
+    );
+    expect(factors.negative.some((f) => f.includes("65.7%"))).toBe(true);
+  });
+
+  it("puts missing underlying volatility data in unknown, never fabricated", () => {
+    const factors = buildEstimateFactors(
+      { recentAmountsCount: 0, isOfficiallyDeclared: false, underlyingVolatility30d: null, hasUnderlyingTicker: true, underlyingTicker: "COIN" },
+      "en"
+    );
+    expect(factors.unknown.some((f) => f.includes("COIN"))).toBe(true);
+    expect(factors.negative.some((f) => f.includes("history"))).toBe(true);
+  });
+
+  it("marks an official declaration as a positive reliability factor", () => {
+    const factors = buildEstimateFactors(
+      { recentAmountsCount: 5, isOfficiallyDeclared: true, underlyingVolatility30d: null, hasUnderlyingTicker: false, underlyingTicker: null },
+      "en"
+    );
+    expect(factors.positive.some((f) => /officially declared/.test(f))).toBe(true);
+  });
+});
+
+describe("buildWhatWouldChangeThis", () => {
+  it("mentions official declaration only when not yet declared", () => {
+    const notDeclared = buildWhatWouldChangeThis({ isOfficiallyDeclared: false, hasUnderlyingTicker: false, underlyingTicker: null }, "en");
+    expect(notDeclared.some((s) => /official declaration/.test(s))).toBe(true);
+
+    const declared = buildWhatWouldChangeThis({ isOfficiallyDeclared: true, hasUnderlyingTicker: false, underlyingTicker: null }, "en");
+    expect(declared.some((s) => /official declaration/.test(s))).toBe(false);
+  });
+
+  it("mentions the real underlying ticker when one exists", () => {
+    const items = buildWhatWouldChangeThis({ isOfficiallyDeclared: false, hasUnderlyingTicker: true, underlyingTicker: "MSTR" }, "en");
+    expect(items.some((s) => s.includes("MSTR"))).toBe(true);
   });
 });

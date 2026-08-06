@@ -134,6 +134,10 @@ export function buildProfileFaqItems(data: ProfileSeoInput, lang: "en" | "ko" = 
         question: `${ticker}의 CRADY 점수와 위험도는 어떻게 되나요?`,
         answer: `${ticker}의 CRADY 점수는 ${cradyScore.toFixed(1)}/100이며, ${RISK_LABEL.ko[riskLevel] ?? riskLevel} 등급으로 분류됩니다. 상세 위험 분석은 ${ticker} 리스크 분석에서 확인하세요.`,
       });
+      items.push({
+        question: `${ticker}의 CRADY 점수는 왜 ${cradyScore.toFixed(1)}인가요?`,
+        answer: `배당 안정성, 회복력, 낙폭, 변동성, 추세, 모멘텀을 실제 가중치로 조합한 결과이며, 이 페이지의 "왜 이 CRADY 점수일까요?" 섹션에서 각 항목의 기여도를 확인할 수 있습니다.`,
+      });
     }
     if (prediction?.targetPayDate) {
       items.push({
@@ -172,6 +176,10 @@ export function buildProfileFaqItems(data: ProfileSeoInput, lang: "en" | "ko" = 
       answer: `${ticker} has a CRADY Score of ${cradyScore.toFixed(1)}/100 and is classified as ${
         (RISK_LABEL.en[riskLevel] ?? riskLevel).toLowerCase()
       } risk. See the ${ticker} Risk Analysis for the full volatility and dividend-stability breakdown.`,
+    });
+    items.push({
+      question: `Why is ${ticker}'s CRADY Score ${cradyScore.toFixed(1)}?`,
+      answer: `It's a real weighted combination of dividend stability, recovery, drawdown, volatility, trend, and momentum. See the "Why this CRADY Score?" section on this page for each factor's exact contribution.`,
     });
   }
   if (prediction?.targetPayDate) {

@@ -314,6 +314,42 @@ export async function getAutomatedActivityItems(
   return ((data ?? []) as AutomatedItemRow[]).map(toAutomatedItem);
 }
 
+/** Intelligence 4.0 — the "what changed" event types, sitewide, over a
+ * trailing window. Backs Home Intelligence (days=1), Weekly Intelligence
+ * (days=7), and Watchlist Intelligence (filters this same result
+ * client-side by watched ticker — no extra query, same pattern as
+ * WatchlistSection.tsx). `score_change` is the type that actually fires
+ * in production today (confirmed: 148 events/30d); `prediction_change`,
+ * `confidence_change`, and `risk_level_change` are wired identically so
+ * they render the moment the pipeline starts emitting them, but today
+ * will typically come back empty — that's an honest result, not a bug. */
+export const CHANGE_EVENT_TYPES = [
+  "score_change",
+  "risk_level_change",
+  "prediction_change",
+  "confidence_change",
+  "distribution_event",
+  "nav_erosion_warning",
+] as const;
+
+export async function getRecentChangeEvents(
+  { days, lang = "en", limit = 200 }: { days: number; lang?: "en" | "ko"; limit?: number }
+): Promise<AutomatedActivityItem[]> {
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabase
+    .from("activity_items")
+    .select("id, ticker, source, type, title, body, occurred_at, source_url, supporting_metrics, language")
+    .eq("status", "visible")
+    .eq("language", lang)
+    .in("source", ["official", "market", "crady", "ai"])
+    .in("type", CHANGE_EVENT_TYPES)
+    .gte("occurred_at", since)
+    .order("occurred_at", { ascending: false })
+    .limit(limit);
+  if (error) return [];
+  return ((data ?? []) as AutomatedItemRow[]).map(toAutomatedItem);
+}
+
 /** Real, zero-fabrication inputs for the "Today's Activity" summary card —
  * every field is independently honest-nullable; the card omits whatever
  * isn't real rather than inventing a placeholder. "Today" highlights

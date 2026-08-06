@@ -40,6 +40,18 @@ export type RiskMetricsRow = {
   income_score: number | null;
   safety_score: number | null;
   momentum_score: number | null;
+  /** Intelligence 4.0 — the two remaining real inputs to the pipeline's
+   * verified crady_score formula (see lib/ticker/scoreExplain.ts):
+   * trend_score (10% weight) and recovery_score (18% weight). Both were
+   * already computed and stored, just not previously selected here. */
+  trend_score: number | null;
+  recovery_score: number | null;
+  /** A real, pipeline-authored one-line description — same 27/73
+   * population as strategy_type/income_score/safety_score. */
+  notes: string | null;
+  payout_stability_score: number | null;
+  max_drawdown_90d: number | null;
+  recommendation_bucket: string | null;
 };
 
 export type RegimeProfileRow = {
@@ -113,7 +125,8 @@ export async function getRiskMetrics(
     .select(
       "ticker, crady_score, risk_level, profile_type, dividend_stability_score, " +
         "volatility_30d, volatility_90d, max_drawdown, recent_return_30d, recent_return_90d, calculated_at, " +
-        "strategy_type, underlying_ticker, income_score, safety_score, momentum_score"
+        "strategy_type, underlying_ticker, income_score, safety_score, momentum_score, " +
+        "trend_score, recovery_score, notes, payout_stability_score, max_drawdown_90d, recommendation_bucket"
     )
     .eq("ticker", ticker)
     .order("calculated_at", { ascending: false })

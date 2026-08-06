@@ -9,6 +9,12 @@ import {
   nextDistributionsTimeline,
 } from "@/lib/data";
 import { getLatestAnnouncement, getDistributionRowsForAnnouncement, getDistributionTrustStats } from "@/lib/distributions/data";
+import { getRecentChangeEvents } from "@/lib/activity/data";
+import { buildHomeIntelligence } from "@/lib/home/intelligence";
+import { buildWeeklyIntelligence } from "@/lib/home/weekly";
+import { HomeIntelligence } from "@/components/home/HomeIntelligence";
+import { WeeklyIntelligencePreview } from "@/components/home/WeeklyIntelligencePreview";
+import { WatchlistIntelligence } from "@/components/etf/WatchlistIntelligence";
 import { HeroSection } from "@/components/home/Hero";
 import { TrustBar } from "@/components/home/TrustBar";
 import { TodaysHighlights } from "@/components/home/TodaysHighlights";
@@ -59,13 +65,18 @@ export const metadata: Metadata = {
 };
 
 export default async function KoreanHomePage() {
-  const [snapshot, keyMetrics, announcement, trustStats] = await Promise.all([
+  const [snapshot, keyMetrics, announcement, trustStats, changeEventsToday, changeEvents7d] = await Promise.all([
     getHomeSnapshot(),
     getKeyMetrics(),
     getLatestAnnouncement(),
     getDistributionTrustStats(),
+    getRecentChangeEvents({ days: 1, lang: "ko" }),
+    getRecentChangeEvents({ days: 7, lang: "ko" }),
   ]);
   const announcementRows = announcement ? await getDistributionRowsForAnnouncement(announcement.id) : [];
+
+  const homeIntelligence = buildHomeIntelligence(snapshot, changeEventsToday, "ko");
+  const weeklyIntelligence = buildWeeklyIntelligence(snapshot, changeEvents7d);
 
   const yieldTop10 = topByAnnualYield(snapshot, 10);
   const nextDistributions = nextDistributionsTimeline(snapshot, 10);
@@ -111,7 +122,9 @@ export default async function KoreanHomePage() {
         lang="ko"
       />
 
-      <section className="mx-auto max-w-6xl px-4 sm:px-6 pt-6">
+      <section className="mx-auto max-w-6xl px-4 sm:px-6 pt-6 space-y-4">
+        <HomeIntelligence data={homeIntelligence} lang="ko" basePath="/ko" />
+        <WatchlistIntelligence changeEventsToday={changeEventsToday} lang="ko" basePath="/ko" />
         <WatchlistSection snapshot={snapshot} lang="ko" />
       </section>
 
@@ -182,6 +195,8 @@ export default async function KoreanHomePage() {
             </CarouselItem>
           ))}
         </CardCarousel>
+
+        <WeeklyIntelligencePreview data={weeklyIntelligence} lang="ko" basePath="/ko" />
       </section>
 
       {announcement && (

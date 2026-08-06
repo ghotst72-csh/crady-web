@@ -7,7 +7,7 @@ import {
   buildTrackRecord,
   buildSchedulePattern,
 } from "./nextDividendIntelligence";
-import { buildWhyThisEstimate } from "./nextDividendNarrative";
+import { buildWhyThisEstimate, buildEstimateFactors, buildWhatWouldChangeThis } from "./nextDividendNarrative";
 import type { NextDividendIntelligenceData } from "@/components/ticker/NextDividendIntelligence";
 import type { FullNextPrediction, NextScheduleRow, RecentDeclaredDistribution } from "./nextDividendData";
 import type { EvaluatedPredictionRow, PredictionVsOfficial } from "@/lib/distributions/data";
@@ -31,6 +31,9 @@ export function buildNextDividendIntelligenceData(input: {
   payoutFrequency: string | null;
   todayIso: string;
   lang: "en" | "ko";
+  /** Intelligence 4.0 — the underlying stock's own real trailing
+   * volatility (lib/ticker/underlyingMomentum.ts), when one exists. */
+  underlyingVolatility30d?: number | null;
 }): NextDividendIntelligenceData {
   const {
     ticker,
@@ -46,6 +49,7 @@ export function buildNextDividendIntelligenceData(input: {
     payoutFrequency,
     todayIso,
     lang,
+    underlyingVolatility30d = null,
   } = input;
 
   const typicalGap = computeTypicalDeclarationToExDays(
@@ -118,6 +122,21 @@ export function buildNextDividendIntelligenceData(input: {
         }
       : null;
 
+  const estimateFactors = buildEstimateFactors(
+    {
+      recentAmountsCount: recentAmounts.length,
+      isOfficiallyDeclared: false,
+      underlyingVolatility30d,
+      hasUnderlyingTicker: underlyingTicker != null,
+      underlyingTicker,
+    },
+    lang
+  );
+  const whatWouldChangeThis = buildWhatWouldChangeThis(
+    { isOfficiallyDeclared: false, hasUnderlyingTicker: underlyingTicker != null, underlyingTicker },
+    lang
+  );
+
   return {
     ticker,
     schedule,
@@ -135,6 +154,8 @@ export function buildNextDividendIntelligenceData(input: {
     schedulePattern,
     trackRecord,
     forecastVsOfficial,
+    estimateFactors,
+    whatWouldChangeThis,
   };
 }
 

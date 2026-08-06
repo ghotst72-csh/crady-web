@@ -133,6 +133,124 @@ export function buildNextDividendDirectAnswer(
   return null;
 }
 
+// ── Intelligence 4.0 — deepened "Why This Estimate?" ─────────────────────
+//
+// Reclassifies the existing flat high/medium/low driver list (see
+// buildEstimateDrivers in nextDividendIntelligence.ts) into the spec's
+// Positive / Negative / Unknown structure. These are factors about the
+// ESTIMATE'S RELIABILITY (how much real data backs it), not a claim about
+// which direction the actual payout will move — that distinction matters
+// because there's no verified causal model in this codebase for how
+// underlying price movement translates into payout size, and asserting
+// one would be exactly the kind of fabrication the spec forbids.
+
+export type EstimateFactorsInput = {
+  recentAmountsCount: number;
+  isOfficiallyDeclared: boolean;
+  /** Real, from lib/ticker/underlyingMomentum.ts — the underlying stock's
+   * own trailing volatility, when this ETF tracks one and CRADY has data
+   * for it. Previously hardcoded as unavailable; now wired to the real
+   * underlying_momentum_metrics table. */
+  underlyingVolatility30d: number | null;
+  hasUnderlyingTicker: boolean;
+  underlyingTicker: string | null;
+};
+
+export type EstimateFactors = {
+  positive: string[];
+  negative: string[];
+  unknown: string[];
+};
+
+const HIGH_UNDERLYING_VOLATILITY = 50;
+
+export function buildEstimateFactors(input: EstimateFactorsInput, lang: "en" | "ko" = "en"): EstimateFactors {
+  const positive: string[] = [];
+  const negative: string[] = [];
+  const unknown: string[] = [];
+
+  if (input.recentAmountsCount >= 4) {
+    positive.push(
+      lang === "ko" ? "충분한 최근 분배 이력이 있어 패턴을 파악할 수 있습니다." : "Enough recent distribution history exists to establish a real pattern."
+    );
+  } else if (input.recentAmountsCount > 0) {
+    unknown.push(
+      lang === "ko" ? "최근 분배 이력이 아직 제한적입니다." : "Recent distribution history is still limited."
+    );
+  } else {
+    negative.push(
+      lang === "ko" ? "참고할 최근 분배 이력이 없습니다." : "No recent distribution history exists to draw on."
+    );
+  }
+
+  if (input.isOfficiallyDeclared) {
+    positive.push(
+      lang === "ko" ? "이번 금액은 이미 운용사가 공식 발표했습니다." : "This amount has already been officially declared by the issuer."
+    );
+  } else {
+    unknown.push(
+      lang === "ko" ? "아직 운용사의 공식 발표 전입니다." : "Not yet officially declared by the issuer."
+    );
+  }
+
+  if (input.hasUnderlyingTicker && input.underlyingVolatility30d != null) {
+    if (input.underlyingVolatility30d >= HIGH_UNDERLYING_VOLATILITY) {
+      negative.push(
+        lang === "ko"
+          ? `${input.underlyingTicker}의 30일 변동성이 ${input.underlyingVolatility30d.toFixed(1)}%로 높아 다음 분배금의 불확실성이 커집니다.`
+          : `${input.underlyingTicker}'s 30-day volatility is high (${input.underlyingVolatility30d.toFixed(1)}%), which widens the uncertainty around the next distribution.`
+      );
+    } else {
+      positive.push(
+        lang === "ko"
+          ? `${input.underlyingTicker}의 30일 변동성이 ${input.underlyingVolatility30d.toFixed(1)}%로 상대적으로 안정적입니다.`
+          : `${input.underlyingTicker}'s 30-day volatility is comparatively moderate (${input.underlyingVolatility30d.toFixed(1)}%).`
+      );
+    }
+  } else if (input.hasUnderlyingTicker) {
+    unknown.push(
+      lang === "ko"
+        ? `${input.underlyingTicker ?? "기초자산"}의 변동성 데이터를 아직 확보하지 못했습니다.`
+        : `Volatility data for ${input.underlyingTicker ?? "the underlying stock"} isn't available yet.`
+    );
+  }
+
+  return { positive, negative, unknown };
+}
+
+export type WhatWouldChangeInput = {
+  isOfficiallyDeclared: boolean;
+  hasUnderlyingTicker: boolean;
+  underlyingTicker: string | null;
+};
+
+/** "What would change this estimate?" — real mechanics only, no
+ * speculative "if the market does X" language beyond what the model
+ * genuinely reacts to. */
+export function buildWhatWouldChangeThis(input: WhatWouldChangeInput, lang: "en" | "ko" = "en"): string[] {
+  const items: string[] = [];
+  if (!input.isOfficiallyDeclared) {
+    items.push(
+      lang === "ko"
+        ? "운용사의 공식 발표가 나오면, 이 예상치는 확정 금액으로 즉시 대체됩니다."
+        : "An official declaration from the issuer would immediately replace this estimate with the confirmed amount."
+    );
+  }
+  items.push(
+    lang === "ko"
+      ? "이후 실제 분배금이 새로 지급될 때마다, 최근 분배 흐름이 갱신되어 다음 예상치에 반영됩니다."
+      : "Each newly paid distribution updates the recent-history pattern this estimate is based on."
+  );
+  if (input.hasUnderlyingTicker) {
+    items.push(
+      lang === "ko"
+        ? `${input.underlyingTicker ?? "기초자산"}의 실현 변동성이 크게 바뀌면, 예상 범위(Bull/Bear)가 함께 달라집니다.`
+        : `A significant change in ${input.underlyingTicker ?? "the underlying stock"}'s realized volatility would shift the estimated range.`
+    );
+  }
+  return items;
+}
+
 export type NextDividendFaqItem = { question: string; answer: string };
 
 export function buildNextDividendFaq(

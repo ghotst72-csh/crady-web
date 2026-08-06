@@ -64,6 +64,22 @@ import { getRelevantGuidesForEtf, GUIDE_LABELS } from "@/lib/magazine/topicalLin
 import { RelatedContent } from "@/components/RelatedContent";
 import { PageTrustFooter } from "@/components/seo/PageTrustFooter";
 import { Badge } from "@/components/ui/Badge";
+import { getUnderlyingMomentum } from "@/lib/ticker/underlyingMomentum";
+import { computeScoreBreakdown } from "@/lib/ticker/scoreExplain";
+import { buildRiskContext } from "@/lib/ticker/riskExplain";
+import { buildYieldExplanation } from "@/lib/ticker/yieldExplain";
+import { buildScenarios } from "@/lib/ticker/scenarios";
+import { buildEtfDna } from "@/lib/ticker/dna";
+import { computeLifecycleStage } from "@/lib/ticker/lifecycleStage";
+import { buildDailySummary } from "@/lib/ticker/aiSummary";
+import { YieldExplainer } from "@/components/ticker/YieldExplainer";
+import { RiskExplainer } from "@/components/ticker/RiskExplainer";
+import { ScoreBreakdown } from "@/components/ticker/ScoreBreakdown";
+import { ScenarioCards } from "@/components/ticker/ScenarioCards";
+import { EtfDnaCard } from "@/components/ticker/EtfDnaCard";
+import { EtfLifecycleTimeline } from "@/components/ticker/EtfLifecycleTimeline";
+import { ForecastHistoryTimeline } from "@/components/ticker/ForecastHistoryTimeline";
+import { AiDailySummary } from "@/components/ticker/AiDailySummary";
 
 export const revalidate = 3600;
 
@@ -196,6 +212,12 @@ export default async function TickerPage({
   ]);
   const trend12mo = computeDividendTrend(yearOfDistributions).find((w) => w.days === 365) ?? null;
 
+  // Intelligence 4.0 — real underlying-stock volatility, fetched only when
+  // this ETF actually tracks one (risk.underlying_ticker). A follow-up
+  // await rather than part of the main Promise.all since it depends on
+  // risk's own result, same pattern already used below for similarEtfs.
+  const underlyingMomentum = risk?.underlying_ticker ? await getUnderlyingMomentum(risk.underlying_ticker) : null;
+
   const todayStr = new Date().toISOString().slice(0, 10);
   const prediction =
     rawPrediction && rawPrediction.target_pay_date && rawPrediction.target_pay_date >= todayStr
@@ -321,6 +343,7 @@ export default async function TickerPage({
     payoutFrequency: isKnown(etf.payout_frequency) ? etf.payout_frequency : null,
     todayIso: todayStr2,
     lang: "en",
+    underlyingVolatility30d: underlyingMomentum?.volatility_30d ?? null,
   });
   const nextDividendDirectAnswer = buildNextDividendDirectAnswer(
     {
@@ -343,6 +366,62 @@ export default async function TickerPage({
       isOfficial: nextDividendIntelligenceData.isOfficial,
       officialAmount: nextDividendIntelligenceData.officialAmount,
     },
+    "en"
+  );
+
+  // CRADY Intelligence 4.0 — rule-based "why" explanations, all real,
+  // all derived from data already fetched above (+ underlyingMomentum,
+  // the one new follow-up fetch). Never an LLM call.
+  const ownSnapshot = homeSnapshot.find((s) => s.ticker === ticker);
+  const scoreBreakdown = computeScoreBreakdown({
+    cradyScore: risk?.crady_score ?? null,
+    riskLevel: risk?.risk_level ?? null,
+    dividendStabilityScore: risk?.dividend_stability_score ?? null,
+    recoveryScore: risk?.recovery_score ?? null,
+    maxDrawdown: risk?.max_drawdown ?? null,
+    volatility30d: risk?.volatility_30d ?? null,
+    trendScore: risk?.trend_score ?? null,
+    momentumScore: risk?.momentum_score ?? null,
+  });
+  const riskContext = buildRiskContext({
+    riskLevel: risk?.risk_level ?? null,
+    volatility30d: risk?.volatility_30d ?? null,
+    volatility90d: risk?.volatility_90d ?? null,
+    maxDrawdown: risk?.max_drawdown ?? null,
+    dividendStabilityScore: risk?.dividend_stability_score ?? null,
+  });
+  const yieldExplanation = buildYieldExplanation(
+    {
+      annualYieldPct,
+      payoutFrequency: isKnown(etf.payout_frequency) ? etf.payout_frequency : null,
+      dividendTrend: ownSnapshot?.dividendTrend ?? null,
+      dividendTrendPct: ownSnapshot?.dividendTrendPct ?? null,
+      recentReturn30d: risk?.recent_return_30d ?? null,
+    },
+    "en"
+  );
+  const dnaTraits = buildEtfDna({
+    incomeScore: risk?.income_score ?? null,
+    momentumScore: risk?.momentum_score ?? null,
+    riskLevel: risk?.risk_level ?? null,
+    recoveryScore: risk?.recovery_score ?? null,
+    dividendStabilityScore: risk?.dividend_stability_score ?? null,
+    safetyScore: risk?.safety_score ?? null,
+    trendScore: risk?.trend_score ?? null,
+  });
+  const scenarios = buildScenarios({
+    pointEstimate: nextDividendIntelligenceData.pointEstimate,
+    recentAmounts: nextDividendIntelligenceData.recentAmounts,
+  });
+  const lifecycleStage = computeLifecycleStage({
+    cycleDeclarationDate: nextDividendIntelligenceData.schedule.declaration.date,
+    cycleExDate: nextDividendIntelligenceData.schedule.exDividend.date,
+    cyclePayDate: nextDividendIntelligenceData.schedule.payment.date,
+    hasNextCyclePrediction: nextDividendIntelligenceData.pointEstimate != null,
+    lastCycleEvaluated: predictionVsOfficial != null,
+  });
+  const aiSummarySentences = buildDailySummary(
+    { ticker, directAnswer, notes: risk?.notes ?? null, yieldExplanation, scoreBreakdown, riskContext },
     "en"
   );
 
@@ -483,6 +562,24 @@ export default async function TickerPage({
           under the Hero, before Activity/Magazine content, per the spec's
           own placement priority. */}
       <NextDividendIntelligence data={nextDividendIntelligenceData} directAnswer={nextDividendDirectAnswer} lang="en" />
+
+      {/* CRADY Intelligence 4.0 — "why" explanations for every number
+          already on the page above. Rule-based only, every section
+          honestly omits itself when its real inputs are missing. */}
+      <section className="mx-auto max-w-4xl px-4 sm:px-6 mt-6 space-y-4">
+        <AiDailySummary sentences={aiSummarySentences} lang="en" />
+        <div className="grid sm:grid-cols-2 gap-4">
+          <YieldExplainer explanation={yieldExplanation} lang="en" />
+          <RiskExplainer context={riskContext} lang="en" />
+        </div>
+        <ScoreBreakdown breakdown={scoreBreakdown} lang="en" />
+        <div className="grid sm:grid-cols-2 gap-4">
+          <EtfDnaCard traits={dnaTraits} lang="en" />
+          <ScenarioCards scenarios={scenarios} lang="en" />
+        </div>
+        <EtfLifecycleTimeline stage={lifecycleStage} lang="en" />
+        <ForecastHistoryTimeline rows={evaluatedPredictionHistory} lang="en" />
+      </section>
 
       <div className="mx-auto max-w-4xl px-4 sm:px-6">
         <Suspense fallback={null}>

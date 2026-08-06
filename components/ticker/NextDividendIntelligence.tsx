@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Badge, type BadgeVariant } from "@/components/ui/Badge";
 import type { DividendSchedule, DateStatus, ExpectedRange, EstimateDriver, TrackRecord, SchedulePattern } from "@/lib/ticker/nextDividendIntelligence";
+import type { EstimateFactors } from "@/lib/ticker/nextDividendNarrative";
 
 /** CRADY Engagement & Intelligence Phase 2, Part A. Placed directly under
  * the Hero, before Activity/Magazine content (§1). Client component only
@@ -89,6 +90,10 @@ const T = {
   noEstimate: { en: "No prediction available yet for this ETF.", ko: "이 ETF에 대한 예측 정보가 아직 없습니다." },
   officialTransitionTitle: { en: "Forecast vs. Official Result", ko: "예측 대비 실제 결과" },
   forecastError: { en: "Forecast Error", ko: "예측 오차" },
+  positiveFactors: { en: "Positive Factors", ko: "긍정적 요인" },
+  negativeFactors: { en: "Negative Factors", ko: "부정적 요인" },
+  unknownFactors: { en: "Unknown Factors", ko: "알 수 없는 요인" },
+  whatWouldChange: { en: "What would change this estimate?", ko: "무엇이 이 예상치를 바꿀 수 있나요?" },
 } as const;
 
 export type NextDividendIntelligenceData = {
@@ -108,6 +113,11 @@ export type NextDividendIntelligenceData = {
   schedulePattern: SchedulePattern | null;
   trackRecord: TrackRecord | null;
   forecastVsOfficial: { predictedAmount: number; actualAmount: number; errorPct: number | null } | null;
+  /** Intelligence 4.0 — deepened "Why This Estimate?" (Positive/Negative/
+   * Unknown factors + "what would change this"). Optional so this
+   * component still works if a caller hasn't been updated yet. */
+  estimateFactors?: EstimateFactors;
+  whatWouldChangeThis?: string[];
 };
 
 export function NextDividendIntelligence({
@@ -139,6 +149,8 @@ export function NextDividendIntelligence({
     schedulePattern,
     trackRecord,
     forecastVsOfficial,
+    estimateFactors,
+    whatWouldChangeThis,
   } = data;
 
   const hasAnyDate = [schedule.declaration, schedule.exDividend, schedule.record, schedule.payment].some((d) => d.date != null);
@@ -335,6 +347,53 @@ export function NextDividendIntelligence({
                     {!schedulePattern.isConsistent && (
                       <p className="mt-1 text-xs text-[var(--gray-400)]">{T.scheduleVaries[lang]}</p>
                     )}
+                  </div>
+                )}
+
+                {/* Positive / Negative / Unknown factors (Intelligence 4.0) */}
+                {estimateFactors && (estimateFactors.positive.length > 0 || estimateFactors.negative.length > 0 || estimateFactors.unknown.length > 0) && (
+                  <div className="grid sm:grid-cols-3 gap-4">
+                    {estimateFactors.positive.length > 0 && (
+                      <div>
+                        <div className="text-caption mb-1.5 text-emerald-700">{T.positiveFactors[lang]}</div>
+                        <ul className="space-y-1 text-xs text-[var(--gray-600)] list-disc pl-4">
+                          {estimateFactors.positive.map((f, i) => (
+                            <li key={i}>{f}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {estimateFactors.negative.length > 0 && (
+                      <div>
+                        <div className="text-caption mb-1.5 text-red-700">{T.negativeFactors[lang]}</div>
+                        <ul className="space-y-1 text-xs text-[var(--gray-600)] list-disc pl-4">
+                          {estimateFactors.negative.map((f, i) => (
+                            <li key={i}>{f}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {estimateFactors.unknown.length > 0 && (
+                      <div>
+                        <div className="text-caption mb-1.5 text-[var(--gray-500)]">{T.unknownFactors[lang]}</div>
+                        <ul className="space-y-1 text-xs text-[var(--gray-600)] list-disc pl-4">
+                          {estimateFactors.unknown.map((f, i) => (
+                            <li key={i}>{f}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {whatWouldChangeThis && whatWouldChangeThis.length > 0 && (
+                  <div>
+                    <div className="text-caption mb-1.5">{T.whatWouldChange[lang]}</div>
+                    <ul className="space-y-1 text-xs text-[var(--gray-600)] list-disc pl-4">
+                      {whatWouldChangeThis.map((f, i) => (
+                        <li key={i}>{f}</li>
+                      ))}
+                    </ul>
                   </div>
                 )}
 
