@@ -39,7 +39,11 @@ function isoDate(d: Date): string {
 export function buildWeeklyIntelligence(
   snapshot: EtfSnapshot[],
   changeEvents7d: AutomatedActivityItem[],
-  today: Date = new Date()
+  today: Date = new Date(),
+  /** Reused as-is for Monthly Intelligence (app/(en)/monthly-intelligence)
+   * with lookaheadDays=30 — same buckets, same rules, just a wider window,
+   * rather than a second copy of this function. */
+  lookaheadDays = 7
 ): WeeklyIntelligence {
   const distributions: WeeklyTicker[] = [];
   const scoreChanges: WeeklyTicker[] = [];
@@ -54,12 +58,12 @@ export function buildWeeklyIntelligence(
     else if (item.type === "prediction_change") predictionChanges.push(entry);
   }
 
-  const weekAhead = new Date(today);
-  weekAhead.setDate(weekAhead.getDate() + 7);
+  const windowAhead = new Date(today);
+  windowAhead.setDate(windowAhead.getDate() + lookaheadDays);
   const todayIso = isoDate(today);
-  const weekAheadIso = isoDate(weekAhead);
+  const windowAheadIso = isoDate(windowAhead);
   const upcomingExDates: WeeklyTicker[] = snapshot
-    .filter((s) => s.nextPredictedExDate != null && s.nextPredictedExDate >= todayIso && s.nextPredictedExDate <= weekAheadIso)
+    .filter((s) => s.nextPredictedExDate != null && s.nextPredictedExDate >= todayIso && s.nextPredictedExDate <= windowAheadIso)
     .sort((a, b) => (a.nextPredictedExDate! < b.nextPredictedExDate! ? -1 : 1))
     .map((s) => ({ ticker: s.ticker, label: s.nextPredictedExDate! }));
 

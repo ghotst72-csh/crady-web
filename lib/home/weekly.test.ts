@@ -95,4 +95,18 @@ describe("buildWeeklyIntelligence", () => {
     expect(result.predictionChanges).toEqual([]);
     expect(result.riskLevelChanges).toEqual([]);
   });
+
+  it("widens the upcoming-ex-date window when lookaheadDays is passed (Monthly Intelligence reuse)", () => {
+    const result = buildWeeklyIntelligence(
+      [
+        snap({ ticker: "SOON", nextPredictedExDate: "2026-08-11" }), // within both windows
+        snap({ ticker: "MID", nextPredictedExDate: "2026-08-20" }), // outside 7d, inside 30d
+        snap({ ticker: "FAR", nextPredictedExDate: "2026-09-10" }), // outside both
+      ],
+      [],
+      today,
+      30
+    );
+    expect(result.upcomingExDates.map((r) => r.ticker)).toEqual(["SOON", "MID"]);
+  });
 });

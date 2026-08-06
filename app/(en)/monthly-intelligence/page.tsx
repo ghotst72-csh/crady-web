@@ -8,14 +8,14 @@ import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 export const revalidate = 21600;
 
 export const metadata: Metadata = {
-  title: "Weekly Intelligence — CRADY",
-  description: "This week's distribution events, CRADY Score changes, upcoming ex-dates, and yield movers across every tracked ETF.",
+  title: "Monthly Intelligence — CRADY",
+  description: "This month's distribution events, CRADY Score changes, upcoming ex-dates, and yield movers across every tracked ETF.",
   alternates: {
-    canonical: "https://crady.net/weekly-intelligence",
+    canonical: "https://crady.net/monthly-intelligence",
     languages: {
-      en: "https://crady.net/weekly-intelligence",
-      ko: "https://crady.net/ko/weekly-intelligence",
-      "x-default": "https://crady.net/weekly-intelligence",
+      en: "https://crady.net/monthly-intelligence",
+      ko: "https://crady.net/ko/monthly-intelligence",
+      "x-default": "https://crady.net/monthly-intelligence",
     },
   },
 };
@@ -44,34 +44,37 @@ function Section({ title, items, empty, basePath }: { title: string; items: Week
   );
 }
 
-export default async function WeeklyIntelligencePage() {
-  const [snapshot, changeEvents7d] = await Promise.all([getHomeSnapshot(), getRecentChangeEvents({ days: 7, lang: "en" })]);
-  const data = buildWeeklyIntelligence(snapshot, changeEvents7d);
+export default async function MonthlyIntelligencePage() {
+  const [snapshot, changeEvents30d] = await Promise.all([
+    getHomeSnapshot(),
+    getRecentChangeEvents({ days: 30, lang: "en" }),
+  ]);
+  const data = buildWeeklyIntelligence(snapshot, changeEvents30d, new Date(), 30);
 
   return (
     <div className="mx-auto max-w-4xl px-4 sm:px-6 py-10">
       <BreadcrumbJsonLd
         items={[
           { name: "Home", url: "https://crady.net" },
-          { name: "Weekly Intelligence", url: "https://crady.net/weekly-intelligence" },
+          { name: "Monthly Intelligence", url: "https://crady.net/monthly-intelligence" },
         ]}
       />
-      <h1 className="text-2xl font-bold">Weekly Intelligence</h1>
+      <h1 className="text-2xl font-bold">Monthly Intelligence</h1>
       <p className="text-sm text-[var(--gray-500)] mt-1 max-w-2xl">
         Every section below is rule-based and computed from real, current data — never an LLM call. Sections with no
-        real events this week show an honest empty state rather than a fabricated one.{" "}
-        <Link href="/monthly-intelligence" className="underline hover:text-black">
-          See the 30-day view →
+        real events this month show an honest empty state rather than a fabricated one.{" "}
+        <Link href="/weekly-intelligence" className="underline hover:text-black">
+          See the 7-day view →
         </Link>
       </p>
 
       <div className="mt-6 space-y-4">
-        <Section title="Distributions" items={data.distributions} empty="No distribution events in the last 7 days." basePath="" />
-        <Section title="Score Changes" items={data.scoreChanges} empty="No CRADY Score changes in the last 7 days." basePath="" />
-        <Section title="Risk Changes" items={data.riskLevelChanges} empty="No risk classification changes in the last 7 days." basePath="" />
-        <Section title="Prediction Changes" items={data.predictionChanges} empty="No prediction changes in the last 7 days." basePath="" />
-        <Section title="Upcoming Ex-Dates" items={data.upcomingExDates} empty="No upcoming ex-dates in the next 7 days." basePath="" />
-        <Section title="Highest Yield Changes" items={data.yieldMovers} empty="No notable distribution-yield movers this week." basePath="" />
+        <Section title="Distributions" items={data.distributions} empty="No distribution events in the last 30 days." basePath="" />
+        <Section title="Score Changes" items={data.scoreChanges} empty="No CRADY Score changes in the last 30 days." basePath="" />
+        <Section title="Risk Changes" items={data.riskLevelChanges} empty="No risk classification changes in the last 30 days." basePath="" />
+        <Section title="Prediction Changes" items={data.predictionChanges} empty="No prediction changes in the last 30 days." basePath="" />
+        <Section title="Upcoming Ex-Dates" items={data.upcomingExDates} empty="No upcoming ex-dates in the next 30 days." basePath="" />
+        <Section title="Highest Yield Changes" items={data.yieldMovers} empty="No notable distribution-yield movers this month." basePath="" />
       </div>
     </div>
   );

@@ -59,7 +59,10 @@ export default async function WeeklyIntelligenceKoPage() {
       <h1 className="text-2xl font-bold">주간 인텔리전스</h1>
       <p className="text-sm text-[var(--gray-500)] mt-1 max-w-2xl">
         아래 모든 섹션은 실제 현재 데이터를 규칙 기반으로 계산한 결과이며, AI 모델 호출은 사용하지 않습니다. 이번 주
-        실제 이벤트가 없는 섹션은 조작된 값 대신 정직하게 빈 상태를 표시합니다.
+        실제 이벤트가 없는 섹션은 조작된 값 대신 정직하게 빈 상태를 표시합니다.{" "}
+        <Link href="/ko/monthly-intelligence" className="underline hover:text-black">
+          30일 보기 →
+        </Link>
       </p>
 
       <div className="mt-6 space-y-4">

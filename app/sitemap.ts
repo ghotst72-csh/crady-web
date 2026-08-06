@@ -207,6 +207,58 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8,
     },
     {
+      url: "https://crady.net/weekly-intelligence",
+      lastModified: mostRecentCalculatedAt ?? undefined,
+      changeFrequency: "daily",
+      priority: 0.6,
+      alternates: {
+        languages: {
+          en: "https://crady.net/weekly-intelligence",
+          ko: "https://crady.net/ko/weekly-intelligence",
+          "x-default": "https://crady.net/weekly-intelligence",
+        },
+      },
+    },
+    {
+      url: "https://crady.net/ko/weekly-intelligence",
+      lastModified: mostRecentCalculatedAt ?? undefined,
+      changeFrequency: "daily",
+      priority: 0.6,
+      alternates: {
+        languages: {
+          en: "https://crady.net/weekly-intelligence",
+          ko: "https://crady.net/ko/weekly-intelligence",
+          "x-default": "https://crady.net/weekly-intelligence",
+        },
+      },
+    },
+    {
+      url: "https://crady.net/monthly-intelligence",
+      lastModified: mostRecentCalculatedAt ?? undefined,
+      changeFrequency: "daily",
+      priority: 0.6,
+      alternates: {
+        languages: {
+          en: "https://crady.net/monthly-intelligence",
+          ko: "https://crady.net/ko/monthly-intelligence",
+          "x-default": "https://crady.net/monthly-intelligence",
+        },
+      },
+    },
+    {
+      url: "https://crady.net/ko/monthly-intelligence",
+      lastModified: mostRecentCalculatedAt ?? undefined,
+      changeFrequency: "daily",
+      priority: 0.6,
+      alternates: {
+        languages: {
+          en: "https://crady.net/monthly-intelligence",
+          ko: "https://crady.net/ko/monthly-intelligence",
+          "x-default": "https://crady.net/monthly-intelligence",
+        },
+      },
+    },
+    {
       // English-only, like /magazine above — no Korean tree exists for it.
       url: "https://crady.net/data-terms",
       changeFrequency: "monthly",
