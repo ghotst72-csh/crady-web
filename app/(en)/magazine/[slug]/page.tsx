@@ -513,6 +513,20 @@ async function StandalonePage({ slug }: { slug: StandalonePageId }) {
           </section>
         )}
       </div>
+      <RelatedContent
+        lang="en"
+        etfs={relatedEtfs.slice(0, 5).map((etf) => ({
+          href: `/magazine/${etf.ticker.toLowerCase()}-next-dividend-prediction`,
+          label: `${etf.ticker} Next Dividend Prediction`,
+        }))}
+        guides={STANDALONE_PAGE_IDS.filter((id) => id !== slug)
+          .slice(0, 5)
+          .map((id) => ({ href: `/magazine/${id}`, label: STANDALONE_PAGES[id].h1 }))}
+        rankings={[
+          { href: `/magazine/${HUB_IDS[0]}`, label: HUB_DEFINITIONS[HUB_IDS[0]].h1 },
+          { href: "/distributions", label: "Latest Official Distributions" },
+        ]}
+      />
       <PageAppCta lang="en" />
       <PageTrustFooter lang="en" />
     </div>

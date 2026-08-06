@@ -26,7 +26,7 @@ import {
 } from "@/lib/ticker/nextDividendData";
 import { buildNextDividendIntelligenceData } from "@/lib/ticker/buildNextDividendIntelligenceData";
 import { NextDividendIntelligence } from "@/components/ticker/NextDividendIntelligence";
-import { buildNextDividendDirectAnswer, buildNextDividendFaq } from "@/lib/ticker/nextDividendNarrative";
+import { buildNextDividendDirectAnswer } from "@/lib/ticker/nextDividendNarrative";
 import { RESERVED_PATHS } from "@/lib/reserved";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { DividendStagePill } from "@/components/DividendLifecycle";
@@ -357,18 +357,6 @@ export default async function TickerPage({
     },
     "en"
   );
-  const nextDividendFaq = buildNextDividendFaq(
-    {
-      ticker,
-      exDate: nextDividendIntelligenceData.schedule.exDividend.date,
-      payDate: nextDividendIntelligenceData.schedule.payment.date,
-      declarationDate: nextDividendIntelligenceData.schedule.declaration.date,
-      pointEstimate: nextDividendIntelligenceData.pointEstimate,
-      isOfficial: nextDividendIntelligenceData.isOfficial,
-      officialAmount: nextDividendIntelligenceData.officialAmount,
-    },
-    "en"
-  );
 
   // CRADY Intelligence 4.0 — rule-based "why" explanations, all real,
   // all derived from data already fetched above (+ underlyingMomentum,
@@ -490,7 +478,7 @@ export default async function TickerPage({
         : null,
   };
   const profileSnippetText = buildProfileSnippet(profileSeoInput, "en");
-  const profileFaqItems = [...buildProfileFaqItems(profileSeoInput, "en"), ...nextDividendFaq];
+  const profileFaqItems = buildProfileFaqItems(profileSeoInput, "en");
   const faqJsonLd = buildFaqJsonLd(profileFaqItems);
   const webPageJsonLd = buildWebPageJsonLd({
     name: `${ticker} — ${etf.name ?? ticker}`,

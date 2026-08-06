@@ -26,7 +26,7 @@ import {
 } from "@/lib/ticker/nextDividendData";
 import { buildNextDividendIntelligenceData } from "@/lib/ticker/buildNextDividendIntelligenceData";
 import { NextDividendIntelligence } from "@/components/ticker/NextDividendIntelligence";
-import { buildNextDividendDirectAnswer, buildNextDividendFaq } from "@/lib/ticker/nextDividendNarrative";
+import { buildNextDividendDirectAnswer } from "@/lib/ticker/nextDividendNarrative";
 import { RESERVED_PATHS } from "@/lib/reserved";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { DividendStagePill } from "@/components/DividendLifecycle";
@@ -347,18 +347,6 @@ export default async function KoreanTickerPage({
     },
     "ko"
   );
-  const nextDividendFaq = buildNextDividendFaq(
-    {
-      ticker,
-      exDate: nextDividendIntelligenceData.schedule.exDividend.date,
-      payDate: nextDividendIntelligenceData.schedule.payment.date,
-      declarationDate: nextDividendIntelligenceData.schedule.declaration.date,
-      pointEstimate: nextDividendIntelligenceData.pointEstimate,
-      isOfficial: nextDividendIntelligenceData.isOfficial,
-      officialAmount: nextDividendIntelligenceData.officialAmount,
-    },
-    "ko"
-  );
 
   // CRADY Intelligence 4.0 — rule-based "why" explanations (see the
   // English ticker page for the full rationale — mirrored 1:1 here).
@@ -474,7 +462,7 @@ export default async function KoreanTickerPage({
         : null,
   };
   const profileSnippetText = buildProfileSnippet(profileSeoInput, "ko");
-  const profileFaqItems = [...buildProfileFaqItems(profileSeoInput, "ko"), ...nextDividendFaq];
+  const profileFaqItems = buildProfileFaqItems(profileSeoInput, "ko");
   const faqJsonLd = buildFaqJsonLd(profileFaqItems);
   const webPageJsonLd = buildWebPageJsonLd({
     name: `${ticker} — ${etf.name ?? ticker}`,

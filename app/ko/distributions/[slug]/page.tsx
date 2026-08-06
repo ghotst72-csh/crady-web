@@ -11,6 +11,7 @@ import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { AnnouncementHeader } from "@/components/distributions/AnnouncementHeader";
 import { DistributionExplorer } from "@/components/distributions/DistributionExplorer";
 import { AnnouncementInsights } from "@/components/distributions/AnnouncementInsights";
+import { RelatedContent } from "@/components/RelatedContent";
 
 export const revalidate = 3600;
 
@@ -72,8 +73,10 @@ export default async function KoreanDistributionAnnouncementPage({
     "@type": "NewsArticle",
     headline: announcement.title,
     datePublished: announcement.announcement_date,
+    dateModified: announcement.fetched_at,
     inLanguage: "ko",
     url: `https://crady.net/ko/distributions/${slug}`,
+    author: { "@type": "Organization", name: "CRADY" },
     publisher: { "@type": "Organization", name: "CRADY" },
     isBasedOn: announcement.source_url,
   };
@@ -106,6 +109,15 @@ export default async function KoreanDistributionAnnouncementPage({
         <h2 className="text-lg font-bold mb-3">전체 분배금 표</h2>
         <DistributionExplorer rows={rows} lang="ko" basePath="/ko" />
       </div>
+
+      <RelatedContent
+        lang="ko"
+        etfs={[...new Set(rows.map((r) => r.ticker))].slice(0, 8).map((ticker) => ({
+          href: `/${ticker.toLowerCase()}`,
+          label: `${ticker} 전체 ETF 프로필`,
+        }))}
+        rankings={[{ href: "/ko/distributions/archive", label: "분배금 발표 아카이브" }]}
+      />
     </div>
   );
 }

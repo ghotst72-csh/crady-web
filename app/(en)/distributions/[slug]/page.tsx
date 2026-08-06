@@ -11,6 +11,7 @@ import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { AnnouncementHeader } from "@/components/distributions/AnnouncementHeader";
 import { DistributionExplorer } from "@/components/distributions/DistributionExplorer";
 import { AnnouncementInsights } from "@/components/distributions/AnnouncementInsights";
+import { RelatedContent } from "@/components/RelatedContent";
 
 export const revalidate = 3600;
 
@@ -67,8 +68,10 @@ export default async function DistributionAnnouncementPage({
     "@type": "NewsArticle",
     headline: announcement.title,
     datePublished: announcement.announcement_date,
+    dateModified: announcement.fetched_at,
     inLanguage: "en",
     url: `https://crady.net/distributions/${slug}`,
+    author: { "@type": "Organization", name: "CRADY" },
     publisher: { "@type": "Organization", name: "CRADY" },
     isBasedOn: announcement.source_url,
   };
@@ -101,6 +104,16 @@ export default async function DistributionAnnouncementPage({
         <h2 className="text-lg font-bold mb-3">Full Distribution Table</h2>
         <DistributionExplorer rows={rows} lang="en" basePath="" />
       </div>
+
+      <RelatedContent
+        lang="en"
+        etfs={[...new Set(rows.map((r) => r.ticker))].slice(0, 8).map((ticker) => ({
+          href: `/${ticker.toLowerCase()}`,
+          label: `${ticker} Full ETF Profile`,
+        }))}
+        guides={[{ href: "/magazine/distribution-schedule-guide", label: "Distribution Schedule Guide" }]}
+        rankings={[{ href: "/distributions/archive", label: "Distribution Announcement Archive" }]}
+      />
     </div>
   );
 }
