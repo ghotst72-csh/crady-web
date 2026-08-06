@@ -2,11 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { EtfCard, type EtfCardData } from "@/components/etf/EtfCard";
+import { EtfCard } from "@/components/etf/EtfCard";
 import { TickerAutocompleteInput } from "@/components/portfolio/TickerAutocompleteInput";
 import type { SearchEntry } from "@/lib/search/searchTickers";
 import type { ComparisonPeer } from "@/lib/data";
 import { providerLabel } from "@/lib/data";
+import { comparisonPeerToCardData } from "@/lib/etf/toCardData";
 
 const T = {
   pickA: { en: "ETF A", ko: "ETF A" },
@@ -29,25 +30,6 @@ const RISK_LABEL: Record<"en" | "ko", Record<string, string>> = {
   en: { SAFE: "Safe", NORMAL: "Normal", RISKY: "Risky", EXTREME: "Extreme" },
   ko: { SAFE: "안정", NORMAL: "보통", RISKY: "위험", EXTREME: "고위험" },
 };
-
-function peerToCardData(p: ComparisonPeer): EtfCardData {
-  return {
-    ticker: p.ticker,
-    name: p.name,
-    providerId: p.provider_id,
-    etfType: p.etfType,
-    underlyingTicker: p.underlyingTicker,
-    currentPrice: p.currentPrice,
-    todayChangePct: null,
-    annualYieldPct: p.annualYieldPct,
-    cradyScore: p.cradyScore,
-    incomeScore: p.incomeScore,
-    stabilityScore: p.dividendStabilityScore,
-    payoutFrequency: p.payoutFrequency,
-    riskLevel: p.riskLevel,
-    asOfDate: null,
-  };
-}
 
 function StripRow({
   label,
@@ -142,7 +124,7 @@ export function CompareView({
         <div className="mt-6 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:gap-4 lg:items-start">
           <div>
             {peerA ? (
-              <EtfCard data={peerToCardData(peerA)} lang={lang} />
+              <EtfCard data={comparisonPeerToCardData(peerA)} lang={lang} />
             ) : tickerA ? (
               <EmptyCardSlot label={T.notFound[lang]} />
             ) : (
@@ -156,7 +138,7 @@ export function CompareView({
 
           <div className="mt-4 lg:mt-0">
             {peerB ? (
-              <EtfCard data={peerToCardData(peerB)} lang={lang} />
+              <EtfCard data={comparisonPeerToCardData(peerB)} lang={lang} />
             ) : tickerB ? (
               <EmptyCardSlot label={T.notFound[lang]} />
             ) : (

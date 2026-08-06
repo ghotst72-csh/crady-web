@@ -13,6 +13,12 @@ const STATUS_COLOR: Record<string, string> = {
   high_error: "text-red-700",
 };
 
+const STATUS_DOT: Record<string, string> = {
+  matched: "🟢",
+  close: "🟡",
+  high_error: "🔴",
+};
+
 export function ForecastHistoryTimeline({ rows, lang = "en" }: { rows: EvaluatedPredictionRow[]; lang?: "en" | "ko" }) {
   if (rows.length === 0) {
     return (
@@ -29,6 +35,7 @@ export function ForecastHistoryTimeline({ rows, lang = "en" }: { rows: Evaluated
       <div className="space-y-2">
         {rows.map((r) => (
           <div key={r.targetPayDate} className="flex items-center justify-between gap-3 text-sm border-b border-[var(--gray-100)] last:border-0 pb-2 last:pb-0">
+            <span aria-hidden className="shrink-0">{STATUS_DOT[r.evaluationStatus] ?? "⚪"}</span>
             <span className="text-[var(--gray-500)] text-xs w-24 shrink-0">{r.targetPayDate}</span>
             <span className="tabular-nums text-[var(--gray-600)]">
               {T.predicted[lang]} ${r.predictedAmount.toFixed(4)}

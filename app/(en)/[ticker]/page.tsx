@@ -63,7 +63,6 @@ import {
 import { getRelevantGuidesForEtf, GUIDE_LABELS } from "@/lib/magazine/topicalLinks";
 import { RelatedContent } from "@/components/RelatedContent";
 import { PageTrustFooter } from "@/components/seo/PageTrustFooter";
-import { Badge } from "@/components/ui/Badge";
 import { getUnderlyingMomentum } from "@/lib/ticker/underlyingMomentum";
 import { computeScoreBreakdown } from "@/lib/ticker/scoreExplain";
 import { buildRiskContext } from "@/lib/ticker/riskExplain";
@@ -80,6 +79,8 @@ import { EtfDnaCard } from "@/components/ticker/EtfDnaCard";
 import { EtfLifecycleTimeline } from "@/components/ticker/EtfLifecycleTimeline";
 import { ForecastHistoryTimeline } from "@/components/ticker/ForecastHistoryTimeline";
 import { AiDailySummary } from "@/components/ticker/AiDailySummary";
+import { EtfCard } from "@/components/etf/EtfCard";
+import { comparisonPeerToCardData } from "@/lib/etf/toCardData";
 
 export const revalidate = 3600;
 
@@ -852,29 +853,7 @@ export default async function TickerPage({
               <h2 className="text-lg font-bold mb-3">Similar ETFs</h2>
               <div className="grid sm:grid-cols-2 gap-3">
                 {similarEtfs.map((peer) => (
-                  <Link
-                    key={peer.ticker}
-                    href={`/${peer.ticker.toLowerCase()}`}
-                    className="border border-[var(--gray-200)] rounded-xl p-4 hover:border-black transition-colors"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold">{peer.ticker}</span>
-                      {peer.riskLevel && <Badge variant="neutral">{peer.riskLevel}</Badge>}
-                    </div>
-                    <div className="mt-1 text-xs text-[var(--gray-500)]">{providerLabel(peer.provider_id)}</div>
-                    <div className="mt-2 flex gap-4 text-sm">
-                      <span>
-                        <span className="text-[var(--gray-500)]">Yield </span>
-                        <span className="font-semibold text-[#92400e]">
-                          {peer.annualYieldPct != null ? `${peer.annualYieldPct.toFixed(1)}%` : "—"}
-                        </span>
-                      </span>
-                      <span>
-                        <span className="text-[var(--gray-500)]">CRADY </span>
-                        <span className="font-semibold">{peer.cradyScore != null ? peer.cradyScore.toFixed(1) : "—"}</span>
-                      </span>
-                    </div>
-                  </Link>
+                  <EtfCard key={peer.ticker} data={comparisonPeerToCardData(peer)} compact lang="en" />
                 ))}
               </div>
             </div>

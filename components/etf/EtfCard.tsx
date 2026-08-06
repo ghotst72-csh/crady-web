@@ -87,14 +87,16 @@ export type EtfCardPosition = {
   totalReturnPct: number | null;
 };
 
-function buildStrategyTags(data: EtfCardData, lang: "en" | "ko"): string[] {
-  const tags: string[] = [];
+type StrategyTag = { icon: string; label: string };
+
+function buildStrategyTags(data: EtfCardData, lang: "en" | "ko"): StrategyTag[] {
+  const tags: StrategyTag[] = [];
   const freq = data.payoutFrequency?.toLowerCase() ?? null;
-  if (freq === "weekly") tags.push(T.weeklyIncome[lang]);
-  else if (freq === "monthly") tags.push(T.monthlyIncome[lang]);
-  if (data.etfType === "single-stock-covered-call") tags.push(T.coveredCall[lang]);
-  else if (data.etfType === "index-covered-call") tags.push(T.indexCoveredCall[lang]);
-  if (data.underlyingTicker) tags.push(T.exposure[lang](data.underlyingTicker));
+  if (freq === "weekly") tags.push({ icon: "📅", label: T.weeklyIncome[lang] });
+  else if (freq === "monthly") tags.push({ icon: "📅", label: T.monthlyIncome[lang] });
+  if (data.etfType === "single-stock-covered-call") tags.push({ icon: "🎯", label: T.coveredCall[lang] });
+  else if (data.etfType === "index-covered-call") tags.push({ icon: "🎯", label: T.indexCoveredCall[lang] });
+  if (data.underlyingTicker) tags.push({ icon: "🔗", label: T.exposure[lang](data.underlyingTicker) });
   return tags.slice(0, 4);
 }
 
@@ -223,8 +225,9 @@ export function EtfCard({
         {tags.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-1.5">
             {tags.map((tag) => (
-              <span key={tag} className="px-2 py-0.5 rounded-full bg-[var(--gray-100)] text-[var(--gray-600)] text-[10px] font-medium">
-                {tag}
+              <span key={tag.label} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--gray-100)] text-[var(--gray-600)] text-[10px] font-medium">
+                <span aria-hidden>{tag.icon}</span>
+                {tag.label}
               </span>
             ))}
           </div>

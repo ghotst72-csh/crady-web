@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Badge, type BadgeVariant } from "@/components/ui/Badge";
 import type { DividendSchedule, DateStatus, ExpectedRange, EstimateDriver, TrackRecord, SchedulePattern } from "@/lib/ticker/nextDividendIntelligence";
 import type { EstimateFactors } from "@/lib/ticker/nextDividendNarrative";
+import { ICON } from "@/lib/ui/icons";
+import { Tooltip } from "@/components/ui/Tooltip";
 
 /** CRADY Engagement & Intelligence Phase 2, Part A. Placed directly under
  * the Hero, before Activity/Magazine content (§1). Client component only
@@ -24,19 +26,16 @@ const STATUS_VARIANT: Record<DateStatus, BadgeVariant> = {
   awaiting: "neutral",
   unavailable: "neutral",
 };
-const STATUS_NOTE: Record<DateStatus, Record<"en" | "ko", string>> = {
-  official: { en: "Officially declared", ko: "공식 발표됨" },
-  scheduled: { en: "Official provider schedule", ko: "운용사 공식 일정" },
-  estimated: { en: "Estimated from recent patterns", ko: "최근 패턴 기반 추정" },
-  awaiting: { en: "Not yet available", ko: "아직 확인되지 않음" },
-  unavailable: { en: "No data available", ko: "데이터 없음" },
-};
 
 const T = {
   heading: { en: "Next Dividend Intelligence", ko: "다음 배당 인텔리전스" },
   declaration: { en: "Declaration Date", ko: "배당 선언일" },
   exDividend: { en: "Ex-Dividend Date", ko: "배당락일" },
   record: { en: "Record Date", ko: "기준일" },
+  recordDateTooltip: {
+    en: "The date the fund checks its records to determine who is owed the distribution. Usually falls right after the ex-dividend date.",
+    ko: "펀드가 배당 지급 대상을 확인하기 위해 주주 명부를 확정하는 날짜입니다. 보통 배당락일 직후입니다.",
+  },
   payment: { en: "Payment Date", ko: "지급일" },
   estimatedDistribution: { en: "Estimated Distribution", ko: "예상 분배금" },
   officialDistribution: { en: "Official Distribution", ko: "공식 분배금" },
@@ -44,6 +43,7 @@ const T = {
   expectedRange: { en: "Expected Range", ko: "예상 범위" },
   rangeNote: { en: "Based on recent distribution variability, not a statistical model output.", ko: "최근 배당금 변동성을 기준으로 한 범위이며, 통계 모델의 신뢰구간이 아닙니다." },
   confidence: { en: "Confidence", ko: "신뢰도" },
+  aiConfidence: { en: "AI Confidence", ko: "AI 신뢰도" },
   confidenceExplain: {
     en: "Confidence reflects the completeness and consistency of the data supporting this estimate. It is not a guarantee that the final distribution will match the forecast.",
     ko: "신뢰도는 이번 예상에 사용된 데이터의 완성도와 일관성을 나타냅니다. 실제 분배금이 예상값과 일치할 확률을 보장하는 수치는 아닙니다.",
@@ -83,6 +83,10 @@ const T = {
   trackRecordCount: { en: (n: number) => `Last ${n} Predictions`, ko: (n: number) => `최근 ${n}회 예측` },
   avgError: { en: "Average Absolute Error", ko: "평균 절대 오차" },
   withinRange: { en: (a: number, b: number) => `Within ${15}% of actual: ${a} of ${b}`, ko: (a: number, b: number) => `실제값과 15% 이내 오차: ${b}회 중 ${a}회` },
+  trackRecordTooltip: {
+    en: "How many of CRADY's past predictions landed within 15% of the actual paid amount.",
+    ko: "CRADY의 과거 예측 중 실제 지급액과 15% 이내로 맞은 비율입니다.",
+  },
   trackRecordEmpty: {
     en: "Not enough completed predictions to publish a reliable accuracy record.",
     ko: "신뢰할 수 있는 정확도 기록을 발행하기에 완료된 예측이 충분하지 않습니다.",
@@ -199,13 +203,9 @@ export function NextDividendIntelligence({
           </div>
         )}
 
-        {/* 4-date breakdown */}
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <DateCard label={T.declaration[lang]} entry={schedule.declaration} lang={lang} />
-          <DateCard label={T.exDividend[lang]} entry={schedule.exDividend} lang={lang} />
-          <DateCard label={T.record[lang]} entry={schedule.record} lang={lang} />
-          <DateCard label={T.payment[lang]} entry={schedule.payment} lang={lang} />
-        </div>
+        {/* 4-date timeline — connected premium cards, current position
+            highlighted, per UI Polish 1.0 §2/§3. */}
+        <DividendDateTimeline schedule={schedule} lang={lang} />
 
         {/* Point estimate / range / confidence */}
         {(pointEstimate != null || isOfficial) && (
@@ -219,18 +219,24 @@ export function NextDividendIntelligence({
             </div>
             {!isOfficial && expectedRange && (
               <div>
-                <div className="text-caption">{T.expectedRange[lang]}</div>
+                <div className="text-caption flex items-center">
+                  <span aria-hidden className="mr-1">{ICON.expectedRange}</span>
+                  {T.expectedRange[lang]}
+                  <Tooltip text={T.rangeNote[lang]} />
+                </div>
                 <div className="mt-1 text-lg font-bold tabular-nums">
                   ${expectedRange.low.toFixed(4)} – ${expectedRange.high.toFixed(4)}
                 </div>
-                <div className="text-[11px] text-[var(--gray-400)] mt-0.5">{T.rangeNote[lang]}</div>
               </div>
             )}
             {!isOfficial && confidence != null && (
               <div>
-                <div className="text-caption">{T.confidence[lang]}</div>
+                <div className="text-caption flex items-center">
+                  <span aria-hidden className="mr-1">{ICON.aiConfidence}</span>
+                  {T.aiConfidence[lang]}
+                  <Tooltip text={T.confidenceExplain[lang]} />
+                </div>
                 <div className="mt-1 text-lg font-bold tabular-nums">{confidence.toFixed(0)}%</div>
-                <div className="text-[11px] text-[var(--gray-400)] mt-0.5">{T.confidenceExplain[lang]}</div>
               </div>
             )}
           </div>
@@ -254,11 +260,38 @@ export function NextDividendIntelligence({
           </div>
         )}
 
-        {/* Why This Estimate? accordion */}
+        {/* Why This Estimate? — the icon-bulleted factor list is the
+            always-visible, 3-second-scannable version (UI Polish 1.0 §5);
+            the long paragraph and deeper technical detail stay behind
+            "Show detailed basis" for anyone who wants more. */}
         {!isOfficial && whyThisEstimate && (
           <div className="mt-4 pt-4 border-t border-[var(--gray-200)]">
             <h3 className="text-sm font-bold">{T.whyEstimate[lang]}</h3>
-            <p className="mt-1.5 text-sm text-[var(--gray-700)] leading-relaxed">{whyThisEstimate}</p>
+
+            {estimateFactors && (estimateFactors.positive.length > 0 || estimateFactors.negative.length > 0 || estimateFactors.unknown.length > 0) && (
+              <ul className="mt-2.5 space-y-1.5">
+                {estimateFactors.positive.map((f, i) => (
+                  <li key={`p${i}`} className="flex items-start gap-2 text-sm text-[var(--gray-700)]">
+                    <span aria-hidden className="mt-0.5 shrink-0">🟢</span>
+                    <span>{f}</span>
+                  </li>
+                ))}
+                {estimateFactors.negative.map((f, i) => (
+                  <li key={`n${i}`} className="flex items-start gap-2 text-sm text-[var(--gray-700)]">
+                    <span aria-hidden className="mt-0.5 shrink-0">🔴</span>
+                    <span>{f}</span>
+                  </li>
+                ))}
+                {estimateFactors.unknown.map((f, i) => (
+                  <li key={`u${i}`} className="flex items-start gap-2 text-sm text-[var(--gray-500)]">
+                    <span aria-hidden className="mt-0.5 shrink-0">⚪</span>
+                    <span>{f}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <p className="mt-3 text-xs text-[var(--gray-500)] leading-relaxed">{whyThisEstimate}</p>
 
             <button
               type="button"
@@ -350,42 +383,6 @@ export function NextDividendIntelligence({
                   </div>
                 )}
 
-                {/* Positive / Negative / Unknown factors (Intelligence 4.0) */}
-                {estimateFactors && (estimateFactors.positive.length > 0 || estimateFactors.negative.length > 0 || estimateFactors.unknown.length > 0) && (
-                  <div className="grid sm:grid-cols-3 gap-4">
-                    {estimateFactors.positive.length > 0 && (
-                      <div>
-                        <div className="text-caption mb-1.5 text-emerald-700">{T.positiveFactors[lang]}</div>
-                        <ul className="space-y-1 text-xs text-[var(--gray-600)] list-disc pl-4">
-                          {estimateFactors.positive.map((f, i) => (
-                            <li key={i}>{f}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    {estimateFactors.negative.length > 0 && (
-                      <div>
-                        <div className="text-caption mb-1.5 text-red-700">{T.negativeFactors[lang]}</div>
-                        <ul className="space-y-1 text-xs text-[var(--gray-600)] list-disc pl-4">
-                          {estimateFactors.negative.map((f, i) => (
-                            <li key={i}>{f}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    {estimateFactors.unknown.length > 0 && (
-                      <div>
-                        <div className="text-caption mb-1.5 text-[var(--gray-500)]">{T.unknownFactors[lang]}</div>
-                        <ul className="space-y-1 text-xs text-[var(--gray-600)] list-disc pl-4">
-                          {estimateFactors.unknown.map((f, i) => (
-                            <li key={i}>{f}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                )}
-
                 {whatWouldChangeThis && whatWouldChangeThis.length > 0 && (
                   <div>
                     <div className="text-caption mb-1.5">{T.whatWouldChange[lang]}</div>
@@ -399,16 +396,22 @@ export function NextDividendIntelligence({
 
                 {/* Prediction track record */}
                 <div>
-                  <div className="text-caption mb-1.5">{T.trackRecordTitle[lang]}</div>
+                  <div className="text-caption mb-1.5 flex items-center">
+                    <span aria-hidden className="mr-1">{ICON.predictionAccuracy}</span>
+                    {T.trackRecordTitle[lang]}
+                    <Tooltip text={T.trackRecordTooltip[lang]} />
+                  </div>
                   {trackRecord ? (
-                    <div className="text-sm space-y-0.5">
-                      <div className="font-semibold">{T.trackRecordCount[lang](trackRecord.count)}</div>
+                    <div className="flex items-baseline gap-6">
                       <div>
-                        <span className="text-[var(--gray-500)]">{T.avgError[lang]}: </span>
-                        <span className="font-semibold tabular-nums">{trackRecord.averageAbsoluteErrorPct.toFixed(1)}%</span>
+                        <div className="text-2xl font-black tabular-nums leading-none">
+                          {trackRecord.withinRangeCount}/{trackRecord.count}
+                        </div>
+                        <div className="text-[11px] text-[var(--gray-500)] mt-0.5">{T.trackRecordCount[lang](trackRecord.count)}</div>
                       </div>
-                      <div className="text-[var(--gray-500)]">
-                        {T.withinRange[lang](trackRecord.withinRangeCount, trackRecord.count)}
+                      <div>
+                        <div className="text-lg font-bold tabular-nums leading-none">{trackRecord.averageAbsoluteErrorPct.toFixed(1)}%</div>
+                        <div className="text-[11px] text-[var(--gray-500)] mt-0.5">{T.avgError[lang]}</div>
                       </div>
                     </div>
                   ) : (
@@ -424,15 +427,93 @@ export function NextDividendIntelligence({
   );
 }
 
-function DateCard({ label, entry, lang }: { label: string; entry: { date: string | null; status: DateStatus }; lang: "en" | "ko" }) {
+function formatDateDisplay(iso: string, lang: "en" | "ko"): string {
+  try {
+    const d = new Date(iso + "T00:00:00");
+    return new Intl.DateTimeFormat(lang === "ko" ? "ko-KR" : "en-US", {
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+    }).format(d);
+  } catch {
+    return iso;
+  }
+}
+
+const DATE_STAGE_ICON = [ICON.declaration, ICON.exDate, ICON.recordDate, ICON.payment] as const;
+
+/** UI Polish 1.0 §2/§3 — a horizontal icon strip showing the real order
+ * and current position at a glance, then one single-meaning premium card
+ * per date below it (icon / label / big date / status). No new data —
+ * pure display logic over the same 4 DateEntry values the old grid
+ * rendered; "current position" is a real comparison against today's date. */
+function DividendDateTimeline({ schedule, lang }: { schedule: DividendSchedule; lang: "en" | "ko" }) {
+  const entries = [
+    { label: T.declaration[lang], entry: schedule.declaration },
+    { label: T.exDividend[lang], entry: schedule.exDividend },
+    { label: T.record[lang], entry: schedule.record },
+    { label: T.payment[lang], entry: schedule.payment },
+  ];
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const isPast = (d: string | null) => d != null && d <= todayIso;
+  const lastReachedIndex = entries.reduce((acc, e, i) => (isPast(e.entry.date) ? i : acc), -1);
+  const activeIndex = lastReachedIndex === entries.length - 1 ? lastReachedIndex : lastReachedIndex + 1;
+
   return (
-    <div className="rounded-xl border border-[var(--gray-200)] p-3">
-      <div className="text-caption">{label}</div>
-      <div className="mt-1 text-base font-bold tabular-nums">{entry.date ?? "—"}</div>
-      <div className="mt-1.5">
-        <Badge variant={STATUS_VARIANT[entry.status]}>{STATUS_LABEL[entry.status][lang]}</Badge>
+    <div className="mt-4">
+      {/* Order + current position, at a glance */}
+      <div className="flex items-center px-1">
+        {entries.map((e, i) => {
+          const isActive = i === activeIndex;
+          const isReached = i <= lastReachedIndex;
+          return (
+            <div key={e.label} className="flex items-center flex-1 last:flex-none">
+              <div
+                className={`relative shrink-0 h-8 w-8 rounded-full flex items-center justify-center text-sm ${
+                  isReached ? "bg-[var(--gray-900)]" : "bg-[var(--gray-100)]"
+                }`}
+              >
+                <span className={isReached ? "" : "opacity-40"}>{DATE_STAGE_ICON[i]}</span>
+                {isActive && (
+                  <span
+                    aria-hidden
+                    className="absolute -inset-0.5 rounded-full ring-2 ring-[var(--crady-accent)] animate-pulse motion-reduce:animate-none"
+                  />
+                )}
+              </div>
+              {i < entries.length - 1 && (
+                <div className={`h-0.5 flex-1 mx-1.5 ${i < lastReachedIndex ? "bg-[var(--gray-900)]" : "bg-[var(--gray-200)]"}`} />
+              )}
+            </div>
+          );
+        })}
       </div>
-      <div className="mt-1 text-[10px] text-[var(--gray-400)]">{STATUS_NOTE[entry.status][lang]}</div>
+
+      {/* One premium card per date */}
+      <div className="mt-3 grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {entries.map((e, i) => {
+          const isActive = i === activeIndex;
+          return (
+            <div
+              key={e.label}
+              className={`rounded-xl border p-3 text-center transition-colors ${
+                isActive ? "border-[var(--crady-accent)] bg-[#fffbeb]" : "border-[var(--gray-200)]"
+              }`}
+            >
+              <div className="text-[11px] font-semibold text-[var(--gray-500)] inline-flex items-center justify-center">
+                {e.label}
+                {i === 2 && <Tooltip text={T.recordDateTooltip[lang]} />}
+              </div>
+              <div className="mt-0.5 text-lg sm:text-xl font-black tabular-nums leading-tight">
+                {e.entry.date ? formatDateDisplay(e.entry.date, lang) : "—"}
+              </div>
+              <div className="mt-1.5">
+                <Badge variant={STATUS_VARIANT[e.entry.status]}>{STATUS_LABEL[e.entry.status][lang]}</Badge>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

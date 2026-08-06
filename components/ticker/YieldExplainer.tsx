@@ -12,9 +12,12 @@ export function YieldExplainer({ explanation, lang = "en" }: { explanation: Yiel
       <div className="text-caption mb-2">{T.title[lang]}</div>
       <p className="text-sm text-[var(--gray-700)]">{explanation.formula}</p>
       {explanation.factors.length > 0 && (
-        <ul className="mt-2 space-y-1 text-sm text-[var(--gray-600)] list-disc pl-5">
+        <ul className="mt-2 space-y-1.5">
           {explanation.factors.map((f, i) => (
-            <li key={i}>{f}</li>
+            <li key={i} className="flex items-start gap-2 text-sm text-[var(--gray-600)]">
+              <span aria-hidden className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[var(--crady-accent)] shrink-0" />
+              <span>{f}</span>
+            </li>
           ))}
         </ul>
       )}

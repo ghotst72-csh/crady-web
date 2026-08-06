@@ -1,3 +1,5 @@
+import { ICON } from "@/lib/ui/icons";
+
 const T = {
   title: { en: "Daily Summary", ko: "일일 요약" },
   disclaimer: {
@@ -10,7 +12,10 @@ export function AiDailySummary({ sentences, lang = "en" }: { sentences: string[]
   if (sentences.length === 0) return null;
   return (
     <div className="rounded-xl border border-[var(--gray-200)] bg-gradient-to-br from-white to-[var(--gray-50)] p-4">
-      <div className="text-caption mb-2">{T.title[lang]}</div>
+      <div className="text-caption mb-2 flex items-center">
+        <span aria-hidden className="mr-1">{ICON.aiSummary}</span>
+        {T.title[lang]}
+      </div>
       <p className="text-sm text-[var(--gray-700)] leading-relaxed">{sentences.join(" ")}</p>
       <p className="mt-2 text-[11px] text-[var(--gray-400)]">{T.disclaimer[lang]}</p>
     </div>

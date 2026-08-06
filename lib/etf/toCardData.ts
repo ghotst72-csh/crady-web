@@ -1,4 +1,4 @@
-import type { EtfSnapshot } from "@/lib/data";
+import type { EtfSnapshot, ComparisonPeer } from "@/lib/data";
 import type { EtfCardData } from "@/components/etf/EtfCard";
 
 /** Maps the sitewide EtfSnapshot (Home/Ranking/Compare's existing,
@@ -26,5 +26,27 @@ export function snapshotToCardData(etf: EtfSnapshot): EtfCardData {
     asOfDate: etf.calculatedAt ? etf.calculatedAt.slice(0, 10) : null,
     nextExDate: etf.nextPredictedExDate,
     expectedDistribution: etf.nextPredictedAmount,
+  };
+}
+
+/** Same mapping for a single-ticker ComparisonPeer fetch (Compare page,
+ * ticker-page "Similar ETFs") — the two data sources that carry the same
+ * card-relevant fields but aren't EtfSnapshot rows. */
+export function comparisonPeerToCardData(p: ComparisonPeer): EtfCardData {
+  return {
+    ticker: p.ticker,
+    name: p.name,
+    providerId: p.provider_id,
+    etfType: p.etfType,
+    underlyingTicker: p.underlyingTicker,
+    currentPrice: p.currentPrice,
+    todayChangePct: null,
+    annualYieldPct: p.annualYieldPct,
+    cradyScore: p.cradyScore,
+    incomeScore: p.incomeScore,
+    stabilityScore: p.dividendStabilityScore,
+    payoutFrequency: p.payoutFrequency,
+    riskLevel: p.riskLevel,
+    asOfDate: null,
   };
 }
