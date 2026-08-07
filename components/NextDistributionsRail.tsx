@@ -10,10 +10,10 @@ function daysUntil(dateStr: string): number {
 }
 
 const T = {
-  heading: { en: "Next Predicted Distributions", ko: "다음 예상 분배금" },
+  heading: { en: "Next Dividend Predictions", ko: "다음 배당 예측" },
   sub: {
-    en: "Soonest expected payment date first",
-    ko: "예상 지급일이 빠른 순",
+    en: "CRADY predicts these before they're officially announced — soonest expected payment first",
+    ko: "CRADY는 공식 발표 전에 다음 배당을 예측합니다 — 예상 지급일이 빠른 순",
   },
   more: { en: "More →", ko: "더 보기 →" },
   duePaying: { en: "Paying Now", ko: "지급 예정" },
@@ -37,7 +37,7 @@ export function NextDistributionsRail({
   if (items.length === 0) return null;
 
   return (
-    <section className="mx-auto max-w-6xl px-4 sm:px-6 py-8 border-t border-[var(--gray-200)]">
+    <section className="mx-auto max-w-6xl px-4 sm:px-6 pt-6 pb-8 min-w-0">
       <div className="flex items-baseline justify-between mb-4">
         <div>
           <h2 className="text-lg font-bold">{T.heading[lang]}</h2>
@@ -52,7 +52,7 @@ export function NextDistributionsRail({
       </div>
 
       {/* Horizontal timeline — natively swipeable, connecting line implies date flow */}
-      <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
+      <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 min-w-0">
         {items.map((etf) => {
           const dDay = daysUntil(etf.nextPredictedDate!);
           return (

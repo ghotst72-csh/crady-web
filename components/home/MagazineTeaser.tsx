@@ -51,7 +51,7 @@ export function MagazineTeaser({ snapshot, lang = "en" }: { snapshot: EtfSnapsho
       </div>
       <p className="text-xs text-[var(--gray-500)] mb-4">{T.sub[lang]}</p>
 
-      <div className="grid lg:grid-cols-3 gap-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
         <div className="lg:col-span-2">
           <ArticleCard
             href={`/magazine/${articleSlug(featured.ticker, "next-dividend-prediction")}`}

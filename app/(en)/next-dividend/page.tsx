@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { DollarSign } from "lucide-react";
 import { getNextDividendBoard } from "@/lib/ticker/nextDividendBoard";
 import { NextDividendBoard } from "@/components/nextDividend/NextDividendBoard";
@@ -67,6 +68,12 @@ export default async function NextDividendPage() {
 
       <div className="mt-6">
         <NextDividendBoard entries={entries} lang="en" basePath="" />
+      </div>
+
+      <div className="mt-8">
+        <Link href="/prediction-accuracy" className="text-sm font-semibold text-[#92400e] hover:underline">
+          See how accurate CRADY&rsquo;s past predictions have been →
+        </Link>
       </div>
 
       <PageAppCta lang="en" />

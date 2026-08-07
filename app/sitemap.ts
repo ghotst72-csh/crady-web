@@ -233,6 +233,32 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       },
     },
     {
+      url: "https://crady.net/prediction-accuracy",
+      lastModified: mostRecentCalculatedAt ?? undefined,
+      changeFrequency: "daily",
+      priority: 0.7,
+      alternates: {
+        languages: {
+          en: "https://crady.net/prediction-accuracy",
+          ko: "https://crady.net/ko/prediction-accuracy",
+          "x-default": "https://crady.net/prediction-accuracy",
+        },
+      },
+    },
+    {
+      url: "https://crady.net/ko/prediction-accuracy",
+      lastModified: mostRecentCalculatedAt ?? undefined,
+      changeFrequency: "daily",
+      priority: 0.7,
+      alternates: {
+        languages: {
+          en: "https://crady.net/prediction-accuracy",
+          ko: "https://crady.net/ko/prediction-accuracy",
+          "x-default": "https://crady.net/prediction-accuracy",
+        },
+      },
+    },
+    {
       url: "https://crady.net/weekly-intelligence",
       lastModified: mostRecentCalculatedAt ?? undefined,
       changeFrequency: "daily",

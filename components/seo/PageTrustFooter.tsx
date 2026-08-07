@@ -12,7 +12,7 @@ export function PageTrustFooter({ lang = "en" }: { lang?: "en" | "ko" }) {
 
   return (
     <div className="mt-10 pt-6 border-t border-[var(--gray-200)]">
-      <div className="grid sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <div className="text-xs font-semibold text-[var(--gray-500)] uppercase tracking-wide">
             {t.methodologyLabel}

@@ -32,7 +32,7 @@ export function SitewideActivityWidget({
   if (!hasAny) return null;
 
   return (
-    <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
       {mostActiveToday.length > 0 && (
         <div className="border border-[var(--gray-200)] rounded-xl p-4">
           <div className="text-xs font-semibold text-[var(--gray-500)] uppercase tracking-wide mb-2">

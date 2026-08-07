@@ -33,6 +33,8 @@ import { TickerSubNav } from "@/components/ticker/TickerSubNav";
 import { DividendStagePill } from "@/components/DividendLifecycle";
 import { EtfAppCta } from "@/components/EtfAppCta";
 import { EtfHero } from "@/components/EtfHero";
+import { DividendPriceChart } from "@/components/ticker/DividendPriceChart";
+import { PredictionTrackRecord } from "@/components/ticker/PredictionTrackRecord";
 import { articleSlug } from "@/lib/magazine/recipes";
 import { pickComparisonPeerTicker, pickComparisonPeerTickers } from "@/lib/magazine/comparison";
 import { getComparisonPeersData } from "@/lib/magazine/data";
@@ -274,7 +276,7 @@ export default async function TickerPage({
   // it wouldn't actually be rendered (e.g. no Similar ETFs peers).
   const heroQuickLinks = [
     { href: "#next-dividend-intelligence", label: "Next Dividend Intelligence" },
-    { href: "#price-chart", label: "Price History" },
+    { href: "#dividends", label: "Dividend & Price History" },
     { href: "#dividend-history", label: "Dividend History" },
     similarEtfs.length > 0 ? { href: "#similar-etfs", label: "Compare Similar ETFs" } : null,
     { href: "#ai-outlook", label: "AI Outlook" },
@@ -347,6 +349,30 @@ export default async function TickerPage({
     lang: "en",
     underlyingVolatility30d: underlyingMomentum?.volatility_30d ?? null,
   });
+  // Phase 2 — Hero's "Next Dividend Prediction" reuses the exact same
+  // fields NextDividendIntelligence renders below it (never a second,
+  // independently-fetched prediction that could show a different number).
+  const heroAmount = nextDividendIntelligenceData.isOfficial
+    ? nextDividendIntelligenceData.officialAmount
+    : nextDividendIntelligenceData.pointEstimate;
+  const nextDividendHero =
+    heroAmount != null
+      ? {
+          amount: heroAmount,
+          isOfficial: nextDividendIntelligenceData.isOfficial,
+          confidence: nextDividendIntelligenceData.confidence,
+          announcementDate: nextDividendIntelligenceData.schedule.declaration.date,
+          exDate: nextDividendIntelligenceData.schedule.exDividend.date,
+          payDate: nextDividendIntelligenceData.schedule.payment.date,
+          previousAmount: nextDividendIntelligenceData.previousAmount,
+          changeFromLastPct:
+            nextDividendIntelligenceData.previousAmount != null && nextDividendIntelligenceData.previousAmount > 0
+              ? ((heroAmount - nextDividendIntelligenceData.previousAmount) / nextDividendIntelligenceData.previousAmount) * 100
+              : null,
+          whyHref: "#next-dividend-intelligence",
+        }
+      : null;
+
   const nextDividendDirectAnswer = buildNextDividendDirectAnswer(
     {
       ticker,
@@ -541,6 +567,7 @@ export default async function TickerPage({
             : null
         }
         changeFromLastPct={changeFromLastPct}
+        nextDividend={nextDividendHero}
         recentPayments={distributions.slice(0, 3).map((d) => ({ amount: d.amount, payDate: d.pay_date }))}
         trend12mo={trend12mo}
         directAnswer={directAnswer}
@@ -555,6 +582,36 @@ export default async function TickerPage({
           under the Hero, before Activity/Magazine content, per the spec's
           own placement priority. */}
       <NextDividendIntelligence data={nextDividendIntelligenceData} directAnswer={nextDividendDirectAnswer} lang="en" basePath="" />
+
+      {/* Phase 2 — the page's one major visualization (spec §4): real
+          price history and real distribution payments on a shared
+          timeline, so "what happened to the price while these dividends
+          were paid" reads visually before any table. Promoted directly
+          under the prediction explanation, well above the secondary
+          "why" explainers and fund-detail sections below. */}
+      <div className="mx-auto max-w-4xl px-4 sm:px-6">
+        <DividendPriceChart
+          history={history}
+          distributions={yearOfDistributions.map((d) => ({ pay_date: d.pay_date, amount: d.amount }))}
+          latestDistribution={
+            latestPaidDistribution?.amount != null
+              ? { amount: latestPaidDistribution.amount, payDate: latestPaidDistribution.pay_date }
+              : null
+          }
+          annualYieldPct={annualYieldPct}
+          maxDrawdownPct={risk?.max_drawdown ?? null}
+          lang="en"
+        />
+
+        {/* Phase 2 §5 — "how close has CRADY been before" promoted out of
+            the accordion it used to live in, right after the visualization
+            it explains. */}
+        <PredictionTrackRecord
+          trackRecord={nextDividendIntelligenceData.trackRecord}
+          rows={evaluatedPredictionHistory}
+          lang="en"
+        />
+      </div>
 
       {/* CRADY Intelligence 4.0 — "why" explanations for every number
           already on the page above. Rule-based only, every section
@@ -638,31 +695,10 @@ export default async function TickerPage({
       </div>
 
       <div className="mx-auto max-w-4xl px-4 sm:px-6 mt-8">
-        <OfficialDistributionBlock
-          official={officialDistribution}
-          predictionComparison={predictionVsOfficial}
-          lang="en"
-        />
-
-        <div id="price-chart" className="mt-8 scroll-mt-4">
-          <h2 className="text-lg font-bold mb-3">Price History</h2>
-          <div className="grid sm:grid-cols-[auto_1fr] gap-3">
-            <Stat
-              label="Close Price"
-              value={price?.close_price != null ? `$${price.close_price.toFixed(2)}` : "—"}
-              sub={price?.trade_date}
-            />
-            <div>
-              {history.length > 0 ? (
-                <PriceSparkline history={history} />
-              ) : (
-                <div className="border border-[var(--gray-200)] rounded-xl p-4 text-sm text-[var(--gray-400)] h-full flex items-center">
-                  No price history
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        {/* predictionComparison omitted here — the same real comparison now
+            leads Prediction Track Record above, right after the chart it
+            explains, rather than being shown twice on the page. */}
+        <OfficialDistributionBlock official={officialDistribution} predictionComparison={null} lang="en" />
 
         <div id="dividend-history" className="mt-8 scroll-mt-24">
           <h2 className="text-lg font-bold mb-3">Recent Dividend History</h2>
@@ -939,72 +975,11 @@ function isKnown(v: string | null): v is string {
   return !!v && v.trim().toLowerCase() !== "unknown";
 }
 
-function Stat({
-  label,
-  value,
-  sub,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-}) {
-  return (
-    <div className="border border-[var(--gray-200)] rounded-xl p-4">
-      <div className="text-xs text-[var(--gray-500)]">{label}</div>
-      <div className="text-xl font-bold mt-1">{value}</div>
-      {/* gray-600, not gray-400 — gray-400 fails WCAG contrast at this size. */}
-      {sub && <div className="text-xs text-[var(--gray-600)] mt-0.5">{sub}</div>}
-    </div>
-  );
-}
-
 function DetailField({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <div className="text-xs text-[var(--gray-500)]">{label}</div>
       <div className="text-sm font-semibold mt-0.5">{value}</div>
-    </div>
-  );
-}
-
-function PriceSparkline({
-  history,
-}: {
-  history: { trade_date: string; close_price: number | null }[];
-}) {
-  const prices = history
-    .map((h) => h.close_price)
-    .filter((p): p is number => p != null);
-  if (prices.length < 2) return null;
-
-  const min = Math.min(...prices);
-  const max = Math.max(...prices);
-  const range = max - min || 1;
-  const w = 600;
-  const h = 120;
-  const step = w / (prices.length - 1);
-  const points = prices
-    .map((p, i) => `${i * step},${h - ((p - min) / range) * (h - 10) - 5}`)
-    .join(" ");
-
-  const first = prices[0];
-  const last = prices[prices.length - 1];
-  const up = last >= first;
-
-  return (
-    <div className="border border-[var(--gray-200)] rounded-xl p-4">
-      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-36" preserveAspectRatio="none">
-        <polyline
-          fill="none"
-          stroke={up ? "#22c55e" : "#ef4444"}
-          strokeWidth="2"
-          points={points}
-        />
-      </svg>
-      <div className="flex justify-between text-xs text-[var(--gray-500)] mt-2">
-        <span>${min.toFixed(2)}</span>
-        <span>${max.toFixed(2)}</span>
-      </div>
     </div>
   );
 }

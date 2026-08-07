@@ -297,6 +297,45 @@ export type EvaluatedPredictionRow = {
   evaluationStatus: string;
 };
 
+export type SitewideEvaluatedPredictionRow = EvaluatedPredictionRow & { ticker: string };
+
+/** Every real evaluated prediction sitewide, most recent first — the raw
+ * input for Phase 2's Prediction Accuracy trust page (spec §11). Same
+ * dedup discipline as getEvaluatedPredictionHistory (the pipeline
+ * re-predicts the same real event multiple times before its ex-date); the
+ * caller is expected to dedupe per (ticker, targetPayDate) — done here in
+ * one pass since this query spans every ticker, not just one. Capped at a
+ * generous row count, not the whole table, since PostgREST enforces a
+ * server-side row cap regardless. */
+export async function getSitewideEvaluatedPredictions(limit = 4000): Promise<SitewideEvaluatedPredictionRow[]> {
+  const { data, error } = await supabase
+    .from("dividend_predictions")
+    .select("ticker, target_pay_date, predicted_amount, actual_amount, prediction_error_pct, evaluation_status, created_at")
+    .in("evaluation_status", EVALUATED_STATUSES)
+    .not("predicted_amount", "is", null)
+    .not("actual_amount", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+
+  const seen = new Set<string>();
+  const out: SitewideEvaluatedPredictionRow[] = [];
+  for (const row of data ?? []) {
+    const key = `${row.ticker}:${row.target_pay_date}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      ticker: row.ticker,
+      targetPayDate: row.target_pay_date,
+      predictedAmount: row.predicted_amount,
+      actualAmount: row.actual_amount,
+      percentageError: row.prediction_error_pct,
+      evaluationStatus: row.evaluation_status,
+    });
+  }
+  return out;
+}
+
 /** Every real evaluated prediction for a ticker, most recent first, for the
  * Prediction Track Record (§9). The pipeline re-predicts the same
  * upcoming payment multiple times before its ex-date, so raw rows contain

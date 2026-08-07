@@ -68,6 +68,15 @@ const T = {
   },
   dueToday: { en: "Paying today", ko: "오늘 지급" },
   daysLeft: { en: (n: number) => `D-${n}`, ko: (n: number) => `D-${n}` },
+  nextDividendPrediction: { en: "Next Dividend Prediction", ko: "다음 배당 예측" },
+  perShare: { en: "per share", ko: "주당" },
+  estimated: { en: "Estimated", ko: "예상" },
+  confirmed: { en: "Confirmed", ko: "확정" },
+  expectedAnnouncement: { en: "Expected Announcement", ko: "예상 발표일" },
+  expectedExDividend: { en: "Expected Ex-Dividend", ko: "예상 배당락일" },
+  expectedPayment: { en: "Expected Payment", ko: "예상 지급일" },
+  whyThisAmount: { en: (v: string) => `Why ${v}? →`, ko: (v: string) => `왜 ${v}인가요? →` },
+  currentPrice: { en: "Current Price", ko: "현재가" },
   recentPayments: { en: "Last 3 Payments", ko: "최근 3회 지급" },
   trend12mo: { en: "12-Month Trend", ko: "최근 12개월 추세" },
   payments: { en: "payments", ko: "회" },
@@ -86,6 +95,21 @@ const T = {
 
 export type EtfHeroQuickLink = { href: string; label: string };
 
+export type EtfHeroNextDividend = {
+  amount: number | null;
+  isOfficial: boolean;
+  confidence: number | null;
+  announcementDate: string | null;
+  exDate: string | null;
+  payDate: string | null;
+  previousAmount: number | null;
+  changeFromLastPct: number | null;
+  /** Anchor to the detailed "why" explanation already rendered further
+   * down the page (NextDividendIntelligence's accordion) — omitted when
+   * there's nothing there to expand into. */
+  whyHref: string | null;
+};
+
 export function EtfHero({
   ticker,
   name,
@@ -100,6 +124,7 @@ export function EtfHero({
   latestDividend,
   prediction,
   changeFromLastPct,
+  nextDividend = null,
   recentPayments = [],
   trend12mo = null,
   directAnswer,
@@ -127,6 +152,12 @@ export function EtfHero({
     confidenceScore: number | null;
   } | null;
   changeFromLastPct: number | null;
+  /** CRADY Phase 2 — the single most important number on the page (spec
+   * §2): when present, this replaces price as the Hero's dominant
+   * headline. Sourced from the same nextDividendIntelligenceData the page
+   * already builds for the detailed explanation section below, so the two
+   * can never show a different amount for "the next dividend." */
+  nextDividend?: EtfHeroNextDividend | null;
   /** Last 3 actual payments, most recent first — for the at-a-glance
    * "recent activity" strip (Web UX/SEO Phase 2, Part 4). */
   recentPayments?: { amount: number | null; payDate: string }[];
@@ -254,60 +285,53 @@ export function EtfHero({
             </p>
           )}
 
-          {/* Price & Dividend — the single most important card on the page
-              (requirement #3): current price + trend fused with the
-              dividend numbers that explain *why* the price behaves the way
-              it does, instead of three unrelated floating figures. */}
-          <div className="mt-6 sm:mt-8 rounded-2xl border border-[var(--gray-200)] bg-gradient-to-br from-white to-[var(--gray-50)] p-5 sm:p-6">
-            {priceSummary?.currentPrice != null ? (
-              <PriceBlock summary={priceSummary} asOfLabel={priceAsOfLabel} lang={lang} />
-            ) : yieldPct != null ? (
-              <div>
-                <div className="text-hero-number text-5xl sm:text-7xl text-[var(--crady-accent)]">
-                  {yieldPct.toFixed(1)}%
+          {/* Next Dividend Prediction — the single most important card on
+              the page (Phase 2 spec §2): what CRADY expects the next
+              dividend to be, when, and how confident it is, communicated
+              before any other number. Falls back to the old price-first
+              card when no prediction exists at all (nothing to lead with). */}
+          {nextDividend?.amount != null ? (
+            <NextDividendPrimaryCard nextDividend={nextDividend} priceSummary={priceSummary} lang={lang} />
+          ) : (
+            <div className="mt-6 sm:mt-8 rounded-2xl border border-[var(--gray-200)] bg-gradient-to-br from-white to-[var(--gray-50)] p-5 sm:p-6">
+              {priceSummary?.currentPrice != null ? (
+                <PriceBlock summary={priceSummary} asOfLabel={priceAsOfLabel} lang={lang} />
+              ) : yieldPct != null ? (
+                <div>
+                  <div className="text-hero-number text-5xl sm:text-7xl text-[var(--crady-accent)]">
+                    {yieldPct.toFixed(1)}%
+                  </div>
+                  <div className="mt-2 text-sm font-semibold text-[var(--gray-600)]">
+                    {T.yieldLabel[lang]}
+                  </div>
                 </div>
-                <div className="mt-2 text-sm font-semibold text-[var(--gray-600)]">
-                  {T.yieldLabel[lang]}
+              ) : (
+                <div className="py-1.5">
+                  <div className="text-lg font-bold text-[var(--gray-500)]">{T.noPriceData[lang]}</div>
+                  <div className="mt-1 text-sm text-[var(--gray-400)]">{T.noPriceDataSub[lang]}</div>
                 </div>
-              </div>
-            ) : (
-              // A bare "—" at hero-number size (48-72px) rendered as a
-              // near-invisible sliver with no visual weight — worse than no
-              // treatment at all. In practice yieldPct is derived from the
-              // same price data as priceSummary, so this branch (no price
-              // AND no yield) is the realistic one, not the yieldPct-only
-              // branch above; a real, modestly-sized empty state reads far
-              // better than forcing a dash into giant-number styling.
-              <div className="py-1.5">
-                <div className="text-lg font-bold text-[var(--gray-500)]">{T.noPriceData[lang]}</div>
-                <div className="mt-1 text-sm text-[var(--gray-400)]">{T.noPriceDataSub[lang]}</div>
-              </div>
-            )}
+              )}
 
-            {/* Stacked on mobile, not a rigid 3-col grid — at 390px each
-                column was too narrow for the yield-percentile badge
-                ("Top 25% among covered-call ETFs"), which pushed past the
-                viewport edge. Verified via a real Playwright overflow scan
-                against production, not assumed. */}
-            <div className="mt-5 pt-5 border-t border-[var(--gray-200)] grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-              <MiniStat
-                label={T.nextPayDate[lang]}
-                value={prediction?.predictedAmount != null ? `$${prediction.predictedAmount.toFixed(4)}` : "—"}
-                sub={prediction?.targetPayDate ?? T.tbd[lang]}
-              />
-              <MiniStat
-                label={T.recentDividend[lang]}
-                value={latestDividend ? `$${latestDividend.amount.toFixed(4)}` : "—"}
-                sub={latestDividend?.payDate}
-              />
-              <MiniStat
-                label={T.yieldLabel[lang]}
-                value={yieldPct != null ? `${yieldPct.toFixed(1)}%` : "—"}
-                accent
-                badge={yieldContext?.label}
-              />
+              <div className="mt-5 pt-5 border-t border-[var(--gray-200)] grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                <MiniStat
+                  label={T.nextPayDate[lang]}
+                  value={prediction?.predictedAmount != null ? `$${prediction.predictedAmount.toFixed(4)}` : "—"}
+                  sub={prediction?.targetPayDate ?? T.tbd[lang]}
+                />
+                <MiniStat
+                  label={T.recentDividend[lang]}
+                  value={latestDividend ? `$${latestDividend.amount.toFixed(4)}` : "—"}
+                  sub={latestDividend?.payDate}
+                />
+                <MiniStat
+                  label={T.yieldLabel[lang]}
+                  value={yieldPct != null ? `${yieldPct.toFixed(1)}%` : "—"}
+                  accent
+                  badge={yieldContext?.label}
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           {/* 52-week range + Price-vs-Dividend 30-day comparison
               (requirements #4/#5) — omitted individually when there isn't
@@ -373,9 +397,12 @@ export function EtfHero({
             />
           </div>
 
-          {/* Next predicted dividend — a compact line, never a large empty
-              card when there's nothing to predict yet. D-Day countdown is
-              the first thing in the row so "how soon" reads immediately. */}
+          {/* Next predicted dividend — a compact line, only used as a
+              fallback when the new primary prediction card above wasn't
+              supplied (nextDividend null) and there's nothing to predict
+              yet. When nextDividend IS supplied, this would just repeat
+              the primary card's own number, so it's omitted entirely. */}
+          {!nextDividend?.amount && (
           <div className="mt-6 pt-5 border-t border-[var(--gray-200)]">
             {hasPrediction ? (
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm">
@@ -417,6 +444,7 @@ export function EtfHero({
               <p className="text-sm text-[var(--gray-400)]">{T.noPrediction[lang]}</p>
             )}
           </div>
+          )}
 
           {/* Recent activity strip — last 3 actual payments (with
               payment-over-payment deltas) and the 12-month trend, so "has
@@ -504,6 +532,100 @@ export function EtfHero({
         </div>
       </div>
     </section>
+  );
+}
+
+function NextDividendPrimaryCard({
+  nextDividend,
+  priceSummary,
+  lang,
+}: {
+  nextDividend: EtfHeroNextDividend;
+  priceSummary: PriceSummary | null;
+  lang: "en" | "ko";
+}) {
+  const amount = nextDividend.amount!;
+  const dDay = nextDividend.payDate ? daysUntil(nextDividend.payDate) : null;
+
+  return (
+    <div className="mt-6 sm:mt-8 rounded-2xl border border-[var(--gray-200)] bg-gradient-to-br from-white to-[var(--gray-50)] p-5 sm:p-6">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="text-caption">{T.nextDividendPrediction[lang]}</div>
+        <span
+          className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+            nextDividend.isOfficial ? "bg-emerald-50 text-emerald-700" : "bg-[var(--crady-accent)]/15 text-[#92400e]"
+          }`}
+        >
+          {nextDividend.isOfficial ? T.confirmed[lang] : T.estimated[lang]}
+        </span>
+      </div>
+
+      <div className="mt-2 flex items-baseline gap-2 flex-wrap">
+        <div className="text-hero-number text-5xl sm:text-7xl text-[var(--crady-accent)]">
+          ${amount.toFixed(4)}
+        </div>
+        <span className="text-sm text-[var(--gray-500)]">{T.perShare[lang]}</span>
+      </div>
+
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-[var(--gray-600)]">
+        {dDay != null && (
+          <span className="shrink-0 px-2 py-0.5 rounded-full bg-black text-white text-xs font-bold tabular-nums">
+            {dDay <= 0 ? T.dueToday[lang] : T.daysLeft[lang](dDay)}
+          </span>
+        )}
+        {!nextDividend.isOfficial && nextDividend.confidence != null && (
+          <span>
+            {T.confidence[lang]} <strong className="text-black">{formatConfidencePct(nextDividend.confidence, 0)}</strong>
+          </span>
+        )}
+        {nextDividend.changeFromLastPct != null && (
+          <span className={`font-semibold ${nextDividend.changeFromLastPct >= 0 ? "text-emerald-700" : "text-red-700"}`}>
+            {nextDividend.changeFromLastPct >= 0 ? "▲ +" : "▼ "}
+            {Math.abs(nextDividend.changeFromLastPct).toFixed(1)}% {T.vsLast[lang]}
+          </span>
+        )}
+      </div>
+
+      <div className="mt-4 grid grid-cols-3 gap-3">
+        <DateChip label={T.expectedAnnouncement[lang]} date={nextDividend.announcementDate} />
+        <DateChip label={T.expectedExDividend[lang]} date={nextDividend.exDate} />
+        <DateChip label={T.expectedPayment[lang]} date={nextDividend.payDate} />
+      </div>
+
+      {nextDividend.whyHref && (
+        <a
+          href={nextDividend.whyHref}
+          className="mt-4 inline-flex items-center text-sm font-semibold text-[#92400e] hover:underline"
+        >
+          {T.whyThisAmount[lang](`$${amount.toFixed(4)}`)}
+        </a>
+      )}
+
+      {priceSummary?.currentPrice != null && (
+        <div className="mt-4 pt-4 border-t border-[var(--gray-200)] flex items-center gap-2 text-sm">
+          <span className="text-[var(--gray-500)]">{T.currentPrice[lang]}</span>
+          <span className="font-bold tabular-nums">${priceSummary.currentPrice.toFixed(2)}</span>
+          {priceSummary.todayChangePct != null && (
+            <span
+              className={`text-xs font-bold tabular-nums px-1.5 py-0.5 rounded-md ${
+                priceSummary.todayChangePct >= 0 ? "text-emerald-700 bg-emerald-50" : "text-red-700 bg-red-50"
+              }`}
+            >
+              {priceSummary.todayChangePct >= 0 ? "▲" : "▼"} {Math.abs(priceSummary.todayChangePct).toFixed(2)}%
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DateChip({ label, date }: { label: string; date: string | null }) {
+  return (
+    <div>
+      <div className="text-[10px] text-[var(--gray-500)] leading-tight">{label}</div>
+      <div className="text-sm font-bold tabular-nums mt-0.5">{date ?? "—"}</div>
+    </div>
   );
 }
 

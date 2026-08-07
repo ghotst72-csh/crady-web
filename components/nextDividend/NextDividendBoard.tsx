@@ -1,73 +1,84 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, CalendarDays, Flame, FastForward, CheckCircle2, Hourglass, Zap } from "lucide-react";
-import type { NextDividendBoardEntry } from "@/lib/ticker/nextDividendBoard";
+import Link from "next/link";
+import { Search, Target, CheckCircle2, Hourglass, Zap } from "lucide-react";
+import type { NextDividendBoardEntry, NextDividendStatus } from "@/lib/ticker/nextDividendBoard";
 import { computeSummaryStats } from "@/lib/ticker/nextDividendBoard";
-import { NextDividendCard } from "./NextDividendCard";
-import { NextDividendSummary } from "./NextDividendSummary";
+import { providerLabel } from "@/lib/providers";
+import { formatConfidencePct } from "@/lib/confidence";
 
-type TabId = "all" | "this-week" | "next-week" | "confirmed" | "estimated";
+/** CRADY Phase 2 §8 — a real prediction table/terminal, not a "market
+ * stall" of dozens of competing cards. Default tab is Predictions (what
+ * CRADY expects next), not Paying Today. One shared table on desktop,
+ * one compact stacked-row list on mobile — never the old dense
+ * NextDividendCard grid, which visually competed with the numbers instead
+ * of getting out of their way. */
+
+type TabId = "predictions" | "confirmed" | "paying-today";
 
 const T = {
-  searchPlaceholder: {
-    en: "Search ticker — TSLY, MSTY, CONY...",
-    ko: "티커 검색 — TSLY, MSTY, CONY...",
-  },
+  searchPlaceholder: { en: "Search ticker — TSLY, MSTY, CONY...", ko: "티커 검색 — TSLY, MSTY, CONY..." },
   tabs: {
-    all: { en: "All", ko: "전체" },
-    "this-week": { en: "This Week", ko: "이번 주" },
-    "next-week": { en: "Next Week", ko: "다음 주" },
+    predictions: { en: "Predictions", ko: "예측" },
     confirmed: { en: "Confirmed", ko: "확정" },
-    estimated: { en: "Estimated", ko: "예상" },
+    "paying-today": { en: "Paying Today", ko: "오늘 지급" },
   },
   count: { en: "ETFs", ko: "개 ETF" },
   empty: { en: "No ETFs match this filter.", ko: "조건에 맞는 ETF가 없습니다." },
-  sections: {
-    payingToday: { en: "Paying Today", ko: "오늘 지급" },
-    confirmedUpcoming: { en: "Confirmed — Upcoming", ko: "확정 — 예정" },
-    awaiting: { en: "Awaiting Announcement", ko: "발표 대기" },
-  },
+  thisWeek: { en: "Paying this week", ko: "이번 주 지급" },
+  confirmedCount: { en: "Confirmed", ko: "확정" },
+  awaiting: { en: "Awaiting announcement", ko: "발표 대기" },
+  highest: { en: "Highest", ko: "최고" },
+  colEtf: { en: "ETF", ko: "ETF" },
+  colNextDividend: { en: "Next Dividend Prediction", ko: "다음 배당 예측" },
+  colConfidence: { en: "Confidence", ko: "신뢰도" },
+  colAnnouncement: { en: "Expected Announcement", ko: "예상 발표일" },
+  colExDate: { en: "Ex-Dividend Date", ko: "예상 배당락일" },
+  colPayDate: { en: "Payment Date", ko: "예상 지급일" },
+  colStatus: { en: "Status", ko: "상태" },
+  tbd: { en: "TBD", ko: "미정" },
+  status: {
+    paid: { en: "Paid", ko: "지급 완료" },
+    "paying-today": { en: "Paying Today", ko: "오늘 지급" },
+    confirmed: { en: "Confirmed", ko: "확정" },
+    estimated: { en: "Estimated", ko: "예상" },
+  } satisfies Record<NextDividendStatus, Record<"en" | "ko", string>>,
 } as const;
 
-const TAB_ICON: Record<TabId, React.ReactNode> = {
-  all: <CalendarDays size={14} strokeWidth={2} aria-hidden="true" />,
-  "this-week": <Flame size={14} strokeWidth={2} aria-hidden="true" />,
-  "next-week": <FastForward size={14} strokeWidth={2} aria-hidden="true" />,
-  confirmed: <CheckCircle2 size={14} strokeWidth={2} aria-hidden="true" />,
-  estimated: <Hourglass size={14} strokeWidth={2} aria-hidden="true" />,
+const STATUS_BADGE_CLASS: Record<NextDividendStatus, string> = {
+  paid: "bg-[var(--gray-100)] text-[var(--gray-500)]",
+  "paying-today": "bg-[#92400e] text-white",
+  confirmed: "bg-emerald-50 text-emerald-700",
+  estimated: "bg-[var(--crady-accent)]/15 text-[#92400e]",
 };
 
-function daysFromToday(iso: string | null): number | null {
-  if (!iso) return null;
-  const target = new Date(iso + "T00:00:00Z");
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
-  return Math.round((target.getTime() - today.getTime()) / 86400000);
+function StatusIcon({ status }: { status: NextDividendStatus }) {
+  const props = { size: 11, strokeWidth: 2.5, "aria-hidden": true as const };
+  if (status === "paying-today") return <Zap {...props} fill="currentColor" />;
+  if (status === "confirmed" || status === "paid") return <CheckCircle2 {...props} />;
+  return <Hourglass {...props} />;
 }
 
-/** Section header used only on the "All" tab — grouping by real status
- * (which the card badges already show) rather than flattening every
- * tracked ETF into one undifferentiated 68-card list. */
-function SectionHeader({ icon, label, count }: { icon: React.ReactNode; label: string; count: number }) {
-  if (count === 0) return null;
+function StatusBadge({ status, lang }: { status: NextDividendStatus; lang: "en" | "ko" }) {
   return (
-    <div className="flex items-center gap-1.5 mt-6 mb-2.5 first:mt-0 text-[12px] font-bold text-[var(--gray-500)] uppercase tracking-wide">
-      {icon}
-      {label}
-      <span className="text-[var(--gray-400)] font-semibold normal-case">({count})</span>
-    </div>
+    <span
+      className={`inline-flex items-center gap-1 shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${STATUS_BADGE_CLASS[status]}`}
+    >
+      <StatusIcon status={status} />
+      {T.status[status][lang]}
+    </span>
   );
 }
 
-function CardGrid({ entries, lang, basePath }: { entries: NextDividendBoardEntry[]; lang: "en" | "ko"; basePath: string }) {
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-      {entries.map((entry) => (
-        <NextDividendCard key={entry.ticker} entry={entry} lang={lang} basePath={basePath} />
-      ))}
-    </div>
-  );
+function fmtMoney(n: number | null): string {
+  return n != null ? `$${n.toFixed(4)}` : "—";
+}
+
+function fmtDate(iso: string | null, lang: "en" | "ko"): string {
+  if (!iso) return T.tbd[lang];
+  const d = new Date(iso + "T00:00:00Z");
+  return d.toLocaleDateString(lang === "ko" ? "ko-KR" : "en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 }
 
 export function NextDividendBoard({
@@ -79,7 +90,7 @@ export function NextDividendBoard({
   lang?: "en" | "ko";
   basePath?: string;
 }) {
-  const [tab, setTab] = useState<TabId>("all");
+  const [tab, setTab] = useState<TabId>("predictions");
   const [query, setQuery] = useState("");
 
   const summaryStats = useMemo(() => computeSummaryStats(entries), [entries]);
@@ -87,32 +98,41 @@ export function NextDividendBoard({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return entries.filter((e) => {
-      if (q && !e.ticker.toLowerCase().includes(q) && !(e.name ?? "").toLowerCase().includes(q)) {
-        return false;
-      }
+      if (q && !e.ticker.toLowerCase().includes(q) && !(e.name ?? "").toLowerCase().includes(q)) return false;
+      if (tab === "predictions") return !e.isOfficial;
       if (tab === "confirmed") return e.isOfficial;
-      if (tab === "estimated") return !e.isOfficial;
-      if (tab === "this-week" || tab === "next-week") {
-        const d = daysFromToday(e.payDate);
-        if (d == null) return false;
-        return tab === "this-week" ? d >= 0 && d < 7 : d >= 7 && d < 14;
-      }
-      return true;
+      return e.status === "paying-today";
     });
   }, [entries, tab, query]);
 
-  const tabs: TabId[] = ["all", "this-week", "next-week", "confirmed", "estimated"];
-
-  const showSections = tab === "all" && query.trim() === "";
-  const payingToday = showSections ? filtered.filter((e) => e.status === "paying-today") : [];
-  const confirmedUpcoming = showSections ? filtered.filter((e) => e.status === "confirmed") : [];
-  const awaiting = showSections ? filtered.filter((e) => e.status === "estimated" || e.status === "paid") : [];
+  const tabs: TabId[] = ["predictions", "confirmed", "paying-today"];
 
   return (
     <div>
-      <NextDividendSummary stats={summaryStats} lang={lang} />
+      {/* Slim, secondary summary line — real counts, never competing
+          visually with the prediction amounts in the table below (spec
+          §9: "should not compete visually with the predicted dividend
+          amounts"). */}
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-[var(--gray-500)]">
+        <span>
+          {T.thisWeek[lang]} <strong className="text-black tabular-nums">{summaryStats.thisWeekCount}</strong>
+        </span>
+        <span>
+          {T.confirmedCount[lang]} <strong className="text-black tabular-nums">{summaryStats.confirmedCount}</strong>
+        </span>
+        <span>
+          {T.awaiting[lang]} <strong className="text-black tabular-nums">{summaryStats.awaitingCount}</strong>
+        </span>
+        {summaryStats.highest && (
+          <span>
+            {T.highest[lang]}{" "}
+            <strong className="text-[#92400e] tabular-nums">${summaryStats.highest.amount.toFixed(4)}</strong>{" "}
+            {summaryStats.highest.ticker}
+          </span>
+        )}
+      </div>
 
-      <div className="relative mt-5">
+      <div className="relative mt-4">
         <Search
           size={16}
           className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--gray-400)]"
@@ -140,7 +160,9 @@ export function NextDividendBoard({
                 : "border-[var(--gray-200)] text-[var(--gray-600)] hover:border-black hover:text-black"
             }`}
           >
-            {TAB_ICON[id]}
+            {id === "predictions" && <Target size={14} strokeWidth={2} aria-hidden="true" />}
+            {id === "confirmed" && <CheckCircle2 size={14} strokeWidth={2} aria-hidden="true" />}
+            {id === "paying-today" && <Zap size={14} strokeWidth={2} aria-hidden="true" />}
             {T.tabs[id][lang]}
           </button>
         ))}
@@ -152,33 +174,74 @@ export function NextDividendBoard({
 
       {filtered.length === 0 ? (
         <p className="mt-8 text-sm text-[var(--gray-500)] text-center py-12">{T.empty[lang]}</p>
-      ) : showSections ? (
-        <div className="mt-1">
-          <SectionHeader
-            icon={<Zap size={13} strokeWidth={2.5} className="text-[#92400e]" fill="currentColor" aria-hidden="true" />}
-            label={T.sections.payingToday[lang]}
-            count={payingToday.length}
-          />
-          {payingToday.length > 0 && <CardGrid entries={payingToday} lang={lang} basePath={basePath} />}
-
-          <SectionHeader
-            icon={<CheckCircle2 size={13} strokeWidth={2.5} className="text-emerald-700" aria-hidden="true" />}
-            label={T.sections.confirmedUpcoming[lang]}
-            count={confirmedUpcoming.length}
-          />
-          {confirmedUpcoming.length > 0 && <CardGrid entries={confirmedUpcoming} lang={lang} basePath={basePath} />}
-
-          <SectionHeader
-            icon={<Hourglass size={13} strokeWidth={2.5} className="text-[var(--gray-500)]" aria-hidden="true" />}
-            label={T.sections.awaiting[lang]}
-            count={awaiting.length}
-          />
-          {awaiting.length > 0 && <CardGrid entries={awaiting} lang={lang} basePath={basePath} />}
-        </div>
       ) : (
-        <div className="mt-3">
-          <CardGrid entries={filtered} lang={lang} basePath={basePath} />
-        </div>
+        <>
+          {/* Desktop / tablet — a real financial table. */}
+          <div className="hidden sm:block mt-3 border border-[var(--gray-200)] rounded-xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-[var(--gray-50)] text-[var(--gray-500)]">
+                  <tr>
+                    <th className="text-left px-4 py-2.5 font-medium">{T.colEtf[lang]}</th>
+                    <th className="text-right px-4 py-2.5 font-medium">{T.colNextDividend[lang]}</th>
+                    <th className="text-right px-4 py-2.5 font-medium">{T.colConfidence[lang]}</th>
+                    <th className="text-right px-4 py-2.5 font-medium">{T.colAnnouncement[lang]}</th>
+                    <th className="text-right px-4 py-2.5 font-medium">{T.colExDate[lang]}</th>
+                    <th className="text-right px-4 py-2.5 font-medium">{T.colPayDate[lang]}</th>
+                    <th className="text-right px-4 py-2.5 font-medium">{T.colStatus[lang]}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--gray-100)]">
+                  {filtered.map((e) => (
+                    <tr key={e.ticker} className="hover:bg-[var(--gray-50)] transition-colors">
+                      <td className="px-4 py-2.5">
+                        <Link href={`${basePath}/${e.ticker.toLowerCase()}`} className="font-bold hover:underline">
+                          {e.ticker}
+                        </Link>
+                        <span className="ml-1.5 text-[11px] text-[var(--gray-400)]">{providerLabel(e.providerId)}</span>
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-bold tabular-nums text-[#92400e]">{fmtMoney(e.amount)}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-[var(--gray-600)]">
+                        {e.confidence != null ? formatConfidencePct(e.confidence, 0) : "—"}
+                      </td>
+                      <td className="px-4 py-2.5 text-right text-[var(--gray-600)]">{fmtDate(e.declarationDate, lang)}</td>
+                      <td className="px-4 py-2.5 text-right text-[var(--gray-600)]">{fmtDate(e.exDate, lang)}</td>
+                      <td className="px-4 py-2.5 text-right font-semibold tabular-nums">{fmtDate(e.payDate, lang)}</td>
+                      <td className="px-4 py-2.5 text-right">
+                        <StatusBadge status={e.status} lang={lang} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Mobile — compact stacked rows, not the full-size card grid. */}
+          <div className="sm:hidden mt-3 space-y-2">
+            {filtered.map((e) => (
+              <Link
+                key={e.ticker}
+                href={`${basePath}/${e.ticker.toLowerCase()}`}
+                className="block border border-[var(--gray-200)] rounded-xl p-3 hover:border-black transition-colors"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-bold text-[15px]">{e.ticker}</span>
+                  <StatusBadge status={e.status} lang={lang} />
+                </div>
+                <div className="mt-1.5 flex items-baseline justify-between gap-2">
+                  <span className="text-2xl font-black text-[#92400e] tabular-nums leading-none">{fmtMoney(e.amount)}</span>
+                  <span className="text-xs text-[var(--gray-500)] shrink-0">{fmtDate(e.payDate, lang)}</span>
+                </div>
+                {e.confidence != null && (
+                  <div className="mt-1.5 text-[11px] text-[var(--gray-500)]">
+                    {T.colConfidence[lang]} {formatConfidencePct(e.confidence, 0)}
+                  </div>
+                )}
+              </Link>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

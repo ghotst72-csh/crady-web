@@ -5,7 +5,6 @@ import {
   topByAnnualYield,
   topByCradyScoreSnapshot,
   topRecentlyIncreased,
-  topBySafety,
   nextDistributionsTimeline,
 } from "@/lib/data";
 import { getLatestAnnouncement, getDistributionRowsForAnnouncement, getDistributionTrustStats } from "@/lib/distributions/data";
@@ -87,11 +86,6 @@ export default async function HomePage() {
   const increasedTop = topRecentlyIncreased(snapshot, 6);
   const popularCards = topByCradyScoreSnapshot(snapshot, 6);
   const trendingCards = topRecentlyIncreased(snapshot, 6);
-  const lowRiskCards = topBySafety(snapshot, 6);
-  const recentlyDeclaredCards = snapshot
-    .filter((e) => e.latestDividendDate != null)
-    .sort((a, b) => (a.latestDividendDate! < b.latestDividendDate! ? 1 : -1))
-    .slice(0, 6);
   const risingCount = snapshot.filter((e) => e.dividendTrend === "up").length;
   const lastUpdatedIso = snapshot.reduce<string | null>(
     (max, e) => (e.calculatedAt && (!max || e.calculatedAt > max) ? e.calculatedAt : max),
@@ -110,7 +104,17 @@ export default async function HomePage() {
           restores correct document structure without changing the Hero's
           visual design (AI Overview Optimization Phase 1). */}
       <h1 className="sr-only">CRADY — YieldMax &amp; Covered Call ETF Dividend Tracker</h1>
-      {/* Hero — one ETF, Bloomberg/FT-style, no carousel */}
+
+      {/* Phase 2 — the site's primary message leads the page: CRADY
+          predicts upcoming dividends before they're officially announced.
+          Moved up from its old position (after QuickInsights, several
+          screens down) to right after the h1 — spec §10's "a new visitor
+          should understand within seconds" requirement. */}
+      <NextDistributionsRail items={nextDistributions} lang="en" />
+
+      {/* Today's highest-yield spotlight — still a real, useful module,
+          now secondary to the prediction rail above it rather than the
+          page's very first thing. */}
       <HeroSection
         top10={yieldTop10}
         weekCount={keyMetrics.weekCount}
@@ -158,8 +162,12 @@ export default async function HomePage() {
 
       <QuickInsights snapshot={snapshot} lang="en" />
 
-      <NextDistributionsRail items={nextDistributions} lang="en" />
-
+      {/* Phase 2 — trimmed from 5 carousels to 2 (spec §1/§10: "a small
+          number of strong sections," not "20 cards, 15 KPIs, several
+          unrelated modules"). Popular/Trending are the two carousels most
+          directly tied to CRADY's own prediction/stability scoring;
+          Recently Declared, High Income and Low Risk were redundant with
+          Ranking and the yield-focused Hero above. */}
       <section className="mx-auto max-w-6xl px-4 sm:px-6 py-8 border-t border-[var(--gray-200)] space-y-8">
         <CardCarousel title="Popular ETFs" subtitle="Highest CRADY Score right now" viewAllHref="/ranking" viewAllLabel="View ranking →">
           {popularCards.map((etf) => (
@@ -171,30 +179,6 @@ export default async function HomePage() {
 
         <CardCarousel title="Trending" subtitle="Distributions rising vs. last payment" viewAllHref="/ranking" viewAllLabel="View ranking →">
           {trendingCards.map((etf) => (
-            <CarouselItem key={etf.ticker}>
-              <EtfCard data={snapshotToCardData(etf)} compact lang="en" />
-            </CarouselItem>
-          ))}
-        </CardCarousel>
-
-        <CardCarousel title="Recently Declared" subtitle="Most recent confirmed distribution" viewAllHref="/distributions" viewAllLabel="View calendar →">
-          {recentlyDeclaredCards.map((etf) => (
-            <CarouselItem key={etf.ticker}>
-              <EtfCard data={snapshotToCardData(etf)} compact lang="en" />
-            </CarouselItem>
-          ))}
-        </CardCarousel>
-
-        <CardCarousel title="High Income" subtitle="Highest annualized yield" viewAllHref="/ranking" viewAllLabel="View ranking →">
-          {yieldTop10.slice(0, 6).map((etf) => (
-            <CarouselItem key={etf.ticker}>
-              <EtfCard data={snapshotToCardData(etf)} compact lang="en" />
-            </CarouselItem>
-          ))}
-        </CardCarousel>
-
-        <CardCarousel title="Low Risk" subtitle="Highest dividend stability score" viewAllHref="/ranking" viewAllLabel="View ranking →">
-          {lowRiskCards.map((etf) => (
             <CarouselItem key={etf.ticker}>
               <EtfCard data={snapshotToCardData(etf)} compact lang="en" />
             </CarouselItem>

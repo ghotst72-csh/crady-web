@@ -86,7 +86,7 @@ export function HoldingInputForm({
     <form onSubmit={handleSubmit} className="rounded-2xl border border-[var(--gray-200)] p-4 sm:p-5">
       <div className="text-sm font-bold mb-3">{T.addHolding[lang]}</div>
 
-      <div className="grid sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <label className="block">
           <span className="text-xs font-medium text-[var(--gray-600)]">{T.ticker[lang]}</span>
           <div className="mt-1">

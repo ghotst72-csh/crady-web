@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { DollarSign } from "lucide-react";
 import { getNextDividendBoard } from "@/lib/ticker/nextDividendBoard";
 import { NextDividendBoard } from "@/components/nextDividend/NextDividendBoard";
@@ -66,6 +67,12 @@ export default async function NextDividendKoPage() {
 
       <div className="mt-6">
         <NextDividendBoard entries={entries} lang="ko" basePath="/ko" />
+      </div>
+
+      <div className="mt-8">
+        <Link href="/ko/prediction-accuracy" className="text-sm font-semibold text-[#92400e] hover:underline">
+          CRADY의 과거 예측 정확도 확인하기 →
+        </Link>
       </div>
 
       <PageAppCta lang="ko" />

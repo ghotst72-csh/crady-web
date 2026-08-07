@@ -1,29 +1,22 @@
 const T = {
   label: { en: "Sections", ko: "섹션" },
   overview: { en: "Overview", ko: "개요" },
-  prediction: { en: "Prediction", ko: "예측" },
-  history: { en: "History", ko: "내역" },
-  risk: { en: "Risk & Score", ko: "리스크 & 점수" },
-  activity: { en: "Activity", ko: "활동" },
+  dividends: { en: "Dividends", ko: "배당금" },
+  predictionHistory: { en: "Prediction History", ko: "예측 기록" },
 } as const;
 
 const ITEMS = [
   { key: "overview" as const, href: "#overview" },
-  { key: "prediction" as const, href: "#next-dividend-intelligence" },
-  { key: "history" as const, href: "#dividend-history" },
-  { key: "risk" as const, href: "#etf-intelligence" },
-  { key: "activity" as const, href: "#etf-activity" },
+  { key: "dividends" as const, href: "#dividends" },
+  { key: "predictionHistory" as const, href: "#prediction-history" },
 ];
 
-/** CRADY Site Architecture Phase 1, §10 — the ticker page's own local
- * navigation, structurally distinct from the global Sidebar/Drawer
- * (lib/navigation.ts): plain in-page anchors to real, already-existing
- * sections (next-dividend-intelligence, dividend-history, etf-intelligence,
- * etf-activity — the last of these two ids added this phase, no content
- * moved or rewritten). Deliberately simple — no scroll-spy active-state
- * tracking — since Phase 2 is where the ticker page itself gets a real
- * prediction-first redesign; this phase only needs the structural
- * separation between "site navigation" and "page navigation" to exist. */
+/** CRADY Phase 2 §7 — a restrained 3-tab local nav (Overview / Dividends /
+ * Prediction History), replacing the earlier 5-tab version now that the
+ * page itself has a real Dividend & Price History chart and a promoted
+ * Prediction Track Record section to point to. Structurally distinct from
+ * the global Sidebar/Drawer (lib/navigation.ts). No scroll-spy active-state
+ * tracking — deliberately simple, per spec. */
 export function TickerSubNav({ lang = "en" }: { lang?: "en" | "ko" }) {
   return (
     <nav
