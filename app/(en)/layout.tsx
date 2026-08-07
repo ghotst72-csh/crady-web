@@ -3,6 +3,9 @@ import Link from "next/link";
 import { GeistSans } from "geist/font/sans";
 import { Header } from "@/components/Header";
 import { AuthProvider } from "@/components/auth/AuthProvider";
+import { NavDrawerProvider } from "@/components/layout/NavDrawerProvider";
+import { Sidebar } from "@/components/layout/Sidebar";
+import { MobileDrawer } from "@/components/layout/MobileDrawer";
 import { FooterLanguageLink } from "@/components/i18n/FooterLanguageLink";
 import { LanguagePreferenceManager } from "@/components/i18n/LanguagePreferenceManager";
 import { getHomeSnapshot, toSearchIndex } from "@/lib/data";
@@ -61,15 +64,21 @@ export default async function EnglishRootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(WEBSITE_JSON_LD) }}
         />
         <AuthProvider lang="en">
+        <NavDrawerProvider>
         <Header lang="en" searchIndex={searchIndex} />
 
-        {/* min-w-0: body is flex flex-col, and a flex item's implicit
-            min-width is auto (its content's intrinsic width), not 0 — a
-            deeply nested horizontal-scroll carousel's un-scrolled content
-            width would otherwise leak out and stretch the whole page,
-            causing page-level horizontal scroll even though the carousel
-            itself is correctly clipped by its own overflow-x-auto. See the
-            CRADY Mobile UX Final Polish report, Issue 6. */}
+        {/* Sidebar (xl:+ persistent) | content column. min-w-0 throughout:
+            a flex item's implicit min-width is auto (its content's
+            intrinsic width), not 0 — a deeply nested horizontal-scroll
+            carousel's un-scrolled content width would otherwise leak out
+            and stretch the whole page, causing page-level horizontal
+            scroll even though the carousel itself is correctly clipped by
+            its own overflow-x-auto. See the CRADY Mobile UX Final Polish
+            report, Issue 6 — same reasoning, now also guarding the new
+            sidebar row. */}
+        <div className="flex-1 flex min-w-0">
+        <Sidebar lang="en" />
+        <div className="flex-1 min-w-0 flex flex-col">
         <main className="flex-1 min-w-0">{children}</main>
 
         <LanguagePreferenceManager lang="en" />
@@ -151,6 +160,11 @@ export default async function EnglishRootLayout({
             </div>
           </div>
         </footer>
+        </div>
+        </div>
+
+        <MobileDrawer lang="en" />
+        </NavDrawerProvider>
         </AuthProvider>
       </body>
     </html>

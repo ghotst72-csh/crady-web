@@ -184,7 +184,7 @@ export function NextDividendIntelligence({
   const expectedChangePct = expectedChangeAmount != null && previousAmount != null && previousAmount > 0 ? (expectedChangeAmount / previousAmount) * 100 : null;
 
   return (
-    <section id="next-dividend-intelligence" className="mx-auto max-w-4xl px-4 sm:px-6 mt-6 scroll-mt-4">
+    <section id="next-dividend-intelligence" className="mx-auto max-w-4xl px-4 sm:px-6 mt-6 scroll-mt-24">
       <div className="border border-[var(--gray-200)] rounded-2xl p-4 sm:p-5">
         <div className="flex items-baseline justify-between gap-3">
           <h2 className="text-lg font-bold">{T.heading[lang]}</h2>

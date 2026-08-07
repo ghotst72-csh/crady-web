@@ -2,12 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { Menu } from "lucide-react";
 import { TickerSearch } from "./search/TickerSearch";
 import { MobileSearch } from "./search/MobileSearch";
 import { LanguageSwitcher } from "./i18n/LanguageSwitcher";
-import { MobileNav } from "./MobileNav";
 import { AuthStatus } from "./auth/AuthStatus";
-import { NAV_EN, NAV_KO } from "@/lib/nav";
+import { useNavDrawer } from "./layout/NavDrawerProvider";
 import type { SearchEntry } from "@/lib/search/searchTickers";
 
 // Scroll direction thresholds — small jitters (<10px) don't trigger a
@@ -15,6 +15,15 @@ import type { SearchEntry } from "@/lib/search/searchTickers";
 const MOVE_THRESHOLD = 10;
 const TOP_LOCK = 20;
 
+const T = { openMenu: { en: "Open menu", ko: "메뉴 열기" } } as const;
+
+/** CRADY Site Architecture Phase 1 — the header no longer carries the
+ * global nav links (previously a `<nav>` row that overflowed at
+ * 1280-1440px once an 8th item was added — see the Next Dividend Hub
+ * report). Navigation now lives entirely in Sidebar.tsx (xl:+ persistent)
+ * and MobileDrawer.tsx (below xl:, opened from the hamburger below), both
+ * driven by the single shared IA in lib/navigation.ts. The header's job
+ * is just identity + search + language + account, at every width. */
 export function Header({
   lang = "en",
   searchIndex,
@@ -26,8 +35,8 @@ export function Header({
   const lastY = useRef(0);
   const accum = useRef(0);
   const focusLocked = useRef(false);
+  const { toggle } = useNavDrawer();
 
-  const nav = lang === "ko" ? NAV_KO : NAV_EN;
   const basePath = lang === "ko" ? "/ko" : "";
   const homeHref = lang === "ko" ? "/ko" : "/";
 
@@ -81,47 +90,42 @@ export function Header({
           focusLocked.current = false;
         }}
       >
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 h-14 flex items-center gap-3">
+        <div className="mx-auto max-w-[1600px] px-4 sm:px-6 h-14 flex items-center gap-3">
+          {/* Hamburger — opens MobileDrawer, hidden once the persistent
+              Sidebar takes over at xl:. Never both visible, never a gap
+              where neither is (Sidebar.tsx uses the identical xl: cut). */}
+          <button
+            type="button"
+            onClick={toggle}
+            aria-label={T.openMenu[lang]}
+            className="xl:hidden w-9 h-9 -ml-1.5 flex items-center justify-center rounded-full text-[var(--gray-600)] hover:bg-[var(--gray-100)] transition-colors shrink-0"
+          >
+            <Menu size={20} strokeWidth={2} aria-hidden="true" />
+          </button>
+
           <Link href={homeHref} className="font-bold text-lg tracking-tight shrink-0">
             {/* #92400e — see the CRADY Authority & Google Trust Phase 1
                 report for the WCAG contrast fix behind this exact value. */}
             CRA<span className="text-[#92400e]">DY</span>
           </Link>
-          {/* Desktop only — the full label set ("Dividend Calendar" etc.)
-              overflows a phone-width header, so mobile gets a hamburger
-              menu (MobileNav) with the same items instead (Issue 2, CRADY
-              Mobile UX Final Polish report). */}
-          <nav className="hidden sm:flex items-center gap-1.5 lg:gap-2.5 text-sm min-w-0">
-            {nav.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="px-1.5 py-1.5 rounded-md text-[var(--gray-600)] hover:text-black hover:bg-[var(--gray-100)] transition-colors whitespace-nowrap"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
 
           <div className="flex-1" />
 
-          {/* Language switcher sits immediately before search on both
-              desktop and mobile (Part 8). Desktop: a real, always-visible
-              instant-search field. Mobile: a hamburger nav, a compact
-              language menu, and a search sheet trigger — see
-              components/MobileNav.tsx, components/i18n/LanguageSwitcher.tsx,
-              and components/search/MobileSearch.tsx. */}
-          <div className="hidden sm:block shrink-0">
+          {/* Always-visible desktop trio, once the Sidebar is showing
+              (xl:+) — no nav links here anymore, so there's no overflow
+              budget to fight over. Below xl:, the compact mobile row
+              (hamburger already rendered above + language + search-sheet
+              trigger + account) takes over instead. */}
+          <div className="hidden xl:block shrink-0">
             <LanguageSwitcher lang={lang} />
           </div>
-          <div className="hidden sm:block w-[190px] lg:w-[210px] shrink-0">
+          <div className="hidden xl:block w-[230px] shrink-0">
             <TickerSearch index={searchIndex} lang={lang} basePath={basePath} />
           </div>
-          <div className="hidden sm:block shrink-0">
+          <div className="hidden xl:block shrink-0">
             <AuthStatus lang={lang} />
           </div>
-          <div className="sm:hidden flex items-center gap-1">
-            <MobileNav lang={lang} />
+          <div className="xl:hidden flex items-center gap-1">
             <LanguageSwitcher lang={lang} compact />
             <MobileSearch index={searchIndex} lang={lang} basePath={basePath} />
             <AuthStatus lang={lang} />

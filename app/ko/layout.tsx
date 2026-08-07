@@ -3,6 +3,9 @@ import Link from "next/link";
 import { GeistSans } from "geist/font/sans";
 import { Header } from "@/components/Header";
 import { AuthProvider } from "@/components/auth/AuthProvider";
+import { NavDrawerProvider } from "@/components/layout/NavDrawerProvider";
+import { Sidebar } from "@/components/layout/Sidebar";
+import { MobileDrawer } from "@/components/layout/MobileDrawer";
 import { FooterLanguageLink } from "@/components/i18n/FooterLanguageLink";
 import { LanguagePreferenceManager } from "@/components/i18n/LanguagePreferenceManager";
 import { getHomeSnapshot, toSearchIndex } from "@/lib/data";
@@ -61,12 +64,16 @@ export default async function KoreanRootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(WEBSITE_JSON_LD) }}
         />
         <AuthProvider lang="ko">
+        <NavDrawerProvider>
         <Header lang="ko" searchIndex={searchIndex} />
 
         {/* min-w-0: see the matching comment in app/(en)/layout.tsx — same
             flex-item implicit-min-width fix for page-level horizontal
             overflow, mirrored here since the two root layouts don't share
             a parent. */}
+        <div className="flex-1 flex min-w-0">
+        <Sidebar lang="ko" />
+        <div className="flex-1 min-w-0 flex flex-col">
         <main className="flex-1 min-w-0">{children}</main>
 
         <LanguagePreferenceManager lang="ko" />
@@ -149,6 +156,11 @@ export default async function KoreanRootLayout({
             </div>
           </div>
         </footer>
+        </div>
+        </div>
+
+        <MobileDrawer lang="ko" />
+        </NavDrawerProvider>
         </AuthProvider>
       </body>
     </html>

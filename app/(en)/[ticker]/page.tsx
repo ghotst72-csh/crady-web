@@ -29,6 +29,7 @@ import { NextDividendIntelligence } from "@/components/ticker/NextDividendIntell
 import { buildNextDividendDirectAnswer } from "@/lib/ticker/nextDividendNarrative";
 import { RESERVED_PATHS } from "@/lib/reserved";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
+import { TickerSubNav } from "@/components/ticker/TickerSubNav";
 import { DividendStagePill } from "@/components/DividendLifecycle";
 import { EtfAppCta } from "@/components/EtfAppCta";
 import { EtfHero } from "@/components/EtfHero";
@@ -510,6 +511,9 @@ export default async function TickerPage({
         />
       )}
 
+      <TickerSubNav lang="en" />
+
+      <div id="overview" className="scroll-mt-24" />
       <EtfHero
         ticker={ticker}
         name={etf.name}
@@ -555,7 +559,7 @@ export default async function TickerPage({
       {/* CRADY Intelligence 4.0 — "why" explanations for every number
           already on the page above. Rule-based only, every section
           honestly omits itself when its real inputs are missing. */}
-      <section className="mx-auto max-w-4xl px-4 sm:px-6 mt-6 space-y-4">
+      <section id="etf-intelligence" className="mx-auto max-w-4xl px-4 sm:px-6 mt-6 space-y-4 scroll-mt-24">
         <AiDailySummary sentences={aiSummarySentences} lang="en" />
         <div className="grid sm:grid-cols-2 gap-4">
           <YieldExplainer explanation={yieldExplanation} lang="en" />
@@ -591,7 +595,7 @@ export default async function TickerPage({
           for why: it's what keeps each anchor id unique in the DOM even
           during Next.js's brief out-of-order-streaming swap window. */}
       <div className="mx-auto max-w-4xl px-4 sm:px-6">
-        <div id="etf-activity" className="scroll-mt-4" />
+        <div id="etf-activity" className="scroll-mt-24" />
         <Suspense fallback={null}>
           <ActivitySection
             ticker={ticker}
@@ -660,7 +664,7 @@ export default async function TickerPage({
           </div>
         </div>
 
-        <div id="dividend-history" className="mt-8 scroll-mt-4">
+        <div id="dividend-history" className="mt-8 scroll-mt-24">
           <h2 className="text-lg font-bold mb-3">Recent Dividend History</h2>
           <div className="border border-[var(--gray-200)] rounded-xl overflow-hidden">
             <div className="max-h-[420px] overflow-y-auto overflow-x-auto">

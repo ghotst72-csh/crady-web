@@ -10,10 +10,10 @@ const T = {
   menuLabel: { en: "Account menu", ko: "계정 메뉴" },
 } as const;
 
-/** Sits beside LanguageSwitcher/TickerSearch (desktop) and MobileNav/
- * MobileSearch (mobile) in Header.tsx — not inside MobileNav's own dropdown,
- * matching the site's existing pattern of small icon-button siblings in the
- * header row rather than growing the hamburger menu. */
+/** Sits beside LanguageSwitcher/TickerSearch (xl:+) and the hamburger/
+ * MobileSearch trio (below xl:) in Header.tsx — not inside the nav
+ * drawer, matching the site's pattern of small icon-button siblings in
+ * the header row rather than growing the drawer. */
 export function AuthStatus({ lang = "en" }: { lang?: "en" | "ko" }) {
   const { session, loading, openAuthModal } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
