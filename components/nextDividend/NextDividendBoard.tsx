@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, CalendarDays, Flame, FastForward, CheckCircle2, Hourglass } from "lucide-react";
+import { Search, CalendarDays, Flame, FastForward, CheckCircle2, Hourglass, Zap } from "lucide-react";
 import type { NextDividendBoardEntry } from "@/lib/ticker/nextDividendBoard";
+import { computeSummaryStats } from "@/lib/ticker/nextDividendBoard";
 import { NextDividendCard } from "./NextDividendCard";
+import { NextDividendSummary } from "./NextDividendSummary";
 
 type TabId = "all" | "this-week" | "next-week" | "confirmed" | "estimated";
 
@@ -21,6 +23,11 @@ const T = {
   },
   count: { en: "ETFs", ko: "개 ETF" },
   empty: { en: "No ETFs match this filter.", ko: "조건에 맞는 ETF가 없습니다." },
+  sections: {
+    payingToday: { en: "Paying Today", ko: "오늘 지급" },
+    confirmedUpcoming: { en: "Confirmed — Upcoming", ko: "확정 — 예정" },
+    awaiting: { en: "Awaiting Announcement", ko: "발표 대기" },
+  },
 } as const;
 
 const TAB_ICON: Record<TabId, React.ReactNode> = {
@@ -39,6 +46,30 @@ function daysFromToday(iso: string | null): number | null {
   return Math.round((target.getTime() - today.getTime()) / 86400000);
 }
 
+/** Section header used only on the "All" tab — grouping by real status
+ * (which the card badges already show) rather than flattening every
+ * tracked ETF into one undifferentiated 68-card list. */
+function SectionHeader({ icon, label, count }: { icon: React.ReactNode; label: string; count: number }) {
+  if (count === 0) return null;
+  return (
+    <div className="flex items-center gap-1.5 mt-6 mb-2.5 first:mt-0 text-[12px] font-bold text-[var(--gray-500)] uppercase tracking-wide">
+      {icon}
+      {label}
+      <span className="text-[var(--gray-400)] font-semibold normal-case">({count})</span>
+    </div>
+  );
+}
+
+function CardGrid({ entries, lang, basePath }: { entries: NextDividendBoardEntry[]; lang: "en" | "ko"; basePath: string }) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      {entries.map((entry) => (
+        <NextDividendCard key={entry.ticker} entry={entry} lang={lang} basePath={basePath} />
+      ))}
+    </div>
+  );
+}
+
 export function NextDividendBoard({
   entries,
   lang = "en",
@@ -50,6 +81,8 @@ export function NextDividendBoard({
 }) {
   const [tab, setTab] = useState<TabId>("all");
   const [query, setQuery] = useState("");
+
+  const summaryStats = useMemo(() => computeSummaryStats(entries), [entries]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -70,9 +103,16 @@ export function NextDividendBoard({
 
   const tabs: TabId[] = ["all", "this-week", "next-week", "confirmed", "estimated"];
 
+  const showSections = tab === "all" && query.trim() === "";
+  const payingToday = showSections ? filtered.filter((e) => e.status === "paying-today") : [];
+  const confirmedUpcoming = showSections ? filtered.filter((e) => e.status === "confirmed") : [];
+  const awaiting = showSections ? filtered.filter((e) => e.status === "estimated" || e.status === "paid") : [];
+
   return (
     <div>
-      <div className="relative">
+      <NextDividendSummary stats={summaryStats} lang={lang} />
+
+      <div className="relative mt-5">
         <Search
           size={16}
           className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--gray-400)]"
@@ -112,11 +152,32 @@ export function NextDividendBoard({
 
       {filtered.length === 0 ? (
         <p className="mt-8 text-sm text-[var(--gray-500)] text-center py-12">{T.empty[lang]}</p>
+      ) : showSections ? (
+        <div className="mt-1">
+          <SectionHeader
+            icon={<Zap size={13} strokeWidth={2.5} className="text-[#92400e]" fill="currentColor" aria-hidden="true" />}
+            label={T.sections.payingToday[lang]}
+            count={payingToday.length}
+          />
+          {payingToday.length > 0 && <CardGrid entries={payingToday} lang={lang} basePath={basePath} />}
+
+          <SectionHeader
+            icon={<CheckCircle2 size={13} strokeWidth={2.5} className="text-emerald-700" aria-hidden="true" />}
+            label={T.sections.confirmedUpcoming[lang]}
+            count={confirmedUpcoming.length}
+          />
+          {confirmedUpcoming.length > 0 && <CardGrid entries={confirmedUpcoming} lang={lang} basePath={basePath} />}
+
+          <SectionHeader
+            icon={<Hourglass size={13} strokeWidth={2.5} className="text-[var(--gray-500)]" aria-hidden="true" />}
+            label={T.sections.awaiting[lang]}
+            count={awaiting.length}
+          />
+          {awaiting.length > 0 && <CardGrid entries={awaiting} lang={lang} basePath={basePath} />}
+        </div>
       ) : (
-        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {filtered.map((entry) => (
-            <NextDividendCard key={entry.ticker} entry={entry} lang={lang} basePath={basePath} />
-          ))}
+        <div className="mt-3">
+          <CardGrid entries={filtered} lang={lang} basePath={basePath} />
         </div>
       )}
     </div>
