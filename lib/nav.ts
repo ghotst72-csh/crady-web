@@ -5,6 +5,7 @@ export type NavItem = { href: string; label: string };
 // Korean header. Shared between the desktop nav row (Header.tsx) and the
 // mobile hamburger menu (MobileNav.tsx) so the two can't drift apart.
 export const NAV_EN: NavItem[] = [
+  { href: "/next-dividend", label: "Next Dividend" },
   { href: "/ranking", label: "Ranking" },
   { href: "/portfolio", label: "Portfolio" },
   { href: "/compare", label: "Compare" },
@@ -15,6 +16,7 @@ export const NAV_EN: NavItem[] = [
 ];
 
 export const NAV_KO: NavItem[] = [
+  { href: "/ko/next-dividend", label: "다음 배당" },
   { href: "/ko/ranking", label: "랭킹" },
   { href: "/ko/portfolio", label: "내 포트폴리오" },
   { href: "/ko/compare", label: "비교" },

@@ -49,6 +49,8 @@ export async function POST(req: NextRequest) {
   const paths: string[] = [
     "/",
     "/ko",
+    "/next-dividend",
+    "/ko/next-dividend",
     "/distributions",
     "/ko/distributions",
     "/distributions/archive",

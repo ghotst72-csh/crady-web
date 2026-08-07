@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Badge, type BadgeVariant } from "@/components/ui/Badge";
 import type { DividendSchedule, DateStatus, ExpectedRange, EstimateDriver, TrackRecord, SchedulePattern } from "@/lib/ticker/nextDividendIntelligence";
 import type { EstimateFactors } from "@/lib/ticker/nextDividendNarrative";
@@ -125,16 +126,20 @@ export type NextDividendIntelligenceData = {
   whatWouldChangeThis?: string[];
 };
 
+const VIEW_ALL_LABEL = { en: "View all upcoming dividends →", ko: "전체 다음 배당 보기 →" } as const;
+
 export function NextDividendIntelligence({
   data,
   directAnswer,
   lang = "en",
+  basePath = "",
 }: {
   data: NextDividendIntelligenceData;
   /** The single quotable sentence for search/AI-overview surfaces (§13) —
    * lib/ticker/nextDividendNarrative.ts's buildNextDividendDirectAnswer. */
   directAnswer?: string | null;
   lang?: "en" | "ko";
+  basePath?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
   const {
@@ -163,7 +168,12 @@ export function NextDividendIntelligence({
     return (
       <section className="mx-auto max-w-4xl px-4 sm:px-6 mt-6">
         <div className="border border-[var(--gray-200)] rounded-2xl p-4 sm:p-5">
-          <h2 className="text-lg font-bold">{T.heading[lang]}</h2>
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="text-lg font-bold">{T.heading[lang]}</h2>
+            <Link href={`${basePath}/next-dividend`} className="text-xs font-semibold text-[#92400e] hover:underline shrink-0">
+              {VIEW_ALL_LABEL[lang]}
+            </Link>
+          </div>
           <p className="mt-2 text-sm text-[var(--gray-400)]">{T.noEstimate[lang]}</p>
         </div>
       </section>
@@ -176,7 +186,12 @@ export function NextDividendIntelligence({
   return (
     <section id="next-dividend-intelligence" className="mx-auto max-w-4xl px-4 sm:px-6 mt-6 scroll-mt-4">
       <div className="border border-[var(--gray-200)] rounded-2xl p-4 sm:p-5">
-        <h2 className="text-lg font-bold">{T.heading[lang]}</h2>
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="text-lg font-bold">{T.heading[lang]}</h2>
+          <Link href={`${basePath}/next-dividend`} className="text-xs font-semibold text-[#92400e] hover:underline shrink-0">
+            {VIEW_ALL_LABEL[lang]}
+          </Link>
+        </div>
         {directAnswer && <p className="mt-1.5 text-sm text-[var(--gray-600)]">{directAnswer}</p>}
 
         {/* Forecast vs. official — auto-transition (§8). Shown first when

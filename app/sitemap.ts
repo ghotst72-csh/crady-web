@@ -207,6 +207,32 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8,
     },
     {
+      url: "https://crady.net/next-dividend",
+      lastModified: mostRecentCalculatedAt ?? undefined,
+      changeFrequency: "daily",
+      priority: 0.9,
+      alternates: {
+        languages: {
+          en: "https://crady.net/next-dividend",
+          ko: "https://crady.net/ko/next-dividend",
+          "x-default": "https://crady.net/next-dividend",
+        },
+      },
+    },
+    {
+      url: "https://crady.net/ko/next-dividend",
+      lastModified: mostRecentCalculatedAt ?? undefined,
+      changeFrequency: "daily",
+      priority: 0.9,
+      alternates: {
+        languages: {
+          en: "https://crady.net/next-dividend",
+          ko: "https://crady.net/ko/next-dividend",
+          "x-default": "https://crady.net/next-dividend",
+        },
+      },
+    },
+    {
       url: "https://crady.net/weekly-intelligence",
       lastModified: mostRecentCalculatedAt ?? undefined,
       changeFrequency: "daily",

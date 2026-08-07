@@ -65,6 +65,8 @@ describe("POST /api/revalidate", () => {
     expect(calledPaths).toContain("/ko/distributions");
     expect(calledPaths).toContain("/weekly-intelligence");
     expect(calledPaths).toContain("/monthly-intelligence");
+    expect(calledPaths).toContain("/next-dividend");
+    expect(calledPaths).toContain("/ko/next-dividend");
     expect(calledPaths).toContain("/sitemap.xml");
     expect(calledPaths).toContain("/tsly");
     expect(calledPaths).toContain("/ko/tsly");

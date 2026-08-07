@@ -534,7 +534,7 @@ export default async function KoreanTickerPage({
 
       {/* CRADY Engagement & Intelligence Phase 2, Part A — see the English
           ticker page for the full rationale on placement. */}
-      <NextDividendIntelligence data={nextDividendIntelligenceData} directAnswer={nextDividendDirectAnswer} lang="ko" />
+      <NextDividendIntelligence data={nextDividendIntelligenceData} directAnswer={nextDividendDirectAnswer} lang="ko" basePath="/ko" />
 
       {/* CRADY Intelligence 4.0 — see the English ticker page for the full
           rationale; mirrored 1:1 here. */}

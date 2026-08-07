@@ -91,12 +91,12 @@ export function Header({
               overflows a phone-width header, so mobile gets a hamburger
               menu (MobileNav) with the same items instead (Issue 2, CRADY
               Mobile UX Final Polish report). */}
-          <nav className="hidden sm:flex items-center gap-4 text-sm min-w-0">
+          <nav className="hidden sm:flex items-center gap-1.5 lg:gap-2.5 text-sm min-w-0">
             {nav.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="px-2 py-1.5 rounded-md text-[var(--gray-600)] hover:text-black hover:bg-[var(--gray-100)] transition-colors whitespace-nowrap"
+                className="px-1.5 py-1.5 rounded-md text-[var(--gray-600)] hover:text-black hover:bg-[var(--gray-100)] transition-colors whitespace-nowrap"
               >
                 {item.label}
               </Link>
@@ -114,7 +114,7 @@ export function Header({
           <div className="hidden sm:block shrink-0">
             <LanguageSwitcher lang={lang} />
           </div>
-          <div className="hidden sm:block w-[225px] shrink-0">
+          <div className="hidden sm:block w-[190px] lg:w-[210px] shrink-0">
             <TickerSearch index={searchIndex} lang={lang} basePath={basePath} />
           </div>
           <div className="hidden sm:block shrink-0">

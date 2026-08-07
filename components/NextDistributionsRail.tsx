@@ -44,7 +44,7 @@ export function NextDistributionsRail({
           <p className="text-xs text-[var(--gray-500)] mt-0.5">{T.sub[lang]}</p>
         </div>
         <Link
-          href={`${basePath}/ranking`}
+          href={`${basePath}/next-dividend`}
           className="text-sm text-[var(--gray-500)] hover:text-black shrink-0"
         >
           {T.more[lang]}

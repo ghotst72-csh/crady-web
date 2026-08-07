@@ -550,7 +550,7 @@ export default async function TickerPage({
       {/* CRADY Engagement & Intelligence Phase 2, Part A — placed directly
           under the Hero, before Activity/Magazine content, per the spec's
           own placement priority. */}
-      <NextDividendIntelligence data={nextDividendIntelligenceData} directAnswer={nextDividendDirectAnswer} lang="en" />
+      <NextDividendIntelligence data={nextDividendIntelligenceData} directAnswer={nextDividendDirectAnswer} lang="en" basePath="" />
 
       {/* CRADY Intelligence 4.0 — "why" explanations for every number
           already on the page above. Rule-based only, every section
