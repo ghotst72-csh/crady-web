@@ -71,7 +71,7 @@ export function DividendPriceChart({
   const hasPrice = closes.length >= 2;
 
   return (
-    <div id="dividends" className="mt-8 scroll-mt-24">
+    <div>
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <h2 className="text-lg font-bold">{T.title[lang]}</h2>
         <div className="inline-flex rounded-lg border border-[var(--gray-200)] p-0.5 text-xs font-semibold">

@@ -17,7 +17,7 @@ import {
   computeRunRateAnnualYieldPct,
   providerLabel,
 } from "@/lib/data";
-import { buildPriceSummary, buildDividendPriceComparison } from "@/lib/ticker/priceSummary";
+import { buildPriceSummary } from "@/lib/ticker/priceSummary";
 import { computeYieldPercentile } from "@/lib/ticker/yieldContext";
 import {
   getFullNextPrediction,
@@ -29,12 +29,18 @@ import { NextDividendIntelligence } from "@/components/ticker/NextDividendIntell
 import { buildNextDividendDirectAnswer } from "@/lib/ticker/nextDividendNarrative";
 import { RESERVED_PATHS } from "@/lib/reserved";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
-import { TickerSubNav } from "@/components/ticker/TickerSubNav";
+import { EtfIdentityHeader } from "@/components/etf/EtfIdentityHeader";
+import { EtfWorkspaceTabs } from "@/components/etf/EtfWorkspaceTabs";
+import { CommunityPreview } from "@/components/etf/CommunityPreview";
+import { CommunityPredictionConsensus } from "@/components/etf/CommunityPredictionConsensus";
 import { DividendStagePill } from "@/components/DividendLifecycle";
 import { EtfAppCta } from "@/components/EtfAppCta";
 import { EtfHero } from "@/components/EtfHero";
 import { DividendPriceChart } from "@/components/ticker/DividendPriceChart";
 import { PredictionTrackRecord } from "@/components/ticker/PredictionTrackRecord";
+import { EtfSummaryMetrics } from "@/components/ticker/EtfSummaryMetrics";
+import { DistributionStatsPanel } from "@/components/ticker/DistributionStatsPanel";
+import { computeAllTimeDistributionStats } from "@/lib/ticker/distributionStats";
 import { articleSlug } from "@/lib/magazine/recipes";
 import { pickComparisonPeerTicker, pickComparisonPeerTickers } from "@/lib/magazine/comparison";
 import { getComparisonPeersData } from "@/lib/magazine/data";
@@ -181,6 +187,7 @@ export default async function KoreanTickerPage({
     distributions,
     recentDistributions,
     yearOfDistributions,
+    allDistributions,
     rawPrediction,
     siblings,
     allTickers,
@@ -202,6 +209,9 @@ export default async function KoreanTickerPage({
     getDistributions(ticker, 12),
     getDistributionsSince(ticker, 90),
     getDistributionsSince(ticker, 395),
+    // CRADY Phase 3 — see the English ticker page for the full rationale;
+    // mirrored 1:1 with lang="ko".
+    getDistributionsSince(ticker, 2000),
     getNextPrediction(ticker),
     getSameProviderEtfs(etf.provider_id, ticker),
     getAllTickers(),
@@ -213,7 +223,14 @@ export default async function KoreanTickerPage({
     getRecentDeclaredDistributions(ticker, 12),
     getEvaluatedPredictionHistory(ticker, 20),
   ]);
-  const trend12mo = computeDividendTrend(yearOfDistributions).find((w) => w.days === 365) ?? null;
+  const dividendTrendWindows = computeDividendTrend(yearOfDistributions);
+  const trend12mo = dividendTrendWindows.find((w) => w.days === 365) ?? null;
+  const window3m = dividendTrendWindows.find((w) => w.days === 90)!;
+  const window6m = dividendTrendWindows.find((w) => w.days === 180)!;
+  const window12m = dividendTrendWindows.find((w) => w.days === 365)!;
+  const allTimeStats = computeAllTimeDistributionStats(
+    allDistributions.map((d) => ({ pay_date: d.pay_date, amount: d.amount }))
+  );
 
   // Intelligence 4.0 — real underlying-stock volatility, fetched only when
   // this ETF actually tracks one (risk.underlying_ticker).
@@ -242,7 +259,6 @@ export default async function KoreanTickerPage({
   // ETF Detail Page v3 — Investor Dashboard Redesign. See the English
   // ticker page for the full rationale; mirrored 1:1 with lang="ko".
   const priceSummary = buildPriceSummary(history);
-  const dividendPriceComparison = buildDividendPriceComparison(history, recentDistributions);
   const yieldContext = computeYieldPercentile(
     annualYieldPct,
     homeSnapshot.map((s) => s.annualYieldPct),
@@ -262,18 +278,6 @@ export default async function KoreanTickerPage({
   // rationale on every addition below; mirrored 1:1 with lang="ko".
   const similarEtfTickers = pickComparisonPeerTickers(ticker, etf.provider_id, allTickers, 4);
   const similarEtfs = similarEtfTickers.length > 0 ? await getComparisonPeersData(similarEtfTickers) : [];
-
-  // ETF Detail Page v3 — Hero Quick Links (requirement #10). See the
-  // English ticker page for the full rationale; mirrored 1:1.
-  const heroQuickLinks = [
-    { href: "#next-dividend-intelligence", label: "다음 배당 인텔리전스" },
-    { href: "#dividends", label: "배당 & 가격 이력" },
-    { href: "#dividend-history", label: "배당 이력" },
-    similarEtfs.length > 0 ? { href: "#similar-etfs", label: "유사 ETF 비교" } : null,
-    { href: "#ai-outlook", label: "AI 전망" },
-    { href: "#etf-activity", label: "활동" },
-    { href: `/ko/portfolio?ticker=${ticker}`, label: "내 보유 ETF 분석하기" },
-  ].filter((l): l is { href: string; label: string } => l != null);
 
   const enrichmentInput: EnrichmentInput = {
     ticker,
@@ -339,8 +343,8 @@ export default async function KoreanTickerPage({
     lang: "ko",
     underlyingVolatility30d: underlyingMomentum?.volatility_30d ?? null,
   });
-  // Phase 2 — see the English ticker page for the full rationale; mirrored
-  // 1:1 with lang="ko".
+  // Phase 2/3 — see the English ticker page for the full rationale;
+  // mirrored 1:1 with lang="ko".
   const heroAmount = nextDividendIntelligenceData.isOfficial
     ? nextDividendIntelligenceData.officialAmount
     : nextDividendIntelligenceData.pointEstimate;
@@ -358,7 +362,7 @@ export default async function KoreanTickerPage({
             nextDividendIntelligenceData.previousAmount != null && nextDividendIntelligenceData.previousAmount > 0
               ? ((heroAmount - nextDividendIntelligenceData.previousAmount) / nextDividendIntelligenceData.previousAmount) * 100
               : null,
-          whyHref: "#next-dividend-intelligence",
+          whyTab: "next-dividend",
         }
       : null;
 
@@ -498,6 +502,8 @@ export default async function KoreanTickerPage({
     inLanguage: "ko",
   });
 
+  const distributions12mTotal = window12m.avg != null ? window12m.avg * window12m.count : null;
+
   return (
     <div className="pb-10">
       <BreadcrumbJsonLd
@@ -521,342 +527,428 @@ export default async function KoreanTickerPage({
         />
       )}
 
-      <TickerSubNav lang="ko" />
-
-      <div id="overview" className="scroll-mt-24" />
-      <EtfHero
+      {/* CRADY Phase 3 — see the English ticker page for the full
+          rationale; mirrored 1:1 with lang="ko". */}
+      <EtfIdentityHeader
         ticker={ticker}
         name={etf.name}
         providerId={etf.provider_id}
         category={isKnown(etf.category) ? etf.category : null}
         riskLevel={risk?.risk_level ?? null}
         updatedAt={risk?.calculated_at ?? null}
-        yieldPct={annualYieldPct}
-        cradyScore={risk?.crady_score ?? null}
-        dividendStabilityScore={risk?.dividend_stability_score ?? null}
-        payoutFrequency={etf.payout_frequency}
-        latestDividend={
-          latestPaidDistribution?.amount != null
-            ? { amount: latestPaidDistribution.amount, payDate: latestPaidDistribution.pay_date }
-            : null
-        }
-        prediction={
-          prediction
-            ? {
-                targetPayDate: prediction.target_pay_date,
-                targetExDate: prediction.target_ex_date,
-                predictedAmount: prediction.predicted_amount,
-                confidenceScore: prediction.confidence_score,
-              }
-            : null
-        }
-        changeFromLastPct={changeFromLastPct}
-        nextDividend={nextDividendHero}
-        recentPayments={distributions.slice(0, 3).map((d) => ({ amount: d.amount, payDate: d.pay_date }))}
-        trend12mo={trend12mo}
-        directAnswer={directAnswer}
-        priceSummary={priceSummary}
-        dividendPriceComparison={dividendPriceComparison}
-        yieldContext={yieldContext}
-        quickLinks={heroQuickLinks}
+        currentPrice={priceSummary.currentPrice}
+        todayChangePct={priceSummary.todayChangePct}
         lang="ko"
       />
 
-      {/* CRADY Engagement & Intelligence Phase 2, Part A — see the English
-          ticker page for the full rationale on placement. */}
-      <NextDividendIntelligence data={nextDividendIntelligenceData} directAnswer={nextDividendDirectAnswer} lang="ko" basePath="/ko" />
+      <div id="etf-workspace" className="mt-4 scroll-mt-14">
+        <EtfWorkspaceTabs lang="ko" />
 
-      {/* Phase 2 — see the English ticker page for the full rationale;
-          mirrored 1:1 with lang="ko". */}
-      <div className="mx-auto max-w-4xl px-4 sm:px-6">
-        <DividendPriceChart
-          history={history}
-          distributions={yearOfDistributions.map((d) => ({ pay_date: d.pay_date, amount: d.amount }))}
-          latestDistribution={
-            latestPaidDistribution?.amount != null
-              ? { amount: latestPaidDistribution.amount, payDate: latestPaidDistribution.pay_date }
-              : null
-          }
-          annualYieldPct={annualYieldPct}
-          maxDrawdownPct={risk?.max_drawdown ?? null}
-          lang="ko"
-        />
+        {/* ================= 서머리 (기본 탭) ================= */}
+        <div id="etf-tab-summary">
+          <div className="mx-auto max-w-4xl px-4 sm:px-6 pt-5">
+            <EtfHero
+              yieldPct={annualYieldPct}
+              latestDividend={
+                latestPaidDistribution?.amount != null
+                  ? { amount: latestPaidDistribution.amount, payDate: latestPaidDistribution.pay_date }
+                  : null
+              }
+              prediction={
+                prediction
+                  ? {
+                      targetPayDate: prediction.target_pay_date,
+                      targetExDate: prediction.target_ex_date,
+                      predictedAmount: prediction.predicted_amount,
+                      confidenceScore: prediction.confidence_score,
+                    }
+                  : null
+              }
+              changeFromLastPct={changeFromLastPct}
+              nextDividend={nextDividendHero}
+              directAnswer={directAnswer}
+              priceSummary={priceSummary}
+              yieldContext={yieldContext}
+              lang="ko"
+            />
 
-        <PredictionTrackRecord
-          trackRecord={nextDividendIntelligenceData.trackRecord}
-          rows={evaluatedPredictionHistory}
-          lang="ko"
-          basePath="/ko"
-        />
-      </div>
+            <Suspense fallback={null}>
+              <TodaysActivitySummarySection ticker={ticker} lang="ko" priceHistory={history} />
+            </Suspense>
 
-      {/* CRADY Intelligence 4.0 — see the English ticker page for the full
-          rationale; mirrored 1:1 here. */}
-      <section id="etf-intelligence" className="mx-auto max-w-4xl px-4 sm:px-6 mt-6 space-y-4 scroll-mt-24">
-        <AiDailySummary sentences={aiSummarySentences} lang="ko" />
-        <div className="grid sm:grid-cols-2 gap-4">
-          <YieldExplainer explanation={yieldExplanation} lang="ko" />
-          <RiskExplainer context={riskContext} lang="ko" />
+            <div className="mt-8">
+              <DividendPriceChart
+                history={history}
+                distributions={yearOfDistributions.map((d) => ({ pay_date: d.pay_date, amount: d.amount }))}
+                latestDistribution={
+                  latestPaidDistribution?.amount != null
+                    ? { amount: latestPaidDistribution.amount, payDate: latestPaidDistribution.pay_date }
+                    : null
+                }
+                annualYieldPct={annualYieldPct}
+                maxDrawdownPct={risk?.max_drawdown ?? null}
+                lang="ko"
+              />
+            </div>
+
+            <div className="mt-8">
+              <EtfSummaryMetrics
+                annualYieldPct={annualYieldPct}
+                distributions12mTotal={distributions12mTotal}
+                payoutFrequency={etf.payout_frequency}
+                cradyScore={risk?.crady_score ?? null}
+                dividendStabilityScore={risk?.dividend_stability_score ?? null}
+                riskLevel={risk?.risk_level ?? null}
+                lang="ko"
+              />
+            </div>
+
+            <div className="mt-8">
+              <div className="flex items-baseline justify-between">
+                <h2 className="text-sm font-bold text-[var(--gray-600)]">최근 분배금</h2>
+                <button type="button" data-etf-tab-link="history" className="text-xs font-semibold text-[#92400e] hover:underline">
+                  전체 이력 보기 →
+                </button>
+              </div>
+              <div className="mt-2 divide-y divide-[var(--gray-100)] border border-[var(--gray-200)] rounded-xl overflow-hidden">
+                {distributions.slice(0, 3).map((d, i) => (
+                  <div key={`${d.ex_date}-${i}`} className="flex items-center justify-between px-4 py-2.5 text-sm">
+                    <span className="text-[var(--gray-600)]">{d.pay_date}</span>
+                    <span className="font-semibold tabular-nums">{d.amount != null ? `$${d.amount.toFixed(4)}` : "예정"}</span>
+                  </div>
+                ))}
+                {distributions.length === 0 && (
+                  <div className="px-4 py-4 text-center text-sm text-[var(--gray-400)]">배당 내역 없음</div>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-8">
+              <Suspense fallback={null}>
+                <CommunityPreview ticker={ticker} lang="ko" />
+              </Suspense>
+            </div>
+
+            <ProfileSnippet text={profileSnippetText} />
+          </div>
         </div>
-        <ScoreBreakdown breakdown={scoreBreakdown} lang="ko" />
-        <div className="grid sm:grid-cols-2 gap-4">
-          <EtfDnaCard traits={dnaTraits} lang="ko" />
-          <ScenarioCards scenarios={scenarios} lang="ko" />
+
+        {/* ================= 다음 배당 ================= */}
+        <div id="etf-tab-next-dividend" className="hidden">
+          <NextDividendIntelligence data={nextDividendIntelligenceData} directAnswer={nextDividendDirectAnswer} lang="ko" basePath="/ko" />
+
+          <div className="mx-auto max-w-4xl px-4 sm:px-6">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <ScenarioCards scenarios={scenarios} lang="ko" />
+              <EtfLifecycleTimeline stage={lifecycleStage} lang="ko" />
+            </div>
+
+            <PredictionTrackRecord
+              trackRecord={nextDividendIntelligenceData.trackRecord}
+              rows={evaluatedPredictionHistory}
+              lang="ko"
+              basePath="/ko"
+            />
+
+            <OfficialDistributionBlock official={officialDistribution} predictionComparison={null} lang="ko" />
+          </div>
         </div>
-        <EtfLifecycleTimeline stage={lifecycleStage} lang="ko" />
-        <ForecastHistoryTimeline rows={evaluatedPredictionHistory} lang="ko" />
-      </section>
 
-      <div className="mx-auto max-w-4xl px-4 sm:px-6">
-        <Suspense fallback={null}>
-          <TodaysActivitySummarySection ticker={ticker} lang="ko" priceHistory={history} />
-        </Suspense>
-        <ProfileSnippet text={profileSnippetText} />
-      </div>
+        {/* ================= 히스토리 ================= */}
+        <div id="etf-tab-history" className="hidden">
+          <div className="mx-auto max-w-4xl px-4 sm:px-6 pt-5">
+            <DividendPriceChart
+              history={history}
+              distributions={allDistributions.map((d) => ({ pay_date: d.pay_date, amount: d.amount }))}
+              latestDistribution={
+                latestPaidDistribution?.amount != null
+                  ? { amount: latestPaidDistribution.amount, payDate: latestPaidDistribution.pay_date }
+                  : null
+              }
+              annualYieldPct={annualYieldPct}
+              maxDrawdownPct={risk?.max_drawdown ?? null}
+              lang="ko"
+            />
 
-      {/* ETF Activity — see app/(en)/[ticker]/page.tsx for the full
-          rationale on why this sits here instead of at the bottom, and for
-          why the two static anchor divs live in this synchronous shell
-          rather than on the streamed sections themselves. */}
-      <div className="mx-auto max-w-4xl px-4 sm:px-6">
-        <div id="etf-activity" className="scroll-mt-24" />
-        <Suspense fallback={null}>
-          <ActivitySection
-            ticker={ticker}
-            lang="ko"
-            providerId={etf.provider_id}
-            priceHistory={history}
-            risk={risk}
-            annualYieldPct={annualYieldPct}
-            dividendTrendPct={trend12mo?.avgChangePct ?? null}
-            latestPaidDistribution={
-              latestPaidDistribution?.amount != null
-                ? { amount: latestPaidDistribution.amount, payDate: latestPaidDistribution.pay_date }
-                : null
-            }
-            prediction={
-              prediction
-                ? {
-                    targetPayDate: prediction.target_pay_date,
-                    targetExDate: prediction.target_ex_date,
-                    predictedAmount: prediction.predicted_amount,
-                    confidenceScore: prediction.confidence_score,
-                    predictionMethod: prediction.prediction_method,
-                  }
-                : null
-            }
-          />
-        </Suspense>
-        <div id="investor-discussion" className="scroll-mt-4" />
-        <Suspense fallback={null}>
-          <InvestorDiscussionSection
-            ticker={ticker}
-            lang="ko"
-            annualYieldPct={annualYieldPct}
-            riskLevel={risk?.risk_level ?? null}
-            dividendTrendPct={trend12mo?.avgChangePct ?? null}
-            payoutFrequency={etf.payout_frequency}
-            nextPredictedExDate={prediction?.target_ex_date ?? null}
-          />
-        </Suspense>
-      </div>
+            <div className="mt-8">
+              <DistributionStatsPanel window3m={window3m} window6m={window6m} window12m={window12m} allTime={allTimeStats} lang="ko" />
+            </div>
 
-      <div className="mx-auto max-w-4xl px-4 sm:px-6 mt-8">
-        {/* predictionComparison omitted here — see the English ticker page
-            for the full rationale (now shown once, in Prediction Track
-            Record above, instead of twice). */}
-        <OfficialDistributionBlock official={officialDistribution} predictionComparison={null} lang="ko" />
-
-        <div id="dividend-history" className="mt-8 scroll-mt-24">
-          <h2 className="text-lg font-bold mb-3">최근 배당 이력</h2>
-          <div className="border border-[var(--gray-200)] rounded-xl overflow-hidden">
-            <div className="max-h-[420px] overflow-y-auto overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="sticky top-0 z-10 bg-[var(--gray-50)] text-[var(--gray-500)]">
-                  <tr>
-                    <th className="text-left px-4 py-2.5 font-medium">기준일</th>
-                    <th className="text-left px-4 py-2.5 font-medium">지급일</th>
-                    <th className="text-right px-4 py-2.5 font-medium">배당금</th>
-                    <th className="text-right px-4 py-2.5 font-medium">상태</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--gray-100)]">
-                  {distributions.map((d, i) => {
-                    const prior = distributions[i + 1]?.amount ?? null;
-                    const delta = d.amount != null && prior != null ? d.amount - prior : null;
-                    return (
-                      <tr
-                        key={`${d.ex_date}-${i}`}
-                        className={`hover:bg-[var(--gray-100)]/60 transition-colors ${i % 2 === 1 ? "bg-[var(--gray-50)]/50" : ""}`}
-                      >
-                        <td className="px-4 py-2.5 text-[var(--gray-600)]">{d.ex_date}</td>
-                        <td className="px-4 py-2.5 text-[var(--gray-600)]">{d.pay_date}</td>
-                        <td className="px-4 py-2.5 text-right font-semibold tabular-nums">
-                          <span
-                            className={
-                              delta != null && delta > 0
-                                ? "text-emerald-700"
-                                : delta != null && delta < 0
-                                  ? "text-red-700"
-                                  : ""
-                            }
-                          >
-                            {d.amount != null ? `$${d.amount.toFixed(4)}` : "예정"}
-                            {delta != null && delta !== 0 && (
-                              <span className="ml-1 text-xs">{delta > 0 ? "▲" : "▼"}</span>
-                            )}
-                          </span>
-                        </td>
-                        <td className="px-4 py-2.5 text-right">
-                          <DividendStagePill exDate={d.ex_date} payDate={d.pay_date} lang="ko" />
-                        </td>
+            <div className="mt-8">
+              <h2 className="text-lg font-bold mb-3">전체 배당 이력</h2>
+              <div className="border border-[var(--gray-200)] rounded-xl overflow-hidden">
+                <div className="max-h-[520px] overflow-y-auto overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 z-10 bg-[var(--gray-50)] text-[var(--gray-500)]">
+                      <tr>
+                        <th className="text-left px-4 py-2.5 font-medium">기준일</th>
+                        <th className="text-left px-4 py-2.5 font-medium">지급일</th>
+                        <th className="text-right px-4 py-2.5 font-medium">배당금</th>
+                        <th className="text-right px-4 py-2.5 font-medium">상태</th>
                       </tr>
-                    );
-                  })}
-                  {distributions.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="px-4 py-4 text-center text-[var(--gray-400)]">
-                        배당 내역 없음
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--gray-100)]">
+                      {allDistributions.map((d, i) => {
+                        const prior = allDistributions[i + 1]?.amount ?? null;
+                        const delta = d.amount != null && prior != null ? d.amount - prior : null;
+                        return (
+                          <tr
+                            key={`${d.ex_date}-${i}`}
+                            className={`hover:bg-[var(--gray-100)]/60 transition-colors ${i % 2 === 1 ? "bg-[var(--gray-50)]/50" : ""}`}
+                          >
+                            <td className="px-4 py-2.5 text-[var(--gray-600)]">{d.ex_date}</td>
+                            <td className="px-4 py-2.5 text-[var(--gray-600)]">{d.pay_date}</td>
+                            <td className="px-4 py-2.5 text-right font-semibold tabular-nums">
+                              <span
+                                className={
+                                  delta != null && delta > 0
+                                    ? "text-emerald-700"
+                                    : delta != null && delta < 0
+                                      ? "text-red-700"
+                                      : ""
+                                }
+                              >
+                                {d.amount != null ? `$${d.amount.toFixed(4)}` : "예정"}
+                                {delta != null && delta !== 0 && (
+                                  <span className="ml-1 text-xs">{delta > 0 ? "▲" : "▼"}</span>
+                                )}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2.5 text-right">
+                              <DividendStagePill exDate={d.ex_date} payDate={d.pay_date} lang="ko" />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {allDistributions.length === 0 && (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-4 text-center text-[var(--gray-400)]">
+                            배당 내역 없음
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="mt-8">
-          <h2 className="text-lg font-bold mb-3">운용사</h2>
-          <div className="border border-[var(--gray-200)] rounded-xl p-4">
-            <div className="font-semibold">{providerLabel(etf.provider_id)}</div>
-            {siblings.length > 0 && (
-              <>
-                <div className="text-xs text-[var(--gray-500)] mt-3 mb-2">
-                  {providerLabel(etf.provider_id)}의 다른 ETF
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {siblings.map((s) => (
-                    <Link
-                      key={s.ticker}
-                      href={`/ko/${s.ticker.toLowerCase()}`}
-                      className="px-3 py-1.5 border border-[var(--gray-200)] rounded-full text-sm hover:border-black transition-colors"
-                    >
-                      {s.ticker}
-                    </Link>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="mt-8">
-          <h2 className="text-lg font-bold mb-3">기본 정보</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <DetailField
-              label="배당 주기"
-              value={isKnown(etf.payout_frequency) ? etf.payout_frequency! : "—"}
-            />
-            <DetailField label="카테고리" value={isKnown(etf.category) ? etf.category! : "—"} />
-            <DetailField
-              label="운용 보수"
-              value={isKnown(etf.expense_ratio) ? etf.expense_ratio! : "—"}
-            />
-            <DetailField label="AUM" value={isKnown(etf.aum) ? etf.aum! : "—"} />
-            {isKnown(etf.inception_date) && <DetailField label="상장일" value={etf.inception_date!} />}
-            {etf.holdings_count != null && <DetailField label="보유 종목 수" value={String(etf.holdings_count)} />}
+        {/* ================= 분석 도구 ================= */}
+        <div id="etf-tab-analysis" className="hidden">
+          <div className="mx-auto max-w-4xl px-4 sm:px-6 pt-5 space-y-4">
+            <AiDailySummary sentences={aiSummarySentences} lang="ko" />
+            <div className="grid sm:grid-cols-2 gap-4">
+              <YieldExplainer explanation={yieldExplanation} lang="ko" />
+              <RiskExplainer context={riskContext} lang="ko" />
+            </div>
+            <ScoreBreakdown breakdown={scoreBreakdown} lang="ko" />
+            <EtfDnaCard traits={dnaTraits} lang="ko" />
+            <ForecastHistoryTimeline rows={evaluatedPredictionHistory} lang="ko" />
           </div>
 
-          {(etf.investment_strategy || etf.long_description || etf.short_description) && (
-            <div className="mt-4 border border-[var(--gray-200)] rounded-xl p-4">
-              <div className="text-xs font-semibold text-[var(--gray-500)] mb-1">운용 전략</div>
-              <p className="text-[var(--gray-700)] text-sm leading-relaxed whitespace-pre-line">
-                {etf.investment_strategy || etf.long_description || etf.short_description}
-              </p>
-              {etf.benchmark && (
-                <p className="text-sm text-[var(--gray-500)] mt-2">
-                  기초자산 / 벤치마크: {etf.benchmark}
-                </p>
+          <div className="mx-auto max-w-4xl px-4 sm:px-6 mt-8">
+            <div>
+              <h2 className="text-lg font-bold mb-3">운용사</h2>
+              <div className="border border-[var(--gray-200)] rounded-xl p-4">
+                <div className="font-semibold">{providerLabel(etf.provider_id)}</div>
+                {siblings.length > 0 && (
+                  <>
+                    <div className="text-xs text-[var(--gray-500)] mt-3 mb-2">
+                      {providerLabel(etf.provider_id)}의 다른 ETF
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {siblings.map((s) => (
+                        <Link
+                          key={s.ticker}
+                          href={`/ko/${s.ticker.toLowerCase()}`}
+                          className="px-3 py-1.5 border border-[var(--gray-200)] rounded-full text-sm hover:border-black transition-colors"
+                        >
+                          {s.ticker}
+                        </Link>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-8">
+              <h2 className="text-lg font-bold mb-3">기본 정보</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <DetailField
+                  label="배당 주기"
+                  value={isKnown(etf.payout_frequency) ? etf.payout_frequency! : "—"}
+                />
+                <DetailField label="카테고리" value={isKnown(etf.category) ? etf.category! : "—"} />
+                <DetailField
+                  label="운용 보수"
+                  value={isKnown(etf.expense_ratio) ? etf.expense_ratio! : "—"}
+                />
+                <DetailField label="AUM" value={isKnown(etf.aum) ? etf.aum! : "—"} />
+                {isKnown(etf.inception_date) && <DetailField label="상장일" value={etf.inception_date!} />}
+                {etf.holdings_count != null && <DetailField label="보유 종목 수" value={String(etf.holdings_count)} />}
+              </div>
+
+              {(etf.investment_strategy || etf.long_description || etf.short_description) && (
+                <div className="mt-4 border border-[var(--gray-200)] rounded-xl p-4">
+                  <div className="text-xs font-semibold text-[var(--gray-500)] mb-1">운용 전략</div>
+                  <p className="text-[var(--gray-700)] text-sm leading-relaxed whitespace-pre-line">
+                    {etf.investment_strategy || etf.long_description || etf.short_description}
+                  </p>
+                  {etf.benchmark && (
+                    <p className="text-sm text-[var(--gray-500)] mt-2">
+                      기초자산 / 벤치마크: {etf.benchmark}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {regime?.description && (
+                <div className="mt-4 border border-[var(--gray-200)] rounded-xl p-4">
+                  <div className="text-xs font-semibold text-[var(--gray-500)] mb-1">
+                    시장 상태 분석
+                  </div>
+                  <p className="text-sm text-[var(--gray-700)]">{regime.description}</p>
+                </div>
+              )}
+
+              {isKnown(etf.source_url) && (
+                <div className="mt-4 border border-[var(--gray-200)] rounded-xl p-4">
+                  <div className="text-xs font-semibold text-[var(--gray-500)] mb-1">공식 운용사 자료</div>
+                  <a
+                    href={etf.source_url!}
+                    target="_blank"
+                    rel="noopener noreferrer nofollow"
+                    className="text-sm text-[#92400e] underline hover:text-black"
+                  >
+                    {ticker} 공식 펀드 페이지 →
+                  </a>
+                </div>
               )}
             </div>
-          )}
 
-          {regime?.description && (
-            <div className="mt-4 border border-[var(--gray-200)] rounded-xl p-4">
-              <div className="text-xs font-semibold text-[var(--gray-500)] mb-1">
-                시장 상태 분석
+            <div className="mt-8 space-y-6">
+              <div>
+                <h2 className="text-lg font-bold mb-2">{ticker}에 투자하는 이유</h2>
+                <p className="text-sm text-[var(--gray-700)] leading-relaxed">{whyInvestorsBuy}</p>
               </div>
-              <p className="text-sm text-[var(--gray-700)]">{regime.description}</p>
-            </div>
-          )}
 
-          {isKnown(etf.source_url) && (
-            <div className="mt-4 border border-[var(--gray-200)] rounded-xl p-4">
-              <div className="text-xs font-semibold text-[var(--gray-500)] mb-1">공식 운용사 자료</div>
-              <a
-                href={etf.source_url!}
-                target="_blank"
-                rel="noopener noreferrer nofollow"
-                className="text-sm text-[#92400e] underline hover:text-black"
-              >
-                {ticker} 공식 펀드 페이지 →
-              </a>
+              {biggestRisks && (
+                <div>
+                  <h2 className="text-lg font-bold mb-2">주요 리스크</h2>
+                  <p className="text-sm text-[var(--gray-700)] leading-relaxed">{biggestRisks}</p>
+                </div>
+              )}
+
+              {whoShouldAvoid && (
+                <div>
+                  <h2 className="text-lg font-bold mb-2">이런 투자자에게는 적합하지 않을 수 있습니다</h2>
+                  <p className="text-sm text-[var(--gray-700)] leading-relaxed">{whoShouldAvoid}</p>
+                </div>
+              )}
+
+              {historicalCharacteristics && (
+                <div>
+                  <h2 className="text-lg font-bold mb-2">과거 배당 특성</h2>
+                  <p className="text-sm text-[var(--gray-700)] leading-relaxed">{historicalCharacteristics}</p>
+                </div>
+              )}
+
+              {similarEtfs.length > 0 && (
+                <div>
+                  <h2 className="text-lg font-bold mb-3">유사 ETF</h2>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    {similarEtfs.map((peer) => (
+                      <EtfCard key={peer.ticker} data={comparisonPeerToCardData(peer)} compact lang="ko" />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {comparisonPeerTicker && (
+                <div>
+                  <h2 className="text-lg font-bold mb-2">자주 비교되는 ETF</h2>
+                  <Link
+                    href={`/magazine/${articleSlug(ticker, "comparison")}`}
+                    className="inline-flex px-3 py-1.5 border border-[var(--gray-200)] rounded-full text-sm hover:border-black transition-colors"
+                  >
+                    {ticker} vs {comparisonPeerTicker} — 전체 비교 보기 →
+                  </Link>
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
 
-        <div className="mt-8 space-y-6">
-          <div>
-            <h2 className="text-lg font-bold mb-2">{ticker}에 투자하는 이유</h2>
-            <p className="text-sm text-[var(--gray-700)] leading-relaxed">{whyInvestorsBuy}</p>
+        {/* ================= 커뮤니티 ================= */}
+        <div id="etf-tab-community" className="hidden">
+          <div className="mx-auto max-w-4xl px-4 sm:px-6 pt-5">
+            <CommunityPredictionConsensus
+              cradyPrediction={nextDividendHero ? { amount: nextDividendHero.amount, isOfficial: nextDividendHero.isOfficial } : null}
+              lang="ko"
+            />
           </div>
 
-          {biggestRisks && (
-            <div>
-              <h2 className="text-lg font-bold mb-2">주요 리스크</h2>
-              <p className="text-sm text-[var(--gray-700)] leading-relaxed">{biggestRisks}</p>
-            </div>
-          )}
-
-          {whoShouldAvoid && (
-            <div>
-              <h2 className="text-lg font-bold mb-2">이런 투자자에게는 적합하지 않을 수 있습니다</h2>
-              <p className="text-sm text-[var(--gray-700)] leading-relaxed">{whoShouldAvoid}</p>
-            </div>
-          )}
-
-          {historicalCharacteristics && (
-            <div>
-              <h2 className="text-lg font-bold mb-2">과거 배당 특성</h2>
-              <p className="text-sm text-[var(--gray-700)] leading-relaxed">{historicalCharacteristics}</p>
-            </div>
-          )}
-
-          {similarEtfs.length > 0 && (
-            <div id="similar-etfs" className="scroll-mt-4">
-              <h2 className="text-lg font-bold mb-3">유사 ETF</h2>
-              <div className="grid sm:grid-cols-2 gap-3">
-                {similarEtfs.map((peer) => (
-                  <EtfCard key={peer.ticker} data={comparisonPeerToCardData(peer)} compact lang="ko" />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {comparisonPeerTicker && (
-            <div>
-              <h2 className="text-lg font-bold mb-2">자주 비교되는 ETF</h2>
-              <Link
-                href={`/magazine/${articleSlug(ticker, "comparison")}`}
-                className="inline-flex px-3 py-1.5 border border-[var(--gray-200)] rounded-full text-sm hover:border-black transition-colors"
-              >
-                {ticker} vs {comparisonPeerTicker} — 전체 비교 보기 →
-              </Link>
-            </div>
-          )}
+          <div className="mx-auto max-w-4xl px-4 sm:px-6 mt-4">
+            <div id="etf-activity" className="scroll-mt-24" />
+            <Suspense fallback={null}>
+              <ActivitySection
+                ticker={ticker}
+                lang="ko"
+                providerId={etf.provider_id}
+                priceHistory={history}
+                risk={risk}
+                annualYieldPct={annualYieldPct}
+                dividendTrendPct={trend12mo?.avgChangePct ?? null}
+                latestPaidDistribution={
+                  latestPaidDistribution?.amount != null
+                    ? { amount: latestPaidDistribution.amount, payDate: latestPaidDistribution.pay_date }
+                    : null
+                }
+                prediction={
+                  prediction
+                    ? {
+                        targetPayDate: prediction.target_pay_date,
+                        targetExDate: prediction.target_ex_date,
+                        predictedAmount: prediction.predicted_amount,
+                        confidenceScore: prediction.confidence_score,
+                        predictionMethod: prediction.prediction_method,
+                      }
+                    : null
+                }
+              />
+            </Suspense>
+            <div id="investor-discussion" className="scroll-mt-4" />
+            <Suspense fallback={null}>
+              <InvestorDiscussionSection
+                ticker={ticker}
+                lang="ko"
+                annualYieldPct={annualYieldPct}
+                riskLevel={risk?.risk_level ?? null}
+                dividendTrendPct={trend12mo?.avgChangePct ?? null}
+                payoutFrequency={etf.payout_frequency}
+                nextPredictedExDate={prediction?.target_ex_date ?? null}
+              />
+            </Suspense>
+            <Suspense fallback={null}>
+              <ActivityWeeklyRecap
+                ticker={ticker}
+                lang="ko"
+                priceHistory={history}
+                recentDistributions={distributions.map((d) => ({ pay_date: d.pay_date, amount: d.amount }))}
+                nextPredictedExDate={prediction?.target_ex_date ?? null}
+                nextPredictedPayDate={prediction?.target_pay_date ?? null}
+              />
+            </Suspense>
+          </div>
         </div>
+      </div>
 
+      {/* Always visible, outside every tab — see the English ticker page
+          for the full rationale. */}
+      <div className="mx-auto max-w-4xl px-4 sm:px-6 mt-8">
         <ProfileFaq items={profileFaqItems} lang="ko" />
 
         {/* Deep-dive links into the Magazine system — Magazine is
@@ -865,9 +957,6 @@ export default async function KoreanTickerPage({
             from the Korean ticker page rather than being omitted. */}
         <div className="mt-8">
           <h2 className="text-lg font-bold mb-3">{ticker} 상세 분석</h2>
-          {/* Horizontally scrollable chip row on mobile (too many chips to
-              wrap cleanly in a narrow viewport without breaking the header
-              rhythm) — reverts to the original wrapping row at sm+. */}
           <div className="flex gap-2 overflow-x-auto sm:overflow-visible sm:flex-wrap pb-2 sm:pb-0 snap-x snap-mandatory sm:snap-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {MAGAZINE_TYPES.map((type) => (
               <Link
@@ -900,17 +989,6 @@ export default async function KoreanTickerPage({
             </Link>
           </div>
         </div>
-
-        <Suspense fallback={null}>
-          <ActivityWeeklyRecap
-            ticker={ticker}
-            lang="ko"
-            priceHistory={history}
-            recentDistributions={distributions.map((d) => ({ pay_date: d.pay_date, amount: d.amount }))}
-            nextPredictedExDate={prediction?.target_ex_date ?? null}
-            nextPredictedPayDate={prediction?.target_pay_date ?? null}
-          />
-        </Suspense>
 
         <RelatedContent
           lang="ko"

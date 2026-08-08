@@ -17,7 +17,7 @@ import {
   computeRunRateAnnualYieldPct,
   providerLabel,
 } from "@/lib/data";
-import { buildPriceSummary, buildDividendPriceComparison } from "@/lib/ticker/priceSummary";
+import { buildPriceSummary } from "@/lib/ticker/priceSummary";
 import { computeYieldPercentile } from "@/lib/ticker/yieldContext";
 import {
   getFullNextPrediction,
@@ -29,12 +29,18 @@ import { NextDividendIntelligence } from "@/components/ticker/NextDividendIntell
 import { buildNextDividendDirectAnswer } from "@/lib/ticker/nextDividendNarrative";
 import { RESERVED_PATHS } from "@/lib/reserved";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
-import { TickerSubNav } from "@/components/ticker/TickerSubNav";
+import { EtfIdentityHeader } from "@/components/etf/EtfIdentityHeader";
+import { EtfWorkspaceTabs } from "@/components/etf/EtfWorkspaceTabs";
+import { CommunityPreview } from "@/components/etf/CommunityPreview";
+import { CommunityPredictionConsensus } from "@/components/etf/CommunityPredictionConsensus";
 import { DividendStagePill } from "@/components/DividendLifecycle";
 import { EtfAppCta } from "@/components/EtfAppCta";
 import { EtfHero } from "@/components/EtfHero";
 import { DividendPriceChart } from "@/components/ticker/DividendPriceChart";
 import { PredictionTrackRecord } from "@/components/ticker/PredictionTrackRecord";
+import { EtfSummaryMetrics } from "@/components/ticker/EtfSummaryMetrics";
+import { DistributionStatsPanel } from "@/components/ticker/DistributionStatsPanel";
+import { computeAllTimeDistributionStats } from "@/lib/ticker/distributionStats";
 import { articleSlug } from "@/lib/magazine/recipes";
 import { pickComparisonPeerTicker, pickComparisonPeerTickers } from "@/lib/magazine/comparison";
 import { getComparisonPeersData } from "@/lib/magazine/data";
@@ -182,6 +188,7 @@ export default async function TickerPage({
     distributions,
     recentDistributions,
     yearOfDistributions,
+    allDistributions,
     rawPrediction,
     siblings,
     allTickers,
@@ -203,6 +210,12 @@ export default async function TickerPage({
     getDistributions(ticker, 12),
     getDistributionsSince(ticker, 90),
     getDistributionsSince(ticker, 395),
+    // CRADY Phase 3 — History tab's "ALL" stats + full table (spec §5):
+    // a generously long window (any currently-tracked ETF's real full
+    // history fits comfortably inside ~5.5 years), not a synthetic
+    // unbounded query. Same function as the other distributions fetches
+    // above, just a longer window.
+    getDistributionsSince(ticker, 2000),
     getNextPrediction(ticker),
     getSameProviderEtfs(etf.provider_id, ticker),
     getAllTickers(),
@@ -214,7 +227,14 @@ export default async function TickerPage({
     getRecentDeclaredDistributions(ticker, 12),
     getEvaluatedPredictionHistory(ticker, 20),
   ]);
-  const trend12mo = computeDividendTrend(yearOfDistributions).find((w) => w.days === 365) ?? null;
+  const dividendTrendWindows = computeDividendTrend(yearOfDistributions);
+  const trend12mo = dividendTrendWindows.find((w) => w.days === 365) ?? null;
+  const window3m = dividendTrendWindows.find((w) => w.days === 90)!;
+  const window6m = dividendTrendWindows.find((w) => w.days === 180)!;
+  const window12m = dividendTrendWindows.find((w) => w.days === 365)!;
+  const allTimeStats = computeAllTimeDistributionStats(
+    allDistributions.map((d) => ({ pay_date: d.pay_date, amount: d.amount }))
+  );
 
   // Intelligence 4.0 — real underlying-stock volatility, fetched only when
   // this ETF actually tracks one (risk.underlying_ticker). A follow-up
@@ -246,7 +266,6 @@ export default async function TickerPage({
   // from data already fetched above (history, recentDistributions,
   // homeSnapshot) — see lib/ticker/priceSummary.ts / lib/ticker/yieldContext.ts.
   const priceSummary = buildPriceSummary(history);
-  const dividendPriceComparison = buildDividendPriceComparison(history, recentDistributions);
   const yieldContext = computeYieldPercentile(
     annualYieldPct,
     homeSnapshot.map((s) => s.annualYieldPct),
@@ -269,20 +288,6 @@ export default async function TickerPage({
   // lib/magazine/data.ts) — no new query pattern.
   const similarEtfTickers = pickComparisonPeerTickers(ticker, etf.provider_id, allTickers, 4);
   const similarEtfs = similarEtfTickers.length > 0 ? await getComparisonPeersData(similarEtfTickers) : [];
-
-  // ETF Detail Page v3 — Hero Quick Links (requirement #10). Every
-  // destination is a real anchor id already (or newly) present further
-  // down this same page; a link is simply omitted when the section behind
-  // it wouldn't actually be rendered (e.g. no Similar ETFs peers).
-  const heroQuickLinks = [
-    { href: "#next-dividend-intelligence", label: "Next Dividend Intelligence" },
-    { href: "#dividends", label: "Dividend & Price History" },
-    { href: "#dividend-history", label: "Dividend History" },
-    similarEtfs.length > 0 ? { href: "#similar-etfs", label: "Compare Similar ETFs" } : null,
-    { href: "#ai-outlook", label: "AI Outlook" },
-    { href: "#etf-activity", label: "Activity" },
-    { href: `/portfolio?ticker=${ticker}`, label: "Analyze My Holdings" },
-  ].filter((l): l is { href: string; label: string } => l != null);
 
   const enrichmentInput: EnrichmentInput = {
     ticker,
@@ -349,9 +354,9 @@ export default async function TickerPage({
     lang: "en",
     underlyingVolatility30d: underlyingMomentum?.volatility_30d ?? null,
   });
-  // Phase 2 — Hero's "Next Dividend Prediction" reuses the exact same
-  // fields NextDividendIntelligence renders below it (never a second,
-  // independently-fetched prediction that could show a different number).
+  // Phase 2/3 — Summary's "Next Dividend Prediction" reuses the exact same
+  // fields the Next Dividend tab renders (never a second, independently-
+  // fetched prediction that could show a different number).
   const heroAmount = nextDividendIntelligenceData.isOfficial
     ? nextDividendIntelligenceData.officialAmount
     : nextDividendIntelligenceData.pointEstimate;
@@ -369,7 +374,7 @@ export default async function TickerPage({
             nextDividendIntelligenceData.previousAmount != null && nextDividendIntelligenceData.previousAmount > 0
               ? ((heroAmount - nextDividendIntelligenceData.previousAmount) / nextDividendIntelligenceData.previousAmount) * 100
               : null,
-          whyHref: "#next-dividend-intelligence",
+          whyTab: "next-dividend",
         }
       : null;
 
@@ -514,6 +519,8 @@ export default async function TickerPage({
     speakableSelectors: ["#profile-snippet"],
   });
 
+  const distributions12mTotal = window12m.avg != null ? window12m.avg * window12m.count : null;
+
   return (
     <div className="pb-10">
       <BreadcrumbJsonLd
@@ -537,379 +544,443 @@ export default async function TickerPage({
         />
       )}
 
-      <TickerSubNav lang="en" />
-
-      <div id="overview" className="scroll-mt-24" />
-      <EtfHero
+      {/* CRADY Phase 3 — persistent ETF identity, stable across every tab
+          switch (spec §1/§2). */}
+      <EtfIdentityHeader
         ticker={ticker}
         name={etf.name}
         providerId={etf.provider_id}
         category={isKnown(etf.category) ? etf.category : null}
         riskLevel={risk?.risk_level ?? null}
         updatedAt={risk?.calculated_at ?? null}
-        yieldPct={annualYieldPct}
-        cradyScore={risk?.crady_score ?? null}
-        dividendStabilityScore={risk?.dividend_stability_score ?? null}
-        payoutFrequency={etf.payout_frequency}
-        latestDividend={
-          latestPaidDistribution?.amount != null
-            ? { amount: latestPaidDistribution.amount, payDate: latestPaidDistribution.pay_date }
-            : null
-        }
-        prediction={
-          prediction
-            ? {
-                targetPayDate: prediction.target_pay_date,
-                targetExDate: prediction.target_ex_date,
-                predictedAmount: prediction.predicted_amount,
-                confidenceScore: prediction.confidence_score,
-              }
-            : null
-        }
-        changeFromLastPct={changeFromLastPct}
-        nextDividend={nextDividendHero}
-        recentPayments={distributions.slice(0, 3).map((d) => ({ amount: d.amount, payDate: d.pay_date }))}
-        trend12mo={trend12mo}
-        directAnswer={directAnswer}
-        priceSummary={priceSummary}
-        dividendPriceComparison={dividendPriceComparison}
-        yieldContext={yieldContext}
-        quickLinks={heroQuickLinks}
+        currentPrice={priceSummary.currentPrice}
+        todayChangePct={priceSummary.todayChangePct}
         lang="en"
       />
 
-      {/* CRADY Engagement & Intelligence Phase 2, Part A — placed directly
-          under the Hero, before Activity/Magazine content, per the spec's
-          own placement priority. */}
-      <NextDividendIntelligence data={nextDividendIntelligenceData} directAnswer={nextDividendDirectAnswer} lang="en" basePath="" />
+      <div id="etf-workspace" className="mt-4 scroll-mt-14">
+        <EtfWorkspaceTabs lang="en" />
 
-      {/* Phase 2 — the page's one major visualization (spec §4): real
-          price history and real distribution payments on a shared
-          timeline, so "what happened to the price while these dividends
-          were paid" reads visually before any table. Promoted directly
-          under the prediction explanation, well above the secondary
-          "why" explainers and fund-detail sections below. */}
-      <div className="mx-auto max-w-4xl px-4 sm:px-6">
-        <DividendPriceChart
-          history={history}
-          distributions={yearOfDistributions.map((d) => ({ pay_date: d.pay_date, amount: d.amount }))}
-          latestDistribution={
-            latestPaidDistribution?.amount != null
-              ? { amount: latestPaidDistribution.amount, payDate: latestPaidDistribution.pay_date }
-              : null
-          }
-          annualYieldPct={annualYieldPct}
-          maxDrawdownPct={risk?.max_drawdown ?? null}
-          lang="en"
-        />
+        {/* ================= SUMMARY (default tab) ================= */}
+        <div id="etf-tab-summary">
+          <div className="mx-auto max-w-4xl px-4 sm:px-6 pt-5">
+            <EtfHero
+              yieldPct={annualYieldPct}
+              latestDividend={
+                latestPaidDistribution?.amount != null
+                  ? { amount: latestPaidDistribution.amount, payDate: latestPaidDistribution.pay_date }
+                  : null
+              }
+              prediction={
+                prediction
+                  ? {
+                      targetPayDate: prediction.target_pay_date,
+                      targetExDate: prediction.target_ex_date,
+                      predictedAmount: prediction.predicted_amount,
+                      confidenceScore: prediction.confidence_score,
+                    }
+                  : null
+              }
+              changeFromLastPct={changeFromLastPct}
+              nextDividend={nextDividendHero}
+              directAnswer={directAnswer}
+              priceSummary={priceSummary}
+              yieldContext={yieldContext}
+              lang="en"
+            />
 
-        {/* Phase 2 §5 — "how close has CRADY been before" promoted out of
-            the accordion it used to live in, right after the visualization
-            it explains. */}
-        <PredictionTrackRecord
-          trackRecord={nextDividendIntelligenceData.trackRecord}
-          rows={evaluatedPredictionHistory}
-          lang="en"
-        />
-      </div>
+            <Suspense fallback={null}>
+              <TodaysActivitySummarySection ticker={ticker} lang="en" priceHistory={history} />
+            </Suspense>
 
-      {/* CRADY Intelligence 4.0 — "why" explanations for every number
-          already on the page above. Rule-based only, every section
-          honestly omits itself when its real inputs are missing. */}
-      <section id="etf-intelligence" className="mx-auto max-w-4xl px-4 sm:px-6 mt-6 space-y-4 scroll-mt-24">
-        <AiDailySummary sentences={aiSummarySentences} lang="en" />
-        <div className="grid sm:grid-cols-2 gap-4">
-          <YieldExplainer explanation={yieldExplanation} lang="en" />
-          <RiskExplainer context={riskContext} lang="en" />
+            <div className="mt-8">
+              <DividendPriceChart
+                history={history}
+                distributions={yearOfDistributions.map((d) => ({ pay_date: d.pay_date, amount: d.amount }))}
+                latestDistribution={
+                  latestPaidDistribution?.amount != null
+                    ? { amount: latestPaidDistribution.amount, payDate: latestPaidDistribution.pay_date }
+                    : null
+                }
+                annualYieldPct={annualYieldPct}
+                maxDrawdownPct={risk?.max_drawdown ?? null}
+                lang="en"
+              />
+            </div>
+
+            <div className="mt-8">
+              <EtfSummaryMetrics
+                annualYieldPct={annualYieldPct}
+                distributions12mTotal={distributions12mTotal}
+                payoutFrequency={etf.payout_frequency}
+                cradyScore={risk?.crady_score ?? null}
+                dividendStabilityScore={risk?.dividend_stability_score ?? null}
+                riskLevel={risk?.risk_level ?? null}
+                lang="en"
+              />
+            </div>
+
+            <div className="mt-8">
+              <div className="flex items-baseline justify-between">
+                <h2 className="text-sm font-bold text-[var(--gray-600)]">Recent Distributions</h2>
+                <button type="button" data-etf-tab-link="history" className="text-xs font-semibold text-[#92400e] hover:underline">
+                  View Full History →
+                </button>
+              </div>
+              <div className="mt-2 divide-y divide-[var(--gray-100)] border border-[var(--gray-200)] rounded-xl overflow-hidden">
+                {distributions.slice(0, 3).map((d, i) => (
+                  <div key={`${d.ex_date}-${i}`} className="flex items-center justify-between px-4 py-2.5 text-sm">
+                    <span className="text-[var(--gray-600)]">{d.pay_date}</span>
+                    <span className="font-semibold tabular-nums">{d.amount != null ? `$${d.amount.toFixed(4)}` : "TBD"}</span>
+                  </div>
+                ))}
+                {distributions.length === 0 && (
+                  <div className="px-4 py-4 text-center text-sm text-[var(--gray-400)]">No dividend history available</div>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-8">
+              <Suspense fallback={null}>
+                <CommunityPreview ticker={ticker} lang="en" />
+              </Suspense>
+            </div>
+
+            <ProfileSnippet text={profileSnippetText} />
+          </div>
         </div>
-        <ScoreBreakdown breakdown={scoreBreakdown} lang="en" />
-        <div className="grid sm:grid-cols-2 gap-4">
-          <EtfDnaCard traits={dnaTraits} lang="en" />
-          <ScenarioCards scenarios={scenarios} lang="en" />
+
+        {/* ================= NEXT DIVIDEND ================= */}
+        <div id="etf-tab-next-dividend" className="hidden">
+          <NextDividendIntelligence data={nextDividendIntelligenceData} directAnswer={nextDividendDirectAnswer} lang="en" basePath="" />
+
+          <div className="mx-auto max-w-4xl px-4 sm:px-6">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <ScenarioCards scenarios={scenarios} lang="en" />
+              <EtfLifecycleTimeline stage={lifecycleStage} lang="en" />
+            </div>
+
+            <PredictionTrackRecord
+              trackRecord={nextDividendIntelligenceData.trackRecord}
+              rows={evaluatedPredictionHistory}
+              lang="en"
+            />
+
+            <OfficialDistributionBlock official={officialDistribution} predictionComparison={null} lang="en" />
+          </div>
         </div>
-        <EtfLifecycleTimeline stage={lifecycleStage} lang="en" />
-        <ForecastHistoryTimeline rows={evaluatedPredictionHistory} lang="en" />
-      </section>
 
-      <div className="mx-auto max-w-4xl px-4 sm:px-6">
-        <Suspense fallback={null}>
-          <TodaysActivitySummarySection ticker={ticker} lang="en" priceHistory={history} />
-        </Suspense>
-        <ProfileSnippet text={profileSnippetText} />
-      </div>
+        {/* ================= HISTORY ================= */}
+        <div id="etf-tab-history" className="hidden">
+          <div className="mx-auto max-w-4xl px-4 sm:px-6 pt-5">
+            <DividendPriceChart
+              history={history}
+              distributions={allDistributions.map((d) => ({ pay_date: d.pay_date, amount: d.amount }))}
+              latestDistribution={
+                latestPaidDistribution?.amount != null
+                  ? { amount: latestPaidDistribution.amount, payDate: latestPaidDistribution.pay_date }
+                  : null
+              }
+              annualYieldPct={annualYieldPct}
+              maxDrawdownPct={risk?.max_drawdown ?? null}
+              lang="en"
+            />
 
-      {/* ETF Activity — inserted here (right after the Hero/snippet, well
-          before the rest of the page's existing financial content) rather
-          than appended at the bottom, per the product direction: investors
-          should notice this ETF has activity immediately, not after
-          scrolling through the whole page. Own Suspense boundary + own
-          Promise.all, fully separate from the fetch above — never blocks
-          Hero/Prediction from rendering first.
+            <div className="mt-8">
+              <DistributionStatsPanel window3m={window3m} window6m={window6m} window12m={window12m} allTime={allTimeStats} lang="en" />
+            </div>
 
-          The two static anchor divs (id + scroll-mt-4) live in this
-          synchronous shell rather than on the streamed sections themselves
-          — see the doc comment on ActivitySection in ActivitySection.tsx
-          for why: it's what keeps each anchor id unique in the DOM even
-          during Next.js's brief out-of-order-streaming swap window. */}
-      <div className="mx-auto max-w-4xl px-4 sm:px-6">
-        <div id="etf-activity" className="scroll-mt-24" />
-        <Suspense fallback={null}>
-          <ActivitySection
-            ticker={ticker}
-            lang="en"
-            providerId={etf.provider_id}
-            priceHistory={history}
-            risk={risk}
-            annualYieldPct={annualYieldPct}
-            dividendTrendPct={trend12mo?.avgChangePct ?? null}
-            latestPaidDistribution={
-              latestPaidDistribution?.amount != null
-                ? { amount: latestPaidDistribution.amount, payDate: latestPaidDistribution.pay_date }
-                : null
-            }
-            prediction={
-              prediction
-                ? {
-                    targetPayDate: prediction.target_pay_date,
-                    targetExDate: prediction.target_ex_date,
-                    predictedAmount: prediction.predicted_amount,
-                    confidenceScore: prediction.confidence_score,
-                    predictionMethod: prediction.prediction_method,
-                  }
-                : null
-            }
-          />
-        </Suspense>
-        <div id="investor-discussion" className="scroll-mt-4" />
-        <Suspense fallback={null}>
-          <InvestorDiscussionSection
-            ticker={ticker}
-            lang="en"
-            annualYieldPct={annualYieldPct}
-            riskLevel={risk?.risk_level ?? null}
-            dividendTrendPct={trend12mo?.avgChangePct ?? null}
-            payoutFrequency={etf.payout_frequency}
-            nextPredictedExDate={prediction?.target_ex_date ?? null}
-          />
-        </Suspense>
-      </div>
-
-      <div className="mx-auto max-w-4xl px-4 sm:px-6 mt-8">
-        {/* predictionComparison omitted here — the same real comparison now
-            leads Prediction Track Record above, right after the chart it
-            explains, rather than being shown twice on the page. */}
-        <OfficialDistributionBlock official={officialDistribution} predictionComparison={null} lang="en" />
-
-        <div id="dividend-history" className="mt-8 scroll-mt-24">
-          <h2 className="text-lg font-bold mb-3">Recent Dividend History</h2>
-          <div className="border border-[var(--gray-200)] rounded-xl overflow-hidden">
-            <div className="max-h-[420px] overflow-y-auto overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="sticky top-0 z-10 bg-[var(--gray-50)] text-[var(--gray-500)]">
-                  <tr>
-                    <th className="text-left px-4 py-2.5 font-medium">Ex-Date</th>
-                    <th className="text-left px-4 py-2.5 font-medium">Pay Date</th>
-                    <th className="text-right px-4 py-2.5 font-medium">Amount</th>
-                    <th className="text-right px-4 py-2.5 font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--gray-100)]">
-                  {distributions.map((d, i) => {
-                    const prior = distributions[i + 1]?.amount ?? null;
-                    const delta = d.amount != null && prior != null ? d.amount - prior : null;
-                    return (
-                      <tr
-                        key={`${d.ex_date}-${i}`}
-                        className={`hover:bg-[var(--gray-100)]/60 transition-colors ${i % 2 === 1 ? "bg-[var(--gray-50)]/50" : ""}`}
-                      >
-                        <td className="px-4 py-2.5 text-[var(--gray-600)]">{d.ex_date}</td>
-                        <td className="px-4 py-2.5 text-[var(--gray-600)]">{d.pay_date}</td>
-                        <td className="px-4 py-2.5 text-right font-semibold tabular-nums">
-                          <span
-                            className={
-                              delta != null && delta > 0
-                                ? "text-emerald-700"
-                                : delta != null && delta < 0
-                                  ? "text-red-700"
-                                  : ""
-                            }
-                          >
-                            {d.amount != null ? `$${d.amount.toFixed(4)}` : "TBD"}
-                            {delta != null && delta !== 0 && (
-                              <span className="ml-1 text-xs">{delta > 0 ? "▲" : "▼"}</span>
-                            )}
-                          </span>
-                        </td>
-                        <td className="px-4 py-2.5 text-right">
-                          <DividendStagePill exDate={d.ex_date} payDate={d.pay_date} lang="en" />
-                        </td>
+            <div className="mt-8">
+              <h2 className="text-lg font-bold mb-3">Full Distribution History</h2>
+              <div className="border border-[var(--gray-200)] rounded-xl overflow-hidden">
+                <div className="max-h-[520px] overflow-y-auto overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 z-10 bg-[var(--gray-50)] text-[var(--gray-500)]">
+                      <tr>
+                        <th className="text-left px-4 py-2.5 font-medium">Ex-Date</th>
+                        <th className="text-left px-4 py-2.5 font-medium">Pay Date</th>
+                        <th className="text-right px-4 py-2.5 font-medium">Amount</th>
+                        <th className="text-right px-4 py-2.5 font-medium">Status</th>
                       </tr>
-                    );
-                  })}
-                  {distributions.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="px-4 py-4 text-center text-[var(--gray-400)]">
-                        No dividend history available
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--gray-100)]">
+                      {allDistributions.map((d, i) => {
+                        const prior = allDistributions[i + 1]?.amount ?? null;
+                        const delta = d.amount != null && prior != null ? d.amount - prior : null;
+                        return (
+                          <tr
+                            key={`${d.ex_date}-${i}`}
+                            className={`hover:bg-[var(--gray-100)]/60 transition-colors ${i % 2 === 1 ? "bg-[var(--gray-50)]/50" : ""}`}
+                          >
+                            <td className="px-4 py-2.5 text-[var(--gray-600)]">{d.ex_date}</td>
+                            <td className="px-4 py-2.5 text-[var(--gray-600)]">{d.pay_date}</td>
+                            <td className="px-4 py-2.5 text-right font-semibold tabular-nums">
+                              <span
+                                className={
+                                  delta != null && delta > 0
+                                    ? "text-emerald-700"
+                                    : delta != null && delta < 0
+                                      ? "text-red-700"
+                                      : ""
+                                }
+                              >
+                                {d.amount != null ? `$${d.amount.toFixed(4)}` : "TBD"}
+                                {delta != null && delta !== 0 && (
+                                  <span className="ml-1 text-xs">{delta > 0 ? "▲" : "▼"}</span>
+                                )}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2.5 text-right">
+                              <DividendStagePill exDate={d.ex_date} payDate={d.pay_date} lang="en" />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {allDistributions.length === 0 && (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-4 text-center text-[var(--gray-400)]">
+                            No dividend history available
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="mt-8">
-          <h2 className="text-lg font-bold mb-3">Provider</h2>
-          <div className="border border-[var(--gray-200)] rounded-xl p-4">
-            <div className="font-semibold">{providerLabel(etf.provider_id)}</div>
-            {siblings.length > 0 && (
-              <>
-                <div className="text-xs text-[var(--gray-500)] mt-3 mb-2">
-                  Other {providerLabel(etf.provider_id)} ETFs
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {siblings.map((s) => (
-                    <Link
-                      key={s.ticker}
-                      href={`/${s.ticker.toLowerCase()}`}
-                      className="px-3 py-1.5 border border-[var(--gray-200)] rounded-full text-sm hover:border-black transition-colors"
-                    >
-                      {s.ticker}
-                    </Link>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="mt-8">
-          <h2 className="text-lg font-bold mb-3">Fund Details</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <DetailField
-              label="Payout Frequency"
-              value={isKnown(etf.payout_frequency) ? etf.payout_frequency! : "—"}
-            />
-            <DetailField label="Category" value={isKnown(etf.category) ? etf.category! : "—"} />
-            <DetailField
-              label="Expense Ratio"
-              value={isKnown(etf.expense_ratio) ? etf.expense_ratio! : "—"}
-            />
-            <DetailField label="AUM" value={isKnown(etf.aum) ? etf.aum! : "—"} />
-            {isKnown(etf.inception_date) && <DetailField label="Inception Date" value={etf.inception_date!} />}
-            {etf.holdings_count != null && (
-              <DetailField label="Holdings" value={String(etf.holdings_count)} />
-            )}
+        {/* ================= ANALYSIS ================= */}
+        <div id="etf-tab-analysis" className="hidden">
+          <div className="mx-auto max-w-4xl px-4 sm:px-6 pt-5 space-y-4">
+            <AiDailySummary sentences={aiSummarySentences} lang="en" />
+            <div className="grid sm:grid-cols-2 gap-4">
+              <YieldExplainer explanation={yieldExplanation} lang="en" />
+              <RiskExplainer context={riskContext} lang="en" />
+            </div>
+            <ScoreBreakdown breakdown={scoreBreakdown} lang="en" />
+            <EtfDnaCard traits={dnaTraits} lang="en" />
+            <ForecastHistoryTimeline rows={evaluatedPredictionHistory} lang="en" />
           </div>
 
-          {(etf.investment_strategy || etf.long_description || etf.short_description) && (
-            <div className="mt-4 border border-[var(--gray-200)] rounded-xl p-4">
-              <div className="text-xs font-semibold text-[var(--gray-500)] mb-1">
-                Investment Strategy
+          <div className="mx-auto max-w-4xl px-4 sm:px-6 mt-8">
+            <div>
+              <h2 className="text-lg font-bold mb-3">Provider</h2>
+              <div className="border border-[var(--gray-200)] rounded-xl p-4">
+                <div className="font-semibold">{providerLabel(etf.provider_id)}</div>
+                {siblings.length > 0 && (
+                  <>
+                    <div className="text-xs text-[var(--gray-500)] mt-3 mb-2">
+                      Other {providerLabel(etf.provider_id)} ETFs
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {siblings.map((s) => (
+                        <Link
+                          key={s.ticker}
+                          href={`/${s.ticker.toLowerCase()}`}
+                          className="px-3 py-1.5 border border-[var(--gray-200)] rounded-full text-sm hover:border-black transition-colors"
+                        >
+                          {s.ticker}
+                        </Link>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
-              <p className="text-[var(--gray-700)] text-sm leading-relaxed whitespace-pre-line">
-                {etf.investment_strategy || etf.long_description || etf.short_description}
-              </p>
-              {etf.benchmark && (
-                <p className="text-sm text-[var(--gray-500)] mt-2">
-                  Underlying / Benchmark: {etf.benchmark}
-                </p>
+            </div>
+
+            <div className="mt-8">
+              <h2 className="text-lg font-bold mb-3">Fund Details</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <DetailField
+                  label="Payout Frequency"
+                  value={isKnown(etf.payout_frequency) ? etf.payout_frequency! : "—"}
+                />
+                <DetailField label="Category" value={isKnown(etf.category) ? etf.category! : "—"} />
+                <DetailField
+                  label="Expense Ratio"
+                  value={isKnown(etf.expense_ratio) ? etf.expense_ratio! : "—"}
+                />
+                <DetailField label="AUM" value={isKnown(etf.aum) ? etf.aum! : "—"} />
+                {isKnown(etf.inception_date) && <DetailField label="Inception Date" value={etf.inception_date!} />}
+                {etf.holdings_count != null && (
+                  <DetailField label="Holdings" value={String(etf.holdings_count)} />
+                )}
+              </div>
+
+              {(etf.investment_strategy || etf.long_description || etf.short_description) && (
+                <div className="mt-4 border border-[var(--gray-200)] rounded-xl p-4">
+                  <div className="text-xs font-semibold text-[var(--gray-500)] mb-1">
+                    Investment Strategy
+                  </div>
+                  <p className="text-[var(--gray-700)] text-sm leading-relaxed whitespace-pre-line">
+                    {etf.investment_strategy || etf.long_description || etf.short_description}
+                  </p>
+                  {etf.benchmark && (
+                    <p className="text-sm text-[var(--gray-500)] mt-2">
+                      Underlying / Benchmark: {etf.benchmark}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {regime?.description && (
+                <div className="mt-4 border border-[var(--gray-200)] rounded-xl p-4">
+                  <div className="text-xs font-semibold text-[var(--gray-500)] mb-1">
+                    Market Regime Analysis
+                  </div>
+                  <p className="text-sm text-[var(--gray-700)]">{regime.description}</p>
+                </div>
+              )}
+
+              {isKnown(etf.source_url) && (
+                <div className="mt-4 border border-[var(--gray-200)] rounded-xl p-4">
+                  <div className="text-xs font-semibold text-[var(--gray-500)] mb-1">Official Issuer Resources</div>
+                  <a
+                    href={etf.source_url!}
+                    target="_blank"
+                    rel="noopener noreferrer nofollow"
+                    className="text-sm text-[#92400e] underline hover:text-black"
+                  >
+                    {ticker} official fund page →
+                  </a>
+                </div>
               )}
             </div>
-          )}
 
-          {regime?.description && (
-            <div className="mt-4 border border-[var(--gray-200)] rounded-xl p-4">
-              <div className="text-xs font-semibold text-[var(--gray-500)] mb-1">
-                Market Regime Analysis
+            {/* SEO Authority Phase 2 — ETF detail page enrichment. All copy is
+                templated from real, already-fetched numbers (annualYieldPct,
+                risk metrics, trend12mo, etf.risk_summary) — see
+                lib/ticker/enrichment.ts. Any section without enough real data
+                to say something honest is simply omitted, never filled with
+                generic text. */}
+            <div className="mt-8 space-y-6">
+              <div>
+                <h2 className="text-lg font-bold mb-2">Why Investors Buy {ticker}</h2>
+                <p className="text-sm text-[var(--gray-700)] leading-relaxed">{whyInvestorsBuy}</p>
               </div>
-              <p className="text-sm text-[var(--gray-700)]">{regime.description}</p>
-            </div>
-          )}
 
-          {isKnown(etf.source_url) && (
-            <div className="mt-4 border border-[var(--gray-200)] rounded-xl p-4">
-              <div className="text-xs font-semibold text-[var(--gray-500)] mb-1">Official Issuer Resources</div>
-              <a
-                href={etf.source_url!}
-                target="_blank"
-                rel="noopener noreferrer nofollow"
-                className="text-sm text-[#92400e] underline hover:text-black"
-              >
-                {ticker} official fund page →
-              </a>
+              {biggestRisks && (
+                <div>
+                  <h2 className="text-lg font-bold mb-2">Biggest Risks</h2>
+                  <p className="text-sm text-[var(--gray-700)] leading-relaxed">{biggestRisks}</p>
+                </div>
+              )}
+
+              {whoShouldAvoid && (
+                <div>
+                  <h2 className="text-lg font-bold mb-2">Who Should Avoid It</h2>
+                  <p className="text-sm text-[var(--gray-700)] leading-relaxed">{whoShouldAvoid}</p>
+                </div>
+              )}
+
+              {historicalCharacteristics && (
+                <div>
+                  <h2 className="text-lg font-bold mb-2">Historical Characteristics</h2>
+                  <p className="text-sm text-[var(--gray-700)] leading-relaxed">{historicalCharacteristics}</p>
+                </div>
+              )}
+
+              {similarEtfs.length > 0 && (
+                <div>
+                  <h2 className="text-lg font-bold mb-3">Similar ETFs</h2>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    {similarEtfs.map((peer) => (
+                      <EtfCard key={peer.ticker} data={comparisonPeerToCardData(peer)} compact lang="en" />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {comparisonPeerTicker && (
+                <div>
+                  <h2 className="text-lg font-bold mb-2">Frequently Compared ETFs</h2>
+                  <Link
+                    href={`/magazine/${articleSlug(ticker, "comparison")}`}
+                    className="inline-flex px-3 py-1.5 border border-[var(--gray-200)] rounded-full text-sm hover:border-black transition-colors"
+                  >
+                    {ticker} vs {comparisonPeerTicker} — Full Comparison →
+                  </Link>
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
 
-        {/* SEO Authority Phase 2 — ETF detail page enrichment. All copy is
-            templated from real, already-fetched numbers (annualYieldPct,
-            risk metrics, trend12mo, etf.risk_summary) — see
-            lib/ticker/enrichment.ts. Any section without enough real data
-            to say something honest is simply omitted, never filled with
-            generic text. */}
-        <div className="mt-8 space-y-6">
-          <div>
-            <h2 className="text-lg font-bold mb-2">Why Investors Buy {ticker}</h2>
-            <p className="text-sm text-[var(--gray-700)] leading-relaxed">{whyInvestorsBuy}</p>
+        {/* ================= COMMUNITY ================= */}
+        <div id="etf-tab-community" className="hidden">
+          <div className="mx-auto max-w-4xl px-4 sm:px-6 pt-5">
+            <CommunityPredictionConsensus
+              cradyPrediction={nextDividendHero ? { amount: nextDividendHero.amount, isOfficial: nextDividendHero.isOfficial } : null}
+              lang="en"
+            />
           </div>
 
-          {biggestRisks && (
-            <div>
-              <h2 className="text-lg font-bold mb-2">Biggest Risks</h2>
-              <p className="text-sm text-[var(--gray-700)] leading-relaxed">{biggestRisks}</p>
-            </div>
-          )}
-
-          {whoShouldAvoid && (
-            <div>
-              <h2 className="text-lg font-bold mb-2">Who Should Avoid It</h2>
-              <p className="text-sm text-[var(--gray-700)] leading-relaxed">{whoShouldAvoid}</p>
-            </div>
-          )}
-
-          {historicalCharacteristics && (
-            <div>
-              <h2 className="text-lg font-bold mb-2">Historical Characteristics</h2>
-              <p className="text-sm text-[var(--gray-700)] leading-relaxed">{historicalCharacteristics}</p>
-            </div>
-          )}
-
-          {similarEtfs.length > 0 && (
-            <div id="similar-etfs" className="scroll-mt-4">
-              <h2 className="text-lg font-bold mb-3">Similar ETFs</h2>
-              <div className="grid sm:grid-cols-2 gap-3">
-                {similarEtfs.map((peer) => (
-                  <EtfCard key={peer.ticker} data={comparisonPeerToCardData(peer)} compact lang="en" />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {comparisonPeerTicker && (
-            <div>
-              <h2 className="text-lg font-bold mb-2">Frequently Compared ETFs</h2>
-              <Link
-                href={`/magazine/${articleSlug(ticker, "comparison")}`}
-                className="inline-flex px-3 py-1.5 border border-[var(--gray-200)] rounded-full text-sm hover:border-black transition-colors"
-              >
-                {ticker} vs {comparisonPeerTicker} — Full Comparison →
-              </Link>
-            </div>
-          )}
+          <div className="mx-auto max-w-4xl px-4 sm:px-6 mt-4">
+            <div id="etf-activity" className="scroll-mt-24" />
+            <Suspense fallback={null}>
+              <ActivitySection
+                ticker={ticker}
+                lang="en"
+                providerId={etf.provider_id}
+                priceHistory={history}
+                risk={risk}
+                annualYieldPct={annualYieldPct}
+                dividendTrendPct={trend12mo?.avgChangePct ?? null}
+                latestPaidDistribution={
+                  latestPaidDistribution?.amount != null
+                    ? { amount: latestPaidDistribution.amount, payDate: latestPaidDistribution.pay_date }
+                    : null
+                }
+                prediction={
+                  prediction
+                    ? {
+                        targetPayDate: prediction.target_pay_date,
+                        targetExDate: prediction.target_ex_date,
+                        predictedAmount: prediction.predicted_amount,
+                        confidenceScore: prediction.confidence_score,
+                        predictionMethod: prediction.prediction_method,
+                      }
+                    : null
+                }
+              />
+            </Suspense>
+            <div id="investor-discussion" className="scroll-mt-4" />
+            <Suspense fallback={null}>
+              <InvestorDiscussionSection
+                ticker={ticker}
+                lang="en"
+                annualYieldPct={annualYieldPct}
+                riskLevel={risk?.risk_level ?? null}
+                dividendTrendPct={trend12mo?.avgChangePct ?? null}
+                payoutFrequency={etf.payout_frequency}
+                nextPredictedExDate={prediction?.target_ex_date ?? null}
+              />
+            </Suspense>
+            <Suspense fallback={null}>
+              <ActivityWeeklyRecap
+                ticker={ticker}
+                lang="en"
+                priceHistory={history}
+                recentDistributions={distributions.map((d) => ({ pay_date: d.pay_date, amount: d.amount }))}
+                nextPredictedExDate={prediction?.target_ex_date ?? null}
+                nextPredictedPayDate={prediction?.target_pay_date ?? null}
+              />
+            </Suspense>
+          </div>
         </div>
+      </div>
 
+      {/* Always visible, outside every tab — FAQ (its own JSON-LD points at
+          it), deep-dive internal links, and the page footer, per Phase 3's
+          SEO-safety requirement that important crawlable content never
+          becomes tab-gated without reason. */}
+      <div className="mx-auto max-w-4xl px-4 sm:px-6 mt-8">
         <ProfileFaq items={profileFaqItems} lang="en" />
 
-        {/* Deep-dive links into the Magazine system — every ticker page
-            fans out to its full Magazine coverage plus the site-wide
-            ranking, so no page on the site is a dead end. */}
         <div className="mt-8">
           <h2 className="text-lg font-bold mb-3">{ticker} Deep Dive</h2>
-          {/* Horizontally scrollable chip row on mobile (too many chips to
-              wrap cleanly in a narrow viewport without breaking the header
-              rhythm) — reverts to the original wrapping row at sm+. */}
           <div className="flex gap-2 overflow-x-auto sm:overflow-visible sm:flex-wrap pb-2 sm:pb-0 snap-x snap-mandatory sm:snap-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {MAGAZINE_TYPES.map((type) => (
               <Link
@@ -942,17 +1013,6 @@ export default async function TickerPage({
             </Link>
           </div>
         </div>
-
-        <Suspense fallback={null}>
-          <ActivityWeeklyRecap
-            ticker={ticker}
-            lang="en"
-            priceHistory={history}
-            recentDistributions={distributions.map((d) => ({ pay_date: d.pay_date, amount: d.amount }))}
-            nextPredictedExDate={prediction?.target_ex_date ?? null}
-            nextPredictedPayDate={prediction?.target_pay_date ?? null}
-          />
-        </Suspense>
 
         <RelatedContent
           lang="en"
