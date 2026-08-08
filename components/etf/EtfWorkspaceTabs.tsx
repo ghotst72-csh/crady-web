@@ -100,7 +100,7 @@ export function EtfWorkspaceTabs({
   return (
     <nav
       aria-label={T.label[lang]}
-      className="sticky top-14 z-30 bg-white/95 backdrop-blur border-b border-[var(--gray-200)]"
+      className="border-b border-[var(--gray-200)]"
     >
       <div className="mx-auto max-w-[1400px] flex gap-6 overflow-x-auto px-6">
         {ETF_WORKSPACE_TABS.map((t) => (
