@@ -902,9 +902,12 @@ export default async function KoreanTickerPage({
       </div>
 
       {/* Always visible, outside every tab — see the English ticker page
-          for the full rationale. */}
-      <div className="mx-auto max-w-4xl px-4 sm:px-6 mt-8">
-        <ProfileSnippet text={profileSnippetText} />
+          for the full rationale (width bug fix: same boundary as the
+          Summary tab's content). */}
+      <div className="mx-auto max-w-[1400px] px-6 mt-8">
+        <div className="max-w-[850px]">
+          <ProfileSnippet text={profileSnippetText} />
+        </div>
         <ProfileFaq items={profileFaqItems} lang="ko" />
 
         {/* Deep-dive links into the Magazine system — Magazine is

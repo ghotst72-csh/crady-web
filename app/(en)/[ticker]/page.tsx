@@ -932,9 +932,16 @@ export default async function TickerPage({
       {/* Always visible, outside every tab — FAQ (its own JSON-LD points at
           it), deep-dive internal links, and the page footer, per Phase 3's
           SEO-safety requirement that important crawlable content never
-          becomes tab-gated without reason. */}
-      <div className="mx-auto max-w-4xl px-4 sm:px-6 mt-8">
-        <ProfileSnippet text={profileSnippetText} />
+          becomes tab-gated without reason. Same outer boundary as the
+          Summary tab's content (max-w-[1400px] px-6) — this section used
+          to be narrower (max-w-4xl), which made the page's left/right
+          edges jump inward partway down the Summary tab. The snippet
+          paragraph keeps its own readable line length via an inner
+          max-width rather than narrowing the whole section. */}
+      <div className="mx-auto max-w-[1400px] px-6 mt-8">
+        <div className="max-w-[850px]">
+          <ProfileSnippet text={profileSnippetText} />
+        </div>
         <ProfileFaq items={profileFaqItems} lang="en" />
 
         <div className="mt-8">
