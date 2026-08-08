@@ -41,7 +41,7 @@ export function OfficialDistributionBlock({
   if (!official) return null;
 
   return (
-    <div className="mt-8 border border-[var(--gray-200)] rounded-2xl p-4 sm:p-5">
+    <div className="border border-[var(--gray-200)] rounded-2xl p-4 sm:p-5">
       <div className="flex items-center gap-2">
         <h2 className="text-lg font-bold">{T.heading[lang]}</h2>
         <span className="px-2 py-0.5 rounded-full bg-[var(--crady-accent)]/15 text-[#92400e] text-[11px] font-semibold">

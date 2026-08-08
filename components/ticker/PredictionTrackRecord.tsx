@@ -43,7 +43,7 @@ export function PredictionTrackRecord({
   basePath?: string;
 }) {
   return (
-    <div id="prediction-history" className="mt-8 scroll-mt-24">
+    <div id="prediction-history" className="scroll-mt-24">
       <h2 className="text-lg font-bold">{T.title[lang]}</h2>
       <p className="text-sm text-[var(--gray-600)] mt-0.5">{T.subtitle[lang]}</p>
 
@@ -80,7 +80,7 @@ export function PredictionTrackRecord({
 
       <Link
         href={`${basePath}/prediction-accuracy`}
-        className="mt-3 inline-flex items-center text-sm font-semibold text-[#92400e] hover:underline"
+        className="mt-3 inline-flex items-center text-sm font-semibold text-indigo-600 hover:underline"
       >
         {T.sitewide[lang]}
       </Link>

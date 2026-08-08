@@ -11,6 +11,7 @@ const T = {
   payment: { en: "Payment", ko: "지급일" },
   confidence: { en: "Confidence", ko: "신뢰도" },
   daysToExDividend: { en: "Days to Ex-Dividend", ko: "배당락일까지" },
+  expectedRange: { en: "Expected range", ko: "예상 범위" },
   why: { en: (v: string) => `Why ${v}? →`, ko: (v: string) => `왜 ${v}인가요? →` },
   noPrediction: { en: "No prediction available yet for this ETF.", ko: "이 ETF에 대한 예측 정보가 아직 없습니다." },
   na: "—",
@@ -27,6 +28,8 @@ export type NextDividendPanelData = {
   changeFromLastPct: number | null;
   whyTab: string | null;
 };
+
+export type NextDividendPanelRange = { low: number; high: number };
 
 function daysUntil(dateStr: string): number {
   const target = new Date(dateStr + "T00:00:00");
@@ -51,7 +54,18 @@ function formatDate(dateStr: string | null, lang: "en" | "ko"): string {
  * with its own D-day. No explanatory paragraph inside this card (spec
  * §5: "CRADY Summary 설명문은 이 카드에서 제거한다") — only the "Why
  * $X.XXXX?" link into the Next Dividend tab's full explanation. */
-export function NextDividendPanel({ data, lang = "en" }: { data: NextDividendPanelData; lang?: "en" | "ko" }) {
+export function NextDividendPanel({
+  data,
+  expectedRange = null,
+  lang = "en",
+}: {
+  data: NextDividendPanelData;
+  /** Next Dividend tab only (Summary omits it, unchanged) — the
+   * distribution-variability range already computed elsewhere on the
+   * page, shown as one extra line under the badge. */
+  expectedRange?: NextDividendPanelRange | null;
+  lang?: "en" | "ko";
+}) {
   const { amount, isOfficial, confidence, announcementDate, exDate, payDate, previousAmount, changeFromLastPct, whyTab } = data;
   const up = changeFromLastPct != null && changeFromLastPct >= 0;
   const exDday = exDate ? daysUntil(exDate) : null;
@@ -79,6 +93,14 @@ export function NextDividendPanel({ data, lang = "en" }: { data: NextDividendPan
               {changeFromLastPct != null && previousAmount != null && (
                 <div className={`mt-2 text-sm font-semibold ${up ? "text-emerald-600" : "text-red-600"}`}>
                   {up ? "▲" : "▼"} {Math.abs(changeFromLastPct).toFixed(1)}% {T.vsLast[lang](previousAmount.toFixed(4))}
+                </div>
+              )}
+              {!isOfficial && expectedRange && (
+                <div className="mt-1.5 text-xs text-[var(--gray-500)]">
+                  {T.expectedRange[lang]}{" "}
+                  <span className="font-semibold text-[var(--gray-700)] tabular-nums">
+                    ${expectedRange.low.toFixed(4)} – ${expectedRange.high.toFixed(4)}
+                  </span>
                 </div>
               )}
             </>

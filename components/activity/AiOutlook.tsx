@@ -31,7 +31,7 @@ const SUBSECTION_ORDER: (keyof AiOutlookData)[] = [
  * ProfileSnippet already uses), just organized into labeled subsections. */
 export function AiOutlook({ outlook, lang = "en" }: { outlook: AiOutlookData; lang?: "en" | "ko" }) {
   return (
-    <section id="ai-outlook" className="mt-8 scroll-mt-4">
+    <section>
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-lg font-bold">{T.heading[lang]}</h2>
         <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--gray-500)] border border-[var(--gray-300)] rounded-full px-2 py-0.5">

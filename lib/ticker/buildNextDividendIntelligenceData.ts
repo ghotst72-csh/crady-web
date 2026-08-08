@@ -6,9 +6,13 @@ import {
   buildEstimateDrivers,
   buildTrackRecord,
   buildSchedulePattern,
+  type DividendSchedule,
+  type ExpectedRange,
+  type EstimateDriver,
+  type TrackRecord,
+  type SchedulePattern,
 } from "./nextDividendIntelligence";
-import { buildWhyThisEstimate, buildEstimateFactors, buildWhatWouldChangeThis } from "./nextDividendNarrative";
-import type { NextDividendIntelligenceData } from "@/components/ticker/NextDividendIntelligence";
+import { buildWhyThisEstimate, buildEstimateFactors, buildWhatWouldChangeThis, type EstimateFactors } from "./nextDividendNarrative";
 import type { FullNextPrediction, NextScheduleRow, RecentDeclaredDistribution } from "./nextDividendData";
 import type { EvaluatedPredictionRow, PredictionVsOfficial } from "@/lib/distributions/data";
 
@@ -16,6 +20,31 @@ import type { EvaluatedPredictionRow, PredictionVsOfficial } from "@/lib/distrib
  * prominent "auto-transition" comparison (§8) rather than burying it only
  * in the Track Record accordion. */
 const RECENT_TRANSITION_DAYS = 14;
+
+/** The full real data shape behind the Next Dividend tab — moved here
+ * (out of the component file) since it's a data contract several callers
+ * share (page.tsx, NextDividendPanel's hero fields, PredictionTrackRecord,
+ * ScenarioCards), not a single component's props. */
+export type NextDividendIntelligenceData = {
+  ticker: string;
+  schedule: DividendSchedule;
+  isOfficial: boolean;
+  officialAmount: number | null;
+  pointEstimate: number | null;
+  expectedRange: ExpectedRange | null;
+  confidence: number | null;
+  previousAmount: number | null;
+  whyThisEstimate: string;
+  drivers: EstimateDriver[];
+  recentAmounts: number[]; // most recent first
+  avg4: number | null;
+  avg12: number | null;
+  schedulePattern: SchedulePattern | null;
+  trackRecord: TrackRecord | null;
+  forecastVsOfficial: { predictedAmount: number; actualAmount: number; errorPct: number | null } | null;
+  estimateFactors?: EstimateFactors;
+  whatWouldChangeThis?: string[];
+};
 
 export function buildNextDividendIntelligenceData(input: {
   ticker: string;

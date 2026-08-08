@@ -20,6 +20,11 @@ import { buildTodaysActivitySummary } from "@/lib/activity/todaysSummary";
 import { pickMostDiscussedFallback, pickTrendingFallback } from "@/lib/activity/fallback";
 import { buildDiscussionQuestion } from "@/lib/activity/discussionQuestion";
 
+const T = {
+  aiOutlookToggle: { en: "Show CRADY AI Outlook", ko: "CRADY AI 브리핑 보기" },
+  weeklyRecapToggle: { en: "Show Weekly Recap", ko: "주간 요약 보기" },
+} as const;
+
 export type ActivitySectionInput = {
   ticker: string;
   lang?: "en" | "ko";
@@ -200,12 +205,22 @@ async function renderActivitySection(input: ActivitySectionInput) {
         confidence={confidence}
         streamEntries={streamEntries}
       />
-      {/* Static anchor for the Hero's "AI Outlook" Quick Link (ETF Detail
-          Page v3) — same synchronous-shell-anchor pattern as #etf-activity/
-          #investor-discussion in page.tsx, just placed here since AiOutlook
-          itself is what's being linked to, not the whole ActivitySection. */}
-      <div id="ai-outlook" className="scroll-mt-4" />
-      <AiOutlook outlook={outlook} lang={lang} />
+      {/* Community tab spec (subpage unification §5/§8) — AiOutlook is real
+          but the most verbose, prose-heavy content on the page; collapsed
+          by default so it never outweighs the actual discussion above it.
+          Native <details> (not a client toggle) so the content stays fully
+          server-rendered and crawlable (§10), and id lives on the <details>
+          itself so the Hero's "AI Outlook" Quick Link still auto-expands it
+          on fragment navigation in evergreen browsers. */}
+      <details id="ai-outlook" className="mt-8 scroll-mt-4 group">
+        <summary className="cursor-pointer select-none list-none flex items-center gap-1.5 text-sm font-semibold text-[#92400e]">
+          <span aria-hidden className="inline-block transition-transform group-open:rotate-90">▸</span>
+          {T.aiOutlookToggle[lang]}
+        </summary>
+        <div className="mt-3">
+          <AiOutlook outlook={outlook} lang={lang} />
+        </div>
+      </details>
     </>
   );
 }
@@ -359,5 +374,15 @@ async function renderActivityWeeklyRecap({
     lang
   );
 
-  return <WeeklyRecap report={report} lang={lang} />;
+  return (
+    <details className="mt-4 group">
+      <summary className="cursor-pointer select-none list-none flex items-center gap-1.5 text-sm font-semibold text-[#92400e]">
+        <span aria-hidden className="inline-block transition-transform group-open:rotate-90">▸</span>
+        {T.weeklyRecapToggle[lang]}
+      </summary>
+      <div className="mt-1">
+        <WeeklyRecap report={report} lang={lang} />
+      </div>
+    </details>
+  );
 }

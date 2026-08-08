@@ -77,15 +77,12 @@ import { buildRiskContext } from "@/lib/ticker/riskExplain";
 import { buildYieldExplanation } from "@/lib/ticker/yieldExplain";
 import { buildScenarios } from "@/lib/ticker/scenarios";
 import { buildEtfDna } from "@/lib/ticker/dna";
-import { computeLifecycleStage } from "@/lib/ticker/lifecycleStage";
 import { buildDailySummary } from "@/lib/ticker/aiSummary";
 import { YieldExplainer } from "@/components/ticker/YieldExplainer";
 import { RiskExplainer } from "@/components/ticker/RiskExplainer";
 import { ScoreBreakdown } from "@/components/ticker/ScoreBreakdown";
 import { ScenarioCards } from "@/components/ticker/ScenarioCards";
 import { EtfDnaCard } from "@/components/ticker/EtfDnaCard";
-import { EtfLifecycleTimeline } from "@/components/ticker/EtfLifecycleTimeline";
-import { ForecastHistoryTimeline } from "@/components/ticker/ForecastHistoryTimeline";
 import { AiDailySummary } from "@/components/ticker/AiDailySummary";
 import { EtfCard } from "@/components/etf/EtfCard";
 import { comparisonPeerToCardData } from "@/lib/etf/toCardData";
@@ -384,6 +381,7 @@ export default async function TickerPage({
           whyTab: "next-dividend",
         }
       : null;
+  const nextDividendExpectedRange = nextDividendIntelligenceData.expectedRange;
 
   const nextDividendDirectAnswer = buildNextDividendDirectAnswer(
     {
@@ -440,13 +438,6 @@ export default async function TickerPage({
   const scenarios = buildScenarios({
     pointEstimate: nextDividendIntelligenceData.pointEstimate,
     recentAmounts: nextDividendIntelligenceData.recentAmounts,
-  });
-  const lifecycleStage = computeLifecycleStage({
-    cycleDeclarationDate: nextDividendIntelligenceData.schedule.declaration.date,
-    cycleExDate: nextDividendIntelligenceData.schedule.exDividend.date,
-    cyclePayDate: nextDividendIntelligenceData.schedule.payment.date,
-    hasNextCyclePrediction: nextDividendIntelligenceData.pointEstimate != null,
-    lastCycleEvaluated: predictionVsOfficial != null,
   });
   const aiSummarySentences = buildDailySummary(
     { ticker, directAnswer, notes: risk?.notes ?? null, yieldExplanation, scoreBreakdown, riskContext },
@@ -606,27 +597,42 @@ export default async function TickerPage({
 
         {/* ================= NEXT DIVIDEND ================= */}
         <div id="etf-tab-next-dividend" className="hidden">
-          <NextDividendIntelligence data={nextDividendIntelligenceData} directAnswer={nextDividendDirectAnswer} lang="en" basePath="" />
+          <div className="mx-auto max-w-[1400px] px-6 pt-6">
+            {/* Same hero component Summary uses — the first visible
+                section here is deliberately identical, per the subpage
+                unification pass, with one extra line (Expected range)
+                that only this tab needs. */}
+            <NextDividendPanel data={nextDividendHero ?? EMPTY_NEXT_DIVIDEND} expectedRange={nextDividendExpectedRange} lang="en" />
 
-          <div className="mx-auto max-w-4xl px-4 sm:px-6">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <ScenarioCards scenarios={scenarios} lang="en" />
-              <EtfLifecycleTimeline stage={lifecycleStage} lang="en" />
+            {nextDividendDirectAnswer && (
+              <p className="mt-3 text-sm text-[var(--gray-600)] max-w-[850px]">{nextDividendDirectAnswer}</p>
+            )}
+
+            <div className="mt-6">
+              <NextDividendIntelligence data={nextDividendIntelligenceData} lang="en" />
             </div>
 
-            <PredictionTrackRecord
-              trackRecord={nextDividendIntelligenceData.trackRecord}
-              rows={evaluatedPredictionHistory}
-              lang="en"
-            />
+            <div className="mt-6">
+              <PredictionTrackRecord
+                trackRecord={nextDividendIntelligenceData.trackRecord}
+                rows={evaluatedPredictionHistory}
+                lang="en"
+              />
+            </div>
 
-            <OfficialDistributionBlock official={officialDistribution} predictionComparison={null} lang="en" />
+            <div className="mt-6">
+              <ScenarioCards scenarios={scenarios} lang="en" />
+            </div>
+
+            <div className="mt-6">
+              <OfficialDistributionBlock official={officialDistribution} predictionComparison={null} lang="en" />
+            </div>
           </div>
         </div>
 
         {/* ================= HISTORY ================= */}
         <div id="etf-tab-history" className="hidden">
-          <div className="mx-auto max-w-4xl px-4 sm:px-6 pt-5">
+          <div className="mx-auto max-w-[1400px] px-6 pt-6">
             <DividendPriceChart
               history={history}
               distributions={allDistributions.map((d) => ({ pay_date: d.pay_date, amount: d.amount }))}
@@ -640,11 +646,11 @@ export default async function TickerPage({
               lang="en"
             />
 
-            <div className="mt-8">
+            <div className="mt-6">
               <DistributionStatsPanel window3m={window3m} window6m={window6m} window12m={window12m} allTime={allTimeStats} lang="en" />
             </div>
 
-            <div className="mt-8">
+            <div className="mt-6">
               <h2 className="text-lg font-bold mb-3">Full Distribution History</h2>
               <div className="border border-[var(--gray-200)] rounded-xl overflow-hidden">
                 <div className="max-h-[520px] overflow-y-auto overflow-x-auto">
@@ -707,19 +713,24 @@ export default async function TickerPage({
 
         {/* ================= ANALYSIS ================= */}
         <div id="etf-tab-analysis" className="hidden">
-          <div className="mx-auto max-w-4xl px-4 sm:px-6 pt-5 space-y-4">
-            <AiDailySummary sentences={aiSummarySentences} lang="en" />
-            <div className="grid sm:grid-cols-2 gap-4">
-              <YieldExplainer explanation={yieldExplanation} lang="en" />
-              <RiskExplainer context={riskContext} lang="en" />
-            </div>
+          <div className="mx-auto max-w-[1400px] px-6 pt-6">
+            {/* 1. CRADY Score + components — the analytical core leads,
+                not AI prose (spec §4). */}
             <ScoreBreakdown breakdown={scoreBreakdown} lang="en" />
-            <EtfDnaCard traits={dnaTraits} lang="en" />
-            <ForecastHistoryTimeline rows={evaluatedPredictionHistory} lang="en" />
-          </div>
 
-          <div className="mx-auto max-w-4xl px-4 sm:px-6 mt-8">
-            <div>
+            {/* 2/3. Risk & drawdown, dividend/yield behavior — compact
+                two-column row, same card language as everywhere else. */}
+            <div className="mt-6 grid sm:grid-cols-2 gap-4">
+              <RiskExplainer context={riskContext} lang="en" />
+              <YieldExplainer explanation={yieldExplanation} lang="en" />
+            </div>
+
+            <div className="mt-6">
+              <EtfDnaCard traits={dnaTraits} lang="en" />
+            </div>
+
+            {/* 4. Fund facts. */}
+            <div className="mt-6">
               <h2 className="text-lg font-bold mb-3">Provider</h2>
               <div className="border border-[var(--gray-200)] rounded-xl p-4">
                 <div className="font-semibold">{providerLabel(etf.provider_id)}</div>
@@ -744,7 +755,7 @@ export default async function TickerPage({
               </div>
             </div>
 
-            <div className="mt-8">
+            <div className="mt-6">
               <h2 className="text-lg font-bold mb-3">Fund Details</h2>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <DetailField
@@ -768,7 +779,7 @@ export default async function TickerPage({
                   <div className="text-xs font-semibold text-[var(--gray-500)] mb-1">
                     Investment Strategy
                   </div>
-                  <p className="text-[var(--gray-700)] text-sm leading-relaxed whitespace-pre-line">
+                  <p className="text-[var(--gray-700)] text-sm leading-relaxed whitespace-pre-line max-w-[850px]">
                     {etf.investment_strategy || etf.long_description || etf.short_description}
                   </p>
                   {etf.benchmark && (
@@ -784,7 +795,7 @@ export default async function TickerPage({
                   <div className="text-xs font-semibold text-[var(--gray-500)] mb-1">
                     Market Regime Analysis
                   </div>
-                  <p className="text-sm text-[var(--gray-700)]">{regime.description}</p>
+                  <p className="text-sm text-[var(--gray-700)] max-w-[850px]">{regime.description}</p>
                 </div>
               )}
 
@@ -803,13 +814,14 @@ export default async function TickerPage({
               )}
             </div>
 
-            {/* SEO Authority Phase 2 — ETF detail page enrichment. All copy is
-                templated from real, already-fetched numbers (annualYieldPct,
-                risk metrics, trend12mo, etf.risk_summary) — see
-                lib/ticker/enrichment.ts. Any section without enough real data
-                to say something honest is simply omitted, never filled with
-                generic text. */}
-            <div className="mt-8 space-y-6">
+            {/* SEO Authority Phase 2 — ETF detail page enrichment. Real,
+                templated (never LLM-generated) content — kept for its
+                search value (spec §10) but constrained to a readable
+                inner width rather than stretched across the full
+                workspace, and positioned well below the analytical core
+                above. Any section without enough real data to say
+                something honest is simply omitted. */}
+            <div className="mt-6 space-y-6 max-w-[850px]">
               <div>
                 <h2 className="text-lg font-bold mb-2">Why Investors Buy {ticker}</h2>
                 <p className="text-sm text-[var(--gray-700)] leading-relaxed">{whyInvestorsBuy}</p>
@@ -835,96 +847,116 @@ export default async function TickerPage({
                   <p className="text-sm text-[var(--gray-700)] leading-relaxed">{historicalCharacteristics}</p>
                 </div>
               )}
+            </div>
 
-              {similarEtfs.length > 0 && (
-                <div>
-                  <h2 className="text-lg font-bold mb-3">Similar ETFs</h2>
-                  <div className="grid sm:grid-cols-2 gap-3">
-                    {similarEtfs.map((peer) => (
-                      <EtfCard key={peer.ticker} data={comparisonPeerToCardData(peer)} compact lang="en" />
-                    ))}
-                  </div>
+            {similarEtfs.length > 0 && (
+              <div className="mt-6">
+                <h2 className="text-lg font-bold mb-3">Similar ETFs</h2>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {similarEtfs.map((peer) => (
+                    <EtfCard key={peer.ticker} data={comparisonPeerToCardData(peer)} compact lang="en" />
+                  ))}
                 </div>
-              )}
+              </div>
+            )}
 
-              {comparisonPeerTicker && (
-                <div>
-                  <h2 className="text-lg font-bold mb-2">Frequently Compared ETFs</h2>
-                  <Link
-                    href={`/magazine/${articleSlug(ticker, "comparison")}`}
-                    className="inline-flex px-3 py-1.5 border border-[var(--gray-200)] rounded-full text-sm hover:border-black transition-colors"
-                  >
-                    {ticker} vs {comparisonPeerTicker} — Full Comparison →
-                  </Link>
-                </div>
-              )}
+            {comparisonPeerTicker && (
+              <div className="mt-6">
+                <h2 className="text-lg font-bold mb-2">Frequently Compared ETFs</h2>
+                <Link
+                  href={`/magazine/${articleSlug(ticker, "comparison")}`}
+                  className="inline-flex px-3 py-1.5 border border-[var(--gray-200)] rounded-full text-sm hover:border-black transition-colors"
+                >
+                  {ticker} vs {comparisonPeerTicker} — Full Comparison →
+                </Link>
+              </div>
+            )}
+
+            {/* 5. AI-generated content — ONE concise section, near the
+                bottom, never the visual core of this tab (spec §4). */}
+            <div className="mt-6">
+              <AiDailySummary sentences={aiSummarySentences} lang="en" />
             </div>
           </div>
         </div>
 
         {/* ================= COMMUNITY ================= */}
         <div id="etf-tab-community" className="hidden">
-          <div className="mx-auto max-w-4xl px-4 sm:px-6 pt-5">
-            <CommunityPredictionConsensus
-              cradyPrediction={nextDividendHero ? { amount: nextDividendHero.amount, isOfficial: nextDividendHero.isOfficial } : null}
-              lang="en"
-            />
-            <Suspense fallback={null}>
-              <TodaysActivitySummarySection ticker={ticker} lang="en" priceHistory={history} />
-            </Suspense>
-          </div>
+          <div className="mx-auto max-w-[1400px] px-6 pt-6">
+            <h2 className="text-lg font-bold">{ticker} Community</h2>
 
-          <div className="mx-auto max-w-4xl px-4 sm:px-6 mt-4">
-            <div id="etf-activity" className="scroll-mt-24" />
-            <Suspense fallback={null}>
-              <ActivitySection
-                ticker={ticker}
+            {/* Real investor sentiment / dividend expectation first —
+                honest empty state when there isn't enough real data,
+                never fabricated. */}
+            <div className="mt-4">
+              <CommunityPredictionConsensus
+                cradyPrediction={nextDividendHero ? { amount: nextDividendHero.amount, isOfficial: nextDividendHero.isOfficial } : null}
                 lang="en"
-                providerId={etf.provider_id}
-                priceHistory={history}
-                risk={risk}
-                annualYieldPct={annualYieldPct}
-                dividendTrendPct={trend12mo?.avgChangePct ?? null}
-                latestPaidDistribution={
-                  latestPaidDistribution?.amount != null
-                    ? { amount: latestPaidDistribution.amount, payDate: latestPaidDistribution.pay_date }
-                    : null
-                }
-                prediction={
-                  prediction
-                    ? {
-                        targetPayDate: prediction.target_pay_date,
-                        targetExDate: prediction.target_ex_date,
-                        predictedAmount: prediction.predicted_amount,
-                        confidenceScore: prediction.confidence_score,
-                        predictionMethod: prediction.prediction_method,
-                      }
-                    : null
-                }
               />
-            </Suspense>
-            <div id="investor-discussion" className="scroll-mt-4" />
-            <Suspense fallback={null}>
-              <InvestorDiscussionSection
-                ticker={ticker}
-                lang="en"
-                annualYieldPct={annualYieldPct}
-                riskLevel={risk?.risk_level ?? null}
-                dividendTrendPct={trend12mo?.avgChangePct ?? null}
-                payoutFrequency={etf.payout_frequency}
-                nextPredictedExDate={prediction?.target_ex_date ?? null}
-              />
-            </Suspense>
-            <Suspense fallback={null}>
-              <ActivityWeeklyRecap
-                ticker={ticker}
-                lang="en"
-                priceHistory={history}
-                recentDistributions={distributions.map((d) => ({ pay_date: d.pay_date, amount: d.amount }))}
-                nextPredictedExDate={prediction?.target_ex_date ?? null}
-                nextPredictedPayDate={prediction?.target_pay_date ?? null}
-              />
-            </Suspense>
+            </div>
+
+            {/* The actual discussion workspace — start a discussion,
+                latest discussions, comments/replies — leads the tab, not
+                buried under automated activity content (spec §5). */}
+            <div id="investor-discussion" className="mt-6 scroll-mt-4">
+              <Suspense fallback={null}>
+                <InvestorDiscussionSection
+                  ticker={ticker}
+                  lang="en"
+                  annualYieldPct={annualYieldPct}
+                  riskLevel={risk?.risk_level ?? null}
+                  dividendTrendPct={trend12mo?.avgChangePct ?? null}
+                  payoutFrequency={etf.payout_frequency}
+                  nextPredictedExDate={prediction?.target_ex_date ?? null}
+                />
+              </Suspense>
+            </div>
+
+            {/* Official CRADY-generated events — real, but demoted well
+                below the real discussion content so they never dominate
+                the page (spec §5: "may appear, but must not dominate"). */}
+            <div id="etf-activity" className="mt-6 scroll-mt-24">
+              <Suspense fallback={null}>
+                <TodaysActivitySummarySection ticker={ticker} lang="en" priceHistory={history} />
+              </Suspense>
+              <Suspense fallback={null}>
+                <ActivitySection
+                  ticker={ticker}
+                  lang="en"
+                  providerId={etf.provider_id}
+                  priceHistory={history}
+                  risk={risk}
+                  annualYieldPct={annualYieldPct}
+                  dividendTrendPct={trend12mo?.avgChangePct ?? null}
+                  latestPaidDistribution={
+                    latestPaidDistribution?.amount != null
+                      ? { amount: latestPaidDistribution.amount, payDate: latestPaidDistribution.pay_date }
+                      : null
+                  }
+                  prediction={
+                    prediction
+                      ? {
+                          targetPayDate: prediction.target_pay_date,
+                          targetExDate: prediction.target_ex_date,
+                          predictedAmount: prediction.predicted_amount,
+                          confidenceScore: prediction.confidence_score,
+                          predictionMethod: prediction.prediction_method,
+                        }
+                      : null
+                  }
+                />
+              </Suspense>
+              <Suspense fallback={null}>
+                <ActivityWeeklyRecap
+                  ticker={ticker}
+                  lang="en"
+                  priceHistory={history}
+                  recentDistributions={distributions.map((d) => ({ pay_date: d.pay_date, amount: d.amount }))}
+                  nextPredictedExDate={prediction?.target_ex_date ?? null}
+                  nextPredictedPayDate={prediction?.target_pay_date ?? null}
+                />
+              </Suspense>
+            </div>
           </div>
         </div>
       </div>

@@ -26,7 +26,7 @@ export function WeeklyRecap({ report, lang = "en" }: { report: WeeklyRecapReport
   ].filter((r) => r.value != null);
 
   return (
-    <div className="mt-8 border border-[var(--gray-200)] rounded-xl p-4">
+    <div className="border border-[var(--gray-200)] rounded-xl p-4">
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-sm font-bold">{T.heading[lang]}</h3>
         <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--gray-500)] border border-[var(--gray-300)] rounded-full px-2 py-0.5">
