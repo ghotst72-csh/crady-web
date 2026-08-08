@@ -31,7 +31,16 @@ function panelId(tab: EtfWorkspaceTabId): string {
  * anywhere on the page (e.g. Summary's "View Full History →") switches
  * the tab via delegated click handling, without that element needing to
  * be a client component itself. */
-export function EtfWorkspaceTabs({ lang = "en" }: { lang?: "en" | "ko" }) {
+export function EtfWorkspaceTabs({
+  lang = "en",
+  communityCount = null,
+}: {
+  lang?: "en" | "ko";
+  /** Real discussion count for this ticker (spec: the "327" badge next
+   * to Community in the tab bar) — omitted entirely when there's no real
+   * activity yet, never a placeholder zero. */
+  communityCount?: number | null;
+}) {
   const [active, setActive] = useState<EtfWorkspaceTabId>(DEFAULT_ETF_WORKSPACE_TAB);
 
   const applyTab = useCallback((tab: EtfWorkspaceTabId) => {
@@ -61,6 +70,7 @@ export function EtfWorkspaceTabs({ lang = "en" }: { lang?: "en" | "ko" }) {
   useEffect(() => {
     const initial = new URLSearchParams(window.location.search).get("tab");
     if (isEtfWorkspaceTabId(initial) && initial !== DEFAULT_ETF_WORKSPACE_TAB) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: reading the deep-link ?tab= param requires window.location, unavailable during SSR/render; this runs once on mount, not on every re-render.
       applyTab(initial);
     }
 
@@ -92,20 +102,25 @@ export function EtfWorkspaceTabs({ lang = "en" }: { lang?: "en" | "ko" }) {
       aria-label={T.label[lang]}
       className="sticky top-14 z-30 bg-white/95 backdrop-blur border-b border-[var(--gray-200)]"
     >
-      <div className="mx-auto max-w-4xl flex gap-1 overflow-x-auto px-4 sm:px-6 py-2">
+      <div className="mx-auto max-w-[1400px] flex gap-6 overflow-x-auto px-6">
         {ETF_WORKSPACE_TABS.map((t) => (
           <button
             key={t.id}
             type="button"
             onClick={() => selectTab(t.id)}
             aria-current={active === t.id ? "page" : undefined}
-            className={`shrink-0 px-3 py-1.5 rounded-full text-[13px] font-semibold transition-colors whitespace-nowrap ${
+            className={`shrink-0 inline-flex items-center gap-1.5 py-3 text-[15px] font-medium whitespace-nowrap border-b-2 transition-colors ${
               active === t.id
-                ? "bg-black text-white"
-                : "text-[var(--gray-600)] hover:bg-[var(--gray-100)] hover:text-black"
+                ? "border-indigo-600 text-black font-semibold"
+                : "border-transparent text-[var(--gray-500)] hover:text-black"
             }`}
           >
             {t.label[lang]}
+            {t.id === "community" && communityCount != null && communityCount > 0 && (
+              <span className="px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[11px] font-semibold">
+                {communityCount}
+              </span>
+            )}
           </button>
         ))}
       </div>

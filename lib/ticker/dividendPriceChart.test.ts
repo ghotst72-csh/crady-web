@@ -3,6 +3,7 @@ import {
   filterHistoryByRange,
   filterDistributionsByRange,
   computeChartWindowMetrics,
+  computeEvenTicks,
 } from "./dividendPriceChart";
 
 const TODAY = "2026-08-07";
@@ -81,5 +82,20 @@ describe("computeChartWindowMetrics", () => {
     const m = computeChartWindowMetrics([{ trade_date: "2026-08-01", close_price: 20 }], []);
     expect(m.priceChangePct).toBeNull();
     expect(m.totalDistributions).toBeNull();
+  });
+});
+
+describe("computeEvenTicks", () => {
+  it("produces evenly spaced values including both endpoints", () => {
+    expect(computeEvenTicks(0, 100, 5)).toEqual([0, 25, 50, 75, 100]);
+  });
+
+  it("falls back to a single value when max <= min", () => {
+    expect(computeEvenTicks(10, 10, 5)).toEqual([10]);
+    expect(computeEvenTicks(10, 5, 5)).toEqual([10]);
+  });
+
+  it("falls back to a single value when count <= 1", () => {
+    expect(computeEvenTicks(0, 100, 1)).toEqual([0]);
   });
 });

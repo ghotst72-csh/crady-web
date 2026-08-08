@@ -27,6 +27,11 @@ export type PriceSummary = {
   asOfDate: string | null;
   /** Latest close vs. the prior trading day's close. */
   todayChangePct: number | null;
+  /** The same comparison as todayChangePct, as a real dollar amount
+   * (currentPrice − previous close) rather than back-derived from the
+   * rounded percentage — avoids floating-point drift between the two
+   * displayed together (e.g. "+0.22 (+1.03%)"). */
+  todayChangeAbs: number | null;
   rangeHigh: number | null;
   rangeLow: number | null;
   /** "52W" once at least ~200 trading days of history exist (roughly a
@@ -71,6 +76,7 @@ export function buildPriceSummary(history: PriceHistoryPoint[]): PriceSummary {
   const asOfDate = points.length > 0 ? points[points.length - 1].trade_date : null;
   const todayChangePct =
     closes.length >= 2 ? pctChange(closes[closes.length - 2], closes[closes.length - 1]) : null;
+  const todayChangeAbs = closes.length >= 2 ? closes[closes.length - 1] - closes[closes.length - 2] : null;
 
   const rangeHigh = closes.length > 0 ? Math.max(...closes) : null;
   const rangeLow = closes.length > 0 ? Math.min(...closes) : null;
@@ -81,6 +87,7 @@ export function buildPriceSummary(history: PriceHistoryPoint[]): PriceSummary {
     currentPrice,
     asOfDate,
     todayChangePct,
+    todayChangeAbs,
     rangeHigh,
     rangeLow,
     rangeLabel,

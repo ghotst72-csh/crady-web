@@ -48,6 +48,16 @@ export type ChartWindowMetrics = {
 /** Price change is first-close vs. last-close *within the filtered window*
  * (not a running total vs. today), so it always describes exactly the
  * period the range toggle currently shows. */
+/** Evenly-spaced axis tick values between min and max (inclusive) — a
+ * simple, honest interpolation rather than a "nice round number" rounding
+ * algorithm (out of scope for the effort this needs); still produces a
+ * clean, readable axis for real price/distribution ranges. */
+export function computeEvenTicks(min: number, max: number, count: number): number[] {
+  if (count <= 1 || max <= min) return [min];
+  const step = (max - min) / (count - 1);
+  return Array.from({ length: count }, (_, i) => min + step * i);
+}
+
 export function computeChartWindowMetrics(
   history: PriceHistoryPoint[],
   distributions: DistributionPoint[]

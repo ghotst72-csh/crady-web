@@ -33,6 +33,7 @@ describe("buildPriceSummary", () => {
     expect(s.currentPrice).toBe(14.82);
     expect(s.asOfDate).toBe("2026-07-31");
     expect(s.todayChangePct).toBeCloseTo(2.2069, 3);
+    expect(s.todayChangeAbs).toBeCloseTo(0.32, 5);
   });
 
   it("filters out null closes before computing anything", () => {

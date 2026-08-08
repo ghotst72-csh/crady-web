@@ -18,7 +18,6 @@ import {
   providerLabel,
 } from "@/lib/data";
 import { buildPriceSummary } from "@/lib/ticker/priceSummary";
-import { computeYieldPercentile } from "@/lib/ticker/yieldContext";
 import {
   getFullNextPrediction,
   getNextScheduleRow,
@@ -31,11 +30,10 @@ import { RESERVED_PATHS } from "@/lib/reserved";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { EtfIdentityHeader } from "@/components/etf/EtfIdentityHeader";
 import { EtfWorkspaceTabs } from "@/components/etf/EtfWorkspaceTabs";
-import { CommunityPreview } from "@/components/etf/CommunityPreview";
+import { NextDividendPanel } from "@/components/etf/NextDividendPanel";
 import { CommunityPredictionConsensus } from "@/components/etf/CommunityPredictionConsensus";
 import { DividendStagePill } from "@/components/DividendLifecycle";
 import { EtfAppCta } from "@/components/EtfAppCta";
-import { EtfHero } from "@/components/EtfHero";
 import { DividendPriceChart } from "@/components/ticker/DividendPriceChart";
 import { PredictionTrackRecord } from "@/components/ticker/PredictionTrackRecord";
 import { EtfSummaryMetrics } from "@/components/ticker/EtfSummaryMetrics";
@@ -69,6 +67,7 @@ import {
   TodaysActivitySummarySection,
   ActivityWeeklyRecap,
 } from "@/components/activity/ActivitySection";
+import { getActivityCounts } from "@/lib/activity/data";
 import { getRelevantGuidesForEtf, GUIDE_LABELS } from "@/lib/magazine/topicalLinks";
 import { RelatedContent } from "@/components/RelatedContent";
 import { PageTrustFooter } from "@/components/seo/PageTrustFooter";
@@ -92,6 +91,20 @@ import { EtfCard } from "@/components/etf/EtfCard";
 import { comparisonPeerToCardData } from "@/lib/etf/toCardData";
 
 export const revalidate = 3600;
+
+/** The honest "nothing to predict yet" state for NextDividendPanel — never
+ * a fabricated placeholder amount, just every field null. */
+const EMPTY_NEXT_DIVIDEND = {
+  amount: null,
+  isOfficial: false,
+  confidence: null,
+  announcementDate: null,
+  exDate: null,
+  payDate: null,
+  previousAmount: null,
+  changeFromLastPct: null,
+  whyTab: null,
+} as const;
 
 type Params = { ticker: string };
 
@@ -198,6 +211,7 @@ export default async function KoreanTickerPage({
     nextScheduleRow,
     recentDeclaredDistributions,
     evaluatedPredictionHistory,
+    activityCounts,
   ] = await Promise.all([
     getRiskMetrics(ticker),
     getRegimeProfile(ticker),
@@ -222,7 +236,11 @@ export default async function KoreanTickerPage({
     getNextScheduleRow(ticker),
     getRecentDeclaredDistributions(ticker, 12),
     getEvaluatedPredictionHistory(ticker, 20),
+    // CRADY ETF Detail UI — see the English ticker page for the full
+    // rationale; mirrored 1:1 with lang="ko".
+    getActivityCounts(ticker).catch(() => ({ questionCount: 0, totalReplies: 0, voteCount: 0 })),
   ]);
+  const communityCount = activityCounts.questionCount + activityCounts.totalReplies;
   const dividendTrendWindows = computeDividendTrend(yearOfDistributions);
   const trend12mo = dividendTrendWindows.find((w) => w.days === 365) ?? null;
   const window3m = dividendTrendWindows.find((w) => w.days === 90)!;
@@ -247,23 +265,10 @@ export default async function KoreanTickerPage({
     price?.close_price ?? null
   );
   const latestPaidDistribution = distributions.find((d) => d.amount != null);
-  const changeFromLastPct =
-    latestPaidDistribution?.amount != null &&
-    latestPaidDistribution.amount > 0 &&
-    prediction?.predicted_amount != null
-      ? ((prediction.predicted_amount - latestPaidDistribution.amount) /
-          latestPaidDistribution.amount) *
-        100
-      : null;
 
   // ETF Detail Page v3 — Investor Dashboard Redesign. See the English
   // ticker page for the full rationale; mirrored 1:1 with lang="ko".
   const priceSummary = buildPriceSummary(history);
-  const yieldContext = computeYieldPercentile(
-    annualYieldPct,
-    homeSnapshot.map((s) => s.annualYieldPct),
-    "ko"
-  );
 
   const comparisonPeerTicker = pickComparisonPeerTicker(ticker, etf.provider_id, allTickers);
   const MAGAZINE_TYPES: ArticleTypeId[] = [
@@ -527,56 +532,30 @@ export default async function KoreanTickerPage({
         />
       )}
 
-      {/* CRADY Phase 3 — see the English ticker page for the full
-          rationale; mirrored 1:1 with lang="ko". */}
+      {/* CRADY ETF Detail UI (reference-locked) — see the English ticker
+          page for the full rationale; mirrored 1:1 with lang="ko". */}
       <EtfIdentityHeader
         ticker={ticker}
         name={etf.name}
         providerId={etf.provider_id}
-        category={isKnown(etf.category) ? etf.category : null}
-        riskLevel={risk?.risk_level ?? null}
-        updatedAt={risk?.calculated_at ?? null}
+        payoutFrequency={isKnown(etf.payout_frequency) ? etf.payout_frequency : null}
+        sourceUrl={isKnown(etf.source_url) ? etf.source_url : null}
         currentPrice={priceSummary.currentPrice}
         todayChangePct={priceSummary.todayChangePct}
+        todayChangeAbs={priceSummary.todayChangeAbs}
+        asOfDate={priceSummary.asOfDate}
         lang="ko"
       />
 
-      <div id="etf-workspace" className="mt-4 scroll-mt-14">
-        <EtfWorkspaceTabs lang="ko" />
+      <div id="etf-workspace" className="mt-2 scroll-mt-14">
+        <EtfWorkspaceTabs lang="ko" communityCount={communityCount} />
 
         {/* ================= 서머리 (기본 탭) ================= */}
         <div id="etf-tab-summary">
-          <div className="mx-auto max-w-4xl px-4 sm:px-6 pt-5">
-            <EtfHero
-              yieldPct={annualYieldPct}
-              latestDividend={
-                latestPaidDistribution?.amount != null
-                  ? { amount: latestPaidDistribution.amount, payDate: latestPaidDistribution.pay_date }
-                  : null
-              }
-              prediction={
-                prediction
-                  ? {
-                      targetPayDate: prediction.target_pay_date,
-                      targetExDate: prediction.target_ex_date,
-                      predictedAmount: prediction.predicted_amount,
-                      confidenceScore: prediction.confidence_score,
-                    }
-                  : null
-              }
-              changeFromLastPct={changeFromLastPct}
-              nextDividend={nextDividendHero}
-              directAnswer={directAnswer}
-              priceSummary={priceSummary}
-              yieldContext={yieldContext}
-              lang="ko"
-            />
+          <div className="mx-auto max-w-[1400px] px-6 pt-6">
+            <NextDividendPanel data={nextDividendHero ?? EMPTY_NEXT_DIVIDEND} lang="ko" />
 
-            <Suspense fallback={null}>
-              <TodaysActivitySummarySection ticker={ticker} lang="ko" priceHistory={history} />
-            </Suspense>
-
-            <div className="mt-8">
+            <div className="mt-6">
               <DividendPriceChart
                 history={history}
                 distributions={yearOfDistributions.map((d) => ({ pay_date: d.pay_date, amount: d.amount }))}
@@ -588,48 +567,21 @@ export default async function KoreanTickerPage({
                 annualYieldPct={annualYieldPct}
                 maxDrawdownPct={risk?.max_drawdown ?? null}
                 lang="ko"
+                showMetrics={false}
               />
             </div>
 
-            <div className="mt-8">
+            <div className="mt-6">
               <EtfSummaryMetrics
                 annualYieldPct={annualYieldPct}
                 distributions12mTotal={distributions12mTotal}
                 payoutFrequency={etf.payout_frequency}
                 cradyScore={risk?.crady_score ?? null}
                 dividendStabilityScore={risk?.dividend_stability_score ?? null}
-                riskLevel={risk?.risk_level ?? null}
+                expenseRatio={isKnown(etf.expense_ratio) ? etf.expense_ratio : null}
                 lang="ko"
               />
             </div>
-
-            <div className="mt-8">
-              <div className="flex items-baseline justify-between">
-                <h2 className="text-sm font-bold text-[var(--gray-600)]">최근 분배금</h2>
-                <button type="button" data-etf-tab-link="history" className="text-xs font-semibold text-[#92400e] hover:underline">
-                  전체 이력 보기 →
-                </button>
-              </div>
-              <div className="mt-2 divide-y divide-[var(--gray-100)] border border-[var(--gray-200)] rounded-xl overflow-hidden">
-                {distributions.slice(0, 3).map((d, i) => (
-                  <div key={`${d.ex_date}-${i}`} className="flex items-center justify-between px-4 py-2.5 text-sm">
-                    <span className="text-[var(--gray-600)]">{d.pay_date}</span>
-                    <span className="font-semibold tabular-nums">{d.amount != null ? `$${d.amount.toFixed(4)}` : "예정"}</span>
-                  </div>
-                ))}
-                {distributions.length === 0 && (
-                  <div className="px-4 py-4 text-center text-sm text-[var(--gray-400)]">배당 내역 없음</div>
-                )}
-              </div>
-            </div>
-
-            <div className="mt-8">
-              <Suspense fallback={null}>
-                <CommunityPreview ticker={ticker} lang="ko" />
-              </Suspense>
-            </div>
-
-            <ProfileSnippet text={profileSnippetText} />
           </div>
         </div>
 
@@ -889,6 +841,9 @@ export default async function KoreanTickerPage({
               cradyPrediction={nextDividendHero ? { amount: nextDividendHero.amount, isOfficial: nextDividendHero.isOfficial } : null}
               lang="ko"
             />
+            <Suspense fallback={null}>
+              <TodaysActivitySummarySection ticker={ticker} lang="ko" priceHistory={history} />
+            </Suspense>
           </div>
 
           <div className="mx-auto max-w-4xl px-4 sm:px-6 mt-4">
@@ -949,6 +904,7 @@ export default async function KoreanTickerPage({
       {/* Always visible, outside every tab — see the English ticker page
           for the full rationale. */}
       <div className="mx-auto max-w-4xl px-4 sm:px-6 mt-8">
+        <ProfileSnippet text={profileSnippetText} />
         <ProfileFaq items={profileFaqItems} lang="ko" />
 
         {/* Deep-dive links into the Magazine system — Magazine is
