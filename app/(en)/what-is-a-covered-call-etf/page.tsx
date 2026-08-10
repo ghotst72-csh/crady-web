@@ -117,7 +117,7 @@ export default function CoveredCallLandingPage() {
   const faqJsonLd = buildFaqJsonLd(FAQ_ITEMS);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 sm:px-6 py-8 sm:py-10">
+    <div className="mx-auto max-w-6xl px-4 sm:px-6 py-8">
       <BreadcrumbJsonLd items={[{ name: "Home", url: "https://crady.net" }, { name: "What Is a Covered Call ETF?", url: PAGE_URL }]} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }} />
       {faqJsonLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />}
@@ -150,7 +150,7 @@ export default function CoveredCallLandingPage() {
                   width={1536}
                   height={1024}
                   priority
-                  sizes="(max-width: 768px) 100vw, 768px"
+                  sizes="(max-width: 768px) 100vw, 1100px"
                   className="w-full h-auto rounded-lg border border-[var(--gray-200)]"
                 />
                 <span className="mt-2 inline-flex items-center gap-1 text-xs text-[var(--gray-500)] group-hover:text-black transition-colors">
@@ -186,7 +186,7 @@ export default function CoveredCallLandingPage() {
       </div>
 
       {/* ---- Crawlable quick summary (not gated behind the tabs above) ---- */}
-      <div id="quick-summary" className="mt-6 text-[15px] leading-relaxed text-[var(--gray-700)] space-y-3">
+      <div id="quick-summary" className="mt-6 max-w-3xl text-[15px] leading-relaxed text-[var(--gray-700)] space-y-3">
         <p>
           A covered call ETF owns stocks or other securities and sells call options to generate income. The
           option premium can increase cash distributions, but selling calls can limit some of the upside when
@@ -205,13 +205,15 @@ export default function CoveredCallLandingPage() {
 
       {/* ---- Key trade-off ---- */}
       <section className="mt-8 rounded-xl border border-amber-200 bg-amber-50 px-5 py-5 sm:px-6 sm:py-6">
-        <div className="text-xs font-bold tracking-widest uppercase text-[#92400e]">The Key Trade-Off</div>
-        <p className="mt-2 text-lg sm:text-xl font-black tracking-tight text-[var(--gray-900)]">
-          Upside may be limited while downside risk can still be substantial.
-        </p>
-        <p className="mt-2 text-sm text-[var(--gray-700)]">
-          Know the strategy. Understand the risk. Look at total return.
-        </p>
+        <div className="max-w-3xl">
+          <div className="text-xs font-bold tracking-widest uppercase text-[#92400e]">The Key Trade-Off</div>
+          <p className="mt-2 text-lg sm:text-xl font-black tracking-tight text-[var(--gray-900)]">
+            Upside may be limited while downside risk can still be substantial.
+          </p>
+          <p className="mt-2 text-sm text-[var(--gray-700)]">
+            Know the strategy. Understand the risk. Look at total return.
+          </p>
+        </div>
       </section>
 
       {/* ---- Comparison ---- */}
@@ -259,7 +261,7 @@ export default function CoveredCallLandingPage() {
           ))}
         </div>
 
-        <p className="mt-4 text-sm text-[var(--gray-600)] leading-relaxed">
+        <p className="mt-4 max-w-3xl text-sm text-[var(--gray-600)] leading-relaxed">
           <span className="font-semibold text-[var(--gray-800)]">A note on YieldMax:</span> YieldMax funds are a
           common example of the synthetic structure above, but YieldMax uses more than one option-income design
           — not every YieldMax ETF works identically. See{" "}
@@ -273,7 +275,7 @@ export default function CoveredCallLandingPage() {
       {/* ---- YieldMax ---- */}
       <section className="mt-10">
         <h2 className="text-lg sm:text-xl font-bold mb-3">How Does This Relate to YieldMax?</h2>
-        <div className="text-[15px] leading-relaxed text-[var(--gray-700)] space-y-3">
+        <div className="max-w-3xl text-[15px] leading-relaxed text-[var(--gray-700)] space-y-3">
           <p>
             YieldMax is known for option-income ETFs with high, eye-catching distributions. It&apos;s easy to
             assume these funds simply own stocks and pay out large dividends — in reality, most YieldMax ETFs
@@ -308,7 +310,7 @@ export default function CoveredCallLandingPage() {
       {/* ---- Why distributions are high ---- */}
       <section className="mt-10">
         <h2 className="text-lg sm:text-xl font-bold mb-3">Why Are Covered Call ETF Distributions So High?</h2>
-        <div className="text-[15px] leading-relaxed text-[var(--gray-700)] space-y-3">
+        <div className="max-w-3xl text-[15px] leading-relaxed text-[var(--gray-700)] space-y-3">
           <p>
             Selling options can generate substantial option premium. That cash flow can support frequent or
             large distributions — but a distribution is not automatically investment profit.
@@ -319,7 +321,7 @@ export default function CoveredCallLandingPage() {
           DISTRIBUTION RATE ≠ TOTAL RETURN
         </div>
 
-        <div className="mt-4 text-[15px] leading-relaxed text-[var(--gray-700)] space-y-3">
+        <div className="mt-4 max-w-3xl text-[15px] leading-relaxed text-[var(--gray-700)] space-y-3">
           <p>
             An investor can receive large cash distributions while the ETF&apos;s share price or NAV declines.
             That&apos;s why it&apos;s worth adding up both sides of the ledger:
@@ -343,7 +345,7 @@ export default function CoveredCallLandingPage() {
       {/* ---- Before investing ---- */}
       <section className="mt-10">
         <h2 className="text-lg sm:text-xl font-bold mb-4">Before Investing, Ask These 4 Questions</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {BEFORE_INVESTING_QUESTIONS.map((q, i) => (
             <div key={q} className="border border-[var(--gray-200)] rounded-lg px-4 py-3.5 flex items-start gap-3">
               <span className="shrink-0 w-6 h-6 rounded-full bg-[var(--gray-900)] text-white text-xs font-bold flex items-center justify-center">
@@ -358,7 +360,7 @@ export default function CoveredCallLandingPage() {
       {/* ---- FAQ ---- */}
       <section className="mt-10">
         <h2 className="text-lg sm:text-xl font-bold mb-3">Frequently Asked Questions</h2>
-        <div className="not-prose divide-y divide-[var(--gray-100)]">
+        <div className="not-prose max-w-3xl divide-y divide-[var(--gray-100)]">
           {FAQ_ITEMS.map((item) => (
             <div key={item.question} className="py-4 first:pt-0">
               <div className="font-semibold text-sm">{item.question}</div>
