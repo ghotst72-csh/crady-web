@@ -33,6 +33,19 @@ describe("getLocaleTargetPath — to Korean", () => {
     expect(getLocaleTargetPath("/account-deletion", "ko")).toBe("/ko");
   });
 
+  // Regression test for the 2026-08-10 production incident: these two
+  // EN-only pages were missing from NO_KO_EQUIVALENT, so this function
+  // returned "/ko/data-terms" / "/ko/what-is-a-covered-call-etf" — URLs
+  // with no matching route that the app/ko/[ticker] catch-all then 404'd
+  // on. LanguagePreferenceManager's auto-redirect (fires for any visitor
+  // with a stored "ko" preference) sent real mobile visitors into that
+  // dead path. Every EN-only page must resolve to "/ko" here, never to a
+  // /ko/{segment} path that doesn't actually exist under app/ko.
+  it("falls back to /ko home for data-terms and the covered-call Learn page (no Korean equivalent)", () => {
+    expect(getLocaleTargetPath("/data-terms", "ko")).toBe("/ko");
+    expect(getLocaleTargetPath("/what-is-a-covered-call-etf", "ko")).toBe("/ko");
+  });
+
   it("falls back to /ko home for other reserved paths", () => {
     expect(getLocaleTargetPath("/sitemap.xml", "ko")).toBe("/ko");
     expect(getLocaleTargetPath("/api", "ko")).toBe("/ko");

@@ -1,13 +1,34 @@
 import { RESERVED_PATHS } from "@/lib/reserved";
 
 // Pages that exist in both trees with an identical trailing segment —
-// /about <-> /ko/about, /{ticker} <-> /ko/{ticker}, etc. Magazine and the
-// external legal redirects (privacy/terms/account-deletion) exist ONLY
-// under (en) — there is no /ko equivalent (see the International SEO
-// report) — so switching language from one of those pages has no exact
-// target and falls back to the target language's home page instead of a
-// broken link.
-const NO_KO_EQUIVALENT = new Set(["magazine", "privacy", "terms", "account-deletion"]);
+// /about <-> /ko/about, /{ticker} <-> /ko/{ticker}, etc. Magazine, the
+// external legal redirects (privacy/terms/account-deletion), the data/usage
+// terms page, and the covered-call Learn landing page exist ONLY under
+// (en) — there is no /ko equivalent (see the International SEO report) —
+// so switching language from one of those pages has no exact target and
+// falls back to the target language's home page instead of a broken link.
+//
+// PRODUCTION INCIDENT (2026-08-10): "what-is-a-covered-call-etf" was
+// missing from this set. Without an entry here, getLocaleTargetPath fell
+// through to the final `/ko/${segments}` mirror-path branch below and
+// returned "/ko/what-is-a-covered-call-etf" — a URL with no matching
+// static route, which Next.js's router then matched against the
+// app/ko/[ticker] catch-all, treated as an unknown ticker, and 404'd via
+// app/ko/not-found.tsx (the Korean "요청하신 페이지 또는 ETF를 찾을 수
+// 없습니다" page). LanguagePreferenceManager's auto-redirect effect (fired
+// only for a visitor with an explicit stored "ko" preference from a prior
+// visit — never on a fresh visit, which is why this reproduced on a phone
+// that had previously chosen Korean but not on a clean desktop browser)
+// sent real mobile visitors straight into that dead path. Every route
+// added under app/(en) with no app/ko counterpart must be listed here.
+const NO_KO_EQUIVALENT = new Set([
+  "magazine",
+  "privacy",
+  "terms",
+  "account-deletion",
+  "data-terms",
+  "what-is-a-covered-call-etf",
+]);
 
 /** Given the CURRENT pathname (as returned by usePathname(), always
  * starting with "/") and the language being switched TO, returns the path
