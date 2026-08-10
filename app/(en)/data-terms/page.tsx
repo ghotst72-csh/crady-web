@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
+import { PageShell } from "@/components/layout/PageShell";
 
 export const metadata: Metadata = {
   title: "Data & Usage Terms",
@@ -11,13 +12,15 @@ export const metadata: Metadata = {
 
 export default function DataTermsPage() {
   return (
-    <div className="mx-auto max-w-2xl px-4 sm:px-6 py-10">
+    <PageShell>
       <BreadcrumbJsonLd
         items={[
           { name: "Home", url: "https://crady.net" },
           { name: "Data & Usage Terms", url: "https://crady.net/data-terms" },
         ]}
       />
+      {/* One long-form reading column top to bottom — see about/page.tsx. */}
+      <div className="max-w-2xl">
       <h1 className="text-2xl font-bold">Data &amp; Usage Terms</h1>
       <p className="mt-3 text-[var(--gray-600)] text-sm leading-relaxed">
         This page describes what the dividend, price, and prediction data shown on CRADY is,
@@ -125,6 +128,7 @@ export default function DataTermsPage() {
         </Link>
         .
       </p>
-    </div>
+      </div>
+    </PageShell>
   );
 }

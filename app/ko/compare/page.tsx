@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getHomeSnapshot, toSearchIndex, getComparisonPeer } from "@/lib/data";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { CompareView } from "@/components/compare/CompareView";
+import { PageShell } from "@/components/layout/PageShell";
 
 export const revalidate = 3600;
 
@@ -35,7 +36,7 @@ export default async function CompareKoPage({
   const searchIndex = toSearchIndex(snapshot);
 
   return (
-    <div className="mx-auto max-w-4xl px-4 sm:px-6 py-10">
+    <PageShell>
       <BreadcrumbJsonLd
         items={[
           { name: "홈", url: "https://crady.net/ko" },
@@ -50,6 +51,6 @@ export default async function CompareKoPage({
       <div className="mt-8">
         <CompareView searchIndex={searchIndex} peerA={peerA} peerB={peerB} tickerA={tickerA} tickerB={tickerB} lang="ko" basePath="/ko" />
       </div>
-    </div>
+    </PageShell>
   );
 }

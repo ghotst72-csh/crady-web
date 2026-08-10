@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { GooglePlayButton } from "@/components/GooglePlayButton";
 import { AppStoreBadge } from "@/components/AppStoreBadge";
+import { PageShell } from "@/components/layout/PageShell";
 
 export const metadata: Metadata = {
   title: "소개 & 데이터 방법론",
@@ -43,13 +44,14 @@ const COMPARISON: { item: string; web: string; app: string }[] = [
 
 export default function KoreanAboutPage() {
   return (
-    <div className="mx-auto max-w-2xl px-4 sm:px-6 py-10">
+    <PageShell>
       <BreadcrumbJsonLd
         items={[
           { name: "Home", url: "https://crady.net/ko" },
           { name: "소개", url: "https://crady.net/ko/about" },
         ]}
       />
+      <div className="max-w-2xl">
       <h1 className="text-2xl font-bold">CRADY 소개</h1>
       <p className="mt-3 text-[var(--gray-600)] text-sm leading-relaxed">
         CRADY는 YieldMax, Roundhill, Defiance 등 고배당 커버드콜 ETF의 배당
@@ -202,6 +204,7 @@ export default function KoreanAboutPage() {
           개인정보처리방침과 이용약관을 참고하세요.
         </p>
       </div>
-    </div>
+      </div>
+    </PageShell>
   );
 }

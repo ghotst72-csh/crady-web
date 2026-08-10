@@ -6,6 +6,7 @@ import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { DividendStagePill } from "@/components/DividendLifecycle";
 import { CalendarSummary } from "@/components/calendar/CalendarSummary";
 import { PageAppCta } from "@/components/PageAppCta";
+import { PageShell } from "@/components/layout/PageShell";
 
 export const revalidate = 3600;
 
@@ -43,7 +44,7 @@ export default async function KoreanCalendarPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 sm:px-6 py-10">
+    <PageShell>
       <BreadcrumbJsonLd
         items={[
           { name: "Home", url: "https://crady.net/ko" },
@@ -113,6 +114,6 @@ export default async function KoreanCalendarPage() {
         )}
       </div>
       <PageAppCta lang="ko" />
-    </div>
+    </PageShell>
   );
 }

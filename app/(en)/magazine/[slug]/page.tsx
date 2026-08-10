@@ -28,6 +28,7 @@ import { PageAppCta } from "@/components/PageAppCta";
 import { HubArticleList } from "@/components/magazine/HubArticleList";
 import { RelatedContent } from "@/components/RelatedContent";
 import { PageTrustFooter } from "@/components/seo/PageTrustFooter";
+import { PageShell } from "@/components/layout/PageShell";
 
 export const revalidate = 3600;
 
@@ -312,7 +313,7 @@ async function HubPage({ slug }: { slug: keyof typeof HUB_DEFINITIONS }) {
   });
 
   return (
-    <div className="mx-auto max-w-4xl px-4 sm:px-6 py-10">
+    <PageShell>
       <BreadcrumbJsonLd
         items={[
           { name: "Home", url: "https://crady.net" },
@@ -338,7 +339,7 @@ async function HubPage({ slug }: { slug: keyof typeof HUB_DEFINITIONS }) {
       </div>
       <PageAppCta lang="en" />
       <PageTrustFooter lang="en" />
-    </div>
+    </PageShell>
   );
 }
 
@@ -357,7 +358,7 @@ async function CalendarHubPage({ slug }: { slug: CalendarHubId }) {
   });
 
   return (
-    <div className="mx-auto max-w-3xl px-4 sm:px-6 py-10">
+    <PageShell>
       <BreadcrumbJsonLd
         items={[
           { name: "Home", url: "https://crady.net" },
@@ -424,7 +425,7 @@ async function CalendarHubPage({ slug }: { slug: CalendarHubId }) {
       </div>
       <PageAppCta lang="en" />
       <PageTrustFooter lang="en" />
-    </div>
+    </PageShell>
   );
 }
 

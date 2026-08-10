@@ -4,6 +4,7 @@ import { getHomeSnapshot } from "@/lib/data";
 import { getRecentChangeEvents } from "@/lib/activity/data";
 import { buildWeeklyIntelligence, type WeeklyTicker } from "@/lib/home/weekly";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
+import { PageShell } from "@/components/layout/PageShell";
 
 export const revalidate = 21600;
 
@@ -49,7 +50,7 @@ export default async function WeeklyIntelligenceKoPage() {
   const data = buildWeeklyIntelligence(snapshot, changeEvents7d);
 
   return (
-    <div className="mx-auto max-w-4xl px-4 sm:px-6 py-10">
+    <PageShell>
       <BreadcrumbJsonLd
         items={[
           { name: "홈", url: "https://crady.net/ko" },
@@ -65,7 +66,7 @@ export default async function WeeklyIntelligenceKoPage() {
         </Link>
       </p>
 
-      <div className="mt-6 space-y-4">
+      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
         <Section title="분배 발표" items={data.distributions} empty="최근 7일간 분배 발표 이벤트가 없습니다." />
         <Section title="점수 변동" items={data.scoreChanges} empty="최근 7일간 CRADY 점수 변동이 없습니다." />
         <Section title="위험 등급 변동" items={data.riskLevelChanges} empty="최근 7일간 위험 등급 변동이 없습니다." />
@@ -73,6 +74,6 @@ export default async function WeeklyIntelligenceKoPage() {
         <Section title="예정된 배당락일" items={data.upcomingExDates} empty="향후 7일 내 예정된 배당락일이 없습니다." />
         <Section title="수익률 변동 상위" items={data.yieldMovers} empty="이번 주 눈에 띄는 분배 수익률 변동이 없습니다." />
       </div>
-    </div>
+    </PageShell>
   );
 }

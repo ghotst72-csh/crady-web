@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Play } from "lucide-react";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
+import { PageShell } from "@/components/layout/PageShell";
 import { CoveredCallMediaTabs } from "@/components/learn/CoveredCallMediaTabs";
 import { buildWebPageJsonLd, buildFaqJsonLd } from "@/lib/magazine/jsonld";
 import type { FaqItem } from "@/lib/magazine/types";
@@ -117,7 +118,7 @@ export default function CoveredCallLandingPage() {
   const faqJsonLd = buildFaqJsonLd(FAQ_ITEMS);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 sm:px-6 py-8">
+    <PageShell paddingY="py-8">
       <BreadcrumbJsonLd items={[{ name: "Home", url: "https://crady.net" }, { name: "What Is a Covered Call ETF?", url: PAGE_URL }]} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }} />
       {faqJsonLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />}
@@ -403,6 +404,6 @@ export default function CoveredCallLandingPage() {
       <p className="mt-8 pt-6 border-t border-[var(--gray-200)] text-xs text-[var(--gray-500)] leading-relaxed">
         This page is for educational purposes only and is not investment advice.
       </p>
-    </div>
+    </PageShell>
   );
 }

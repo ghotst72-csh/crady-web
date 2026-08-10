@@ -4,6 +4,7 @@ import { getHomeSnapshot } from "@/lib/data";
 import { getRecentChangeEvents } from "@/lib/activity/data";
 import { buildWeeklyIntelligence, type WeeklyTicker } from "@/lib/home/weekly";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
+import { PageShell } from "@/components/layout/PageShell";
 
 export const revalidate = 21600;
 
@@ -52,7 +53,7 @@ export default async function MonthlyIntelligencePage() {
   const data = buildWeeklyIntelligence(snapshot, changeEvents30d, new Date(), 30);
 
   return (
-    <div className="mx-auto max-w-4xl px-4 sm:px-6 py-10">
+    <PageShell>
       <BreadcrumbJsonLd
         items={[
           { name: "Home", url: "https://crady.net" },
@@ -68,7 +69,7 @@ export default async function MonthlyIntelligencePage() {
         </Link>
       </p>
 
-      <div className="mt-6 space-y-4">
+      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
         <Section title="Distributions" items={data.distributions} empty="No distribution events in the last 30 days." basePath="" />
         <Section title="Score Changes" items={data.scoreChanges} empty="No CRADY Score changes in the last 30 days." basePath="" />
         <Section title="Risk Changes" items={data.riskLevelChanges} empty="No risk classification changes in the last 30 days." basePath="" />
@@ -76,6 +77,6 @@ export default async function MonthlyIntelligencePage() {
         <Section title="Upcoming Ex-Dates" items={data.upcomingExDates} empty="No upcoming ex-dates in the next 30 days." basePath="" />
         <Section title="Highest Yield Changes" items={data.yieldMovers} empty="No notable distribution-yield movers this month." basePath="" />
       </div>
-    </div>
+    </PageShell>
   );
 }

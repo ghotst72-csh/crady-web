@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { GooglePlayButton } from "@/components/GooglePlayButton";
 import { AppStoreBadge } from "@/components/AppStoreBadge";
+import { PageShell } from "@/components/layout/PageShell";
 
 export const metadata: Metadata = {
   title: "About & Data Methodology",
@@ -43,13 +44,18 @@ const COMPARISON: { item: string; web: string; app: string }[] = [
 
 export default function AboutPage() {
   return (
-    <div className="mx-auto max-w-2xl px-4 sm:px-6 py-10">
+    <PageShell>
       <BreadcrumbJsonLd
         items={[
           { name: "Home", url: "https://crady.net" },
           { name: "About", url: "https://crady.net/about" },
         ]}
       />
+      {/* This page is one long-form reading column top to bottom — kept at
+          the readable max-w-2xl the content was written for, inside the
+          standard-width PageShell so its left edge still lines up with
+          every other CRADY page (see the page-width audit). */}
+      <div className="max-w-2xl">
       <h1 className="text-2xl font-bold">About CRADY</h1>
       <p className="mt-3 text-[var(--gray-600)] text-sm leading-relaxed">
         CRADY is a website for tracking dividend schedules, prices, estimated next dividends, and
@@ -200,6 +206,7 @@ export default function AboutPage() {
           data handling and service use.
         </p>
       </div>
-    </div>
+      </div>
+    </PageShell>
   );
 }

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getAllAnnouncements } from "@/lib/distributions/data";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { providerLabel } from "@/lib/providers";
+import { PageShell } from "@/components/layout/PageShell";
 
 export const revalidate = 3600;
 
@@ -32,7 +33,7 @@ export default async function DistributionArchivePage() {
   const announcements = await getAllAnnouncements();
 
   return (
-    <div className="mx-auto max-w-4xl px-4 sm:px-6 py-10">
+    <PageShell>
       <BreadcrumbJsonLd
         items={[
           { name: "Home", url: "https://crady.net" },
@@ -71,6 +72,6 @@ export default async function DistributionArchivePage() {
           <li className="px-4 py-6 text-center text-sm text-[var(--gray-400)]">No announcements recorded yet.</li>
         )}
       </ul>
-    </div>
+    </PageShell>
   );
 }

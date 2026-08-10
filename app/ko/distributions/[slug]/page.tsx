@@ -12,6 +12,7 @@ import { AnnouncementHeader } from "@/components/distributions/AnnouncementHeade
 import { DistributionExplorer } from "@/components/distributions/DistributionExplorer";
 import { AnnouncementInsights } from "@/components/distributions/AnnouncementInsights";
 import { RelatedContent } from "@/components/RelatedContent";
+import { PageShell } from "@/components/layout/PageShell";
 
 export const revalidate = 3600;
 
@@ -82,7 +83,7 @@ export default async function KoreanDistributionAnnouncementPage({
   };
 
   return (
-    <div className="mx-auto max-w-5xl px-4 sm:px-6 py-10">
+    <PageShell>
       <BreadcrumbJsonLd
         items={[
           { name: "홈", url: "https://crady.net/ko" },
@@ -118,6 +119,6 @@ export default async function KoreanDistributionAnnouncementPage({
         }))}
         rankings={[{ href: "/ko/distributions/archive", label: "분배금 발표 아카이브" }]}
       />
-    </div>
+    </PageShell>
   );
 }

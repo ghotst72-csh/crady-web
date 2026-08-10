@@ -7,6 +7,7 @@ import { DistributionKpis } from "@/components/distributions/DistributionKpis";
 import { DistributionExplorer } from "@/components/distributions/DistributionExplorer";
 import { DataExplanations } from "@/components/distributions/DataExplanations";
 import { PageAppCta } from "@/components/PageAppCta";
+import { PageShell } from "@/components/layout/PageShell";
 
 export const revalidate = 3600;
 
@@ -50,7 +51,7 @@ export default async function DistributionsPage() {
     : null;
 
   return (
-    <div className="mx-auto max-w-5xl px-4 sm:px-6 py-10">
+    <PageShell>
       <BreadcrumbJsonLd
         items={[
           { name: "Home", url: "https://crady.net" },
@@ -95,6 +96,6 @@ export default async function DistributionsPage() {
 
       <DataExplanations lang="en" />
       <PageAppCta lang="en" />
-    </div>
+    </PageShell>
   );
 }

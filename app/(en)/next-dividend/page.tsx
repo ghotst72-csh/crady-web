@@ -5,6 +5,7 @@ import { getNextDividendBoard } from "@/lib/ticker/nextDividendBoard";
 import { NextDividendBoard } from "@/components/nextDividend/NextDividendBoard";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { PageAppCta } from "@/components/PageAppCta";
+import { PageShell } from "@/components/layout/PageShell";
 
 export const revalidate = 3600;
 
@@ -44,7 +45,7 @@ export default async function NextDividendPage() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-4 sm:px-6 py-8">
+    <PageShell paddingY="py-8">
       <BreadcrumbJsonLd
         items={[
           { name: "Home", url: "https://crady.net" },
@@ -77,6 +78,6 @@ export default async function NextDividendPage() {
       </div>
 
       <PageAppCta lang="en" />
-    </div>
+    </PageShell>
   );
 }

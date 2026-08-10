@@ -1,4 +1,5 @@
 import type { SiteAccuracySummary, TickerAccuracyRow } from "@/lib/accuracy/siteAccuracy";
+import { PageShell } from "@/components/layout/PageShell";
 
 /** CRADY Phase 2 §11 — the Prediction Accuracy trust page.
  *
@@ -50,18 +51,24 @@ export function PredictionAccuracyReport({
 }) {
   if (summary.evaluatedCount === 0) {
     return (
-      <div className="mx-auto max-w-4xl px-4 sm:px-6 py-10">
+      <PageShell>
+        <div className="max-w-2xl">
         <h1 className="text-2xl font-black tracking-tight">{T.title[lang]}</h1>
         <div className="mt-6 border border-[var(--gray-200)] rounded-xl p-6 text-center">
           <div className="font-bold">{T.emptyTitle[lang]}</div>
           <p className="mt-1.5 text-sm text-[var(--gray-500)]">{T.empty[lang]}</p>
         </div>
-      </div>
+        </div>
+      </PageShell>
     );
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 sm:px-6 py-10">
+    <PageShell>
+      {/* Compact stats/info page, not a wide table — kept at the readable
+          max-w-2xl the content was written for, inside the standard-width
+          PageShell so its left edge still lines up with the rest of CRADY. */}
+      <div className="max-w-2xl">
       <div className="flex items-center gap-1.5">
         <h1 className="text-2xl font-black tracking-tight">{T.title[lang]}</h1>
         <span aria-hidden className="text-[var(--gray-400)]">
@@ -84,7 +91,8 @@ export function PredictionAccuracyReport({
         <h2 className="text-sm font-bold">{T.methodologyTitle[lang]}</h2>
         <p className="mt-1.5 text-xs text-[var(--gray-500)] leading-relaxed">{T.methodology[lang]}</p>
       </div>
-    </div>
+      </div>
+    </PageShell>
   );
 }
 

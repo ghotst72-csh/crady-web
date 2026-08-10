@@ -12,6 +12,7 @@ import { AnnouncementHeader } from "@/components/distributions/AnnouncementHeade
 import { DistributionExplorer } from "@/components/distributions/DistributionExplorer";
 import { AnnouncementInsights } from "@/components/distributions/AnnouncementInsights";
 import { RelatedContent } from "@/components/RelatedContent";
+import { PageShell } from "@/components/layout/PageShell";
 
 export const revalidate = 3600;
 
@@ -77,7 +78,7 @@ export default async function DistributionAnnouncementPage({
   };
 
   return (
-    <div className="mx-auto max-w-5xl px-4 sm:px-6 py-10">
+    <PageShell>
       <BreadcrumbJsonLd
         items={[
           { name: "Home", url: "https://crady.net" },
@@ -114,6 +115,6 @@ export default async function DistributionAnnouncementPage({
         guides={[{ href: "/magazine/distribution-schedule-guide", label: "Distribution Schedule Guide" }]}
         rankings={[{ href: "/distributions/archive", label: "Distribution Announcement Archive" }]}
       />
-    </div>
+    </PageShell>
   );
 }

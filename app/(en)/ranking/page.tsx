@@ -11,6 +11,7 @@ import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { RankingTable } from "@/components/RankingTable";
 import { PageAppCta } from "@/components/PageAppCta";
 import { SitewideActivitySection } from "@/components/activity/SitewideActivitySection";
+import { PageShell } from "@/components/layout/PageShell";
 
 export const revalidate = 3600;
 
@@ -51,7 +52,7 @@ export default async function RankingPage() {
   };
 
   return (
-    <div className="mx-auto max-w-4xl px-4 sm:px-6 py-10">
+    <PageShell>
       <BreadcrumbJsonLd
         items={[
           { name: "Home", url: "https://crady.net" },
@@ -81,6 +82,6 @@ export default async function RankingPage() {
       </div>
 
       <PageAppCta lang="en" />
-    </div>
+    </PageShell>
   );
 }
