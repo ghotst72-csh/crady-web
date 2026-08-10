@@ -317,6 +317,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.3,
     },
     {
+      // Flagship evergreen SEO/education landing page — English-only.
+      url: "https://crady.net/what-is-a-covered-call-etf",
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
+    {
       url: "https://crady.net/about",
       lastModified: mostRecentCalculatedAt ?? undefined,
       changeFrequency: "monthly",

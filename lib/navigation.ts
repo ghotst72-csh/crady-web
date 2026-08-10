@@ -1,4 +1,4 @@
-import { Target, Wallet, BarChart3, User, Newspaper, Info, type LucideIcon } from "lucide-react";
+import { Target, Wallet, BarChart3, User, Newspaper, GraduationCap, Info, type LucideIcon } from "lucide-react";
 
 /** CRADY Site Architecture Phase 1 — the single source of truth for the
  * global IA, shared verbatim by the desktop Sidebar and the mobile/tablet
@@ -78,6 +78,25 @@ export const NAVIGATION: NavSection[] = [
     label: { en: "My CRADY", ko: "내 CRADY" },
     icon: User,
     children: [{ key: "portfolio", label: { en: "Portfolio", ko: "포트폴리오" }, href: "/portfolio" }],
+  },
+  {
+    // A single real destination today (collapses to one direct link — see
+    // NavList), built as a full section so future Learn pages (the visual-
+    // education format piloted here) slot in as more children later with
+    // no restructuring. English-only content (like Magazine), so `koHref`
+    // points the Korean nav at the same English URL rather than a /ko path
+    // that doesn't exist — same pattern Magazine already uses.
+    key: "learn",
+    label: { en: "Learn", ko: "배우기" },
+    icon: GraduationCap,
+    children: [
+      {
+        key: "covered-call-etf",
+        label: { en: "What Is a Covered Call ETF?", ko: "커버드콜 ETF란?" },
+        href: "/what-is-a-covered-call-etf",
+        koHref: "/what-is-a-covered-call-etf",
+      },
+    ],
   },
   {
     key: "content",

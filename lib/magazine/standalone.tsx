@@ -229,6 +229,13 @@ export const STANDALONE_PAGES: Record<StandalonePageId, StandalonePageDefinition
       "How covered call (options-income) ETFs like YieldMax, Roundhill and Defiance funds generate high distributions, and the yield-vs-upside trade-off behind that income.",
     body: (
       <>
+        <p className="not-prose border border-[var(--gray-200)] rounded-xl bg-[var(--gray-50)] px-4 py-3 text-sm">
+          Prefer a 60-second visual explanation first? See{" "}
+          <Link href="/what-is-a-covered-call-etf" className="underline hover:text-black font-medium">
+            What Is a Covered Call ETF? (the visual explainer)
+          </Link>
+          , then come back here for the full breakdown.
+        </p>
         <section>
           <h2 className="text-lg sm:text-xl font-bold mb-3">What Is a Covered Call ETF?</h2>
           <p>
