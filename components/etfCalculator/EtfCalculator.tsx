@@ -164,7 +164,7 @@ export function EtfCalculator({ searchIndex }: { searchIndex: SearchEntry[] }) {
                 )}
               </>
             ) : null}
-            <button type="button" onClick={clearTicker} className="text-[var(--gray-400)] hover:text-black underline">
+            <button type="button" onClick={clearTicker} className="text-[var(--gray-400)] hover:text-black underline outline-none focus-visible:ring-2 focus-visible:ring-[var(--crady-accent)] rounded">
               Clear
             </button>
           </div>
@@ -192,7 +192,7 @@ export function EtfCalculator({ searchIndex }: { searchIndex: SearchEntry[] }) {
                   role="switch"
                   aria-checked={reinvestDistributions}
                   onClick={() => setReinvestDistributions((v) => !v)}
-                  className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${reinvestDistributions ? "bg-black" : "bg-[var(--gray-200)]"}`}
+                  className={`relative w-11 h-6 rounded-full transition-colors shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-[var(--crady-accent)] focus-visible:ring-offset-2 ${reinvestDistributions ? "bg-black" : "bg-[var(--gray-200)]"}`}
                 >
                   <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${reinvestDistributions ? "translate-x-5" : ""}`} />
                 </button>
@@ -209,14 +209,14 @@ export function EtfCalculator({ searchIndex }: { searchIndex: SearchEntry[] }) {
             <button
               type="button"
               onClick={handleCalculateClick}
-              className="flex-1 px-4 py-2.5 rounded-lg bg-black text-white text-sm font-semibold hover:bg-[var(--gray-800)] transition-colors"
+              className="flex-1 px-4 py-2.5 rounded-lg bg-black text-white text-sm font-semibold hover:bg-[var(--gray-800)] active:bg-[var(--gray-900)] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--crady-accent)] focus-visible:ring-offset-2 disabled:bg-[var(--gray-300)] disabled:text-[var(--gray-500)] disabled:cursor-not-allowed"
             >
               Calculate
             </button>
             <button
               type="button"
               onClick={handleReset}
-              className="px-4 py-2.5 rounded-lg border border-[var(--gray-300)] text-sm font-semibold hover:border-black transition-colors"
+              className="px-4 py-2.5 rounded-lg border border-[var(--gray-300)] text-sm font-semibold hover:border-black active:bg-[var(--gray-50)] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--crady-accent)] focus-visible:ring-offset-2 disabled:text-[var(--gray-400)] disabled:cursor-not-allowed"
             >
               Reset
             </button>

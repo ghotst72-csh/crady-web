@@ -99,7 +99,7 @@ export default async function EtfCalculatorPage() {
       {/* ---- How this calculation works ---- */}
       <section id="how-this-works" className="mt-10 scroll-mt-20">
         <details className="group border border-[var(--gray-200)] rounded-xl p-4 sm:p-5">
-          <summary className="cursor-pointer list-none flex items-center justify-between gap-3 font-bold text-sm text-[var(--gray-900)]">
+          <summary className="cursor-pointer list-none flex items-center justify-between gap-3 font-bold text-sm text-[var(--gray-900)] rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--crady-accent)]">
             How This Calculation Works
             <span className="shrink-0 text-[var(--gray-400)] transition-transform group-open:rotate-45 text-lg leading-none">+</span>
           </summary>
@@ -120,7 +120,7 @@ export default async function EtfCalculatorPage() {
         <div className="not-prose max-w-3xl divide-y divide-[var(--gray-100)] border-t border-[var(--gray-100)]">
           {FAQ_ITEMS.map((item) => (
             <details key={item.question} className="group py-1">
-              <summary className="cursor-pointer list-none flex items-center justify-between gap-3 py-3 font-semibold text-sm text-[var(--gray-900)]">
+              <summary className="cursor-pointer list-none flex items-center justify-between gap-3 py-3 font-semibold text-sm text-[var(--gray-900)] rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--crady-accent)]">
                 {item.question}
                 <span className="shrink-0 text-[var(--gray-400)] transition-transform group-open:rotate-45 text-lg leading-none">+</span>
               </summary>
@@ -137,10 +137,10 @@ export default async function EtfCalculatorPage() {
           tracked ETF.
         </p>
         <div className="mt-4 flex flex-wrap gap-3">
-          <Link href="/ranking" className="px-4 py-2 rounded-full bg-black text-white text-sm font-semibold hover:bg-[var(--gray-800)] transition-colors">
+          <Link href="/ranking" className="px-4 py-2 rounded-full bg-black text-white text-sm font-semibold hover:bg-[var(--gray-800)] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--crady-accent)] focus-visible:ring-offset-2">
             Explore ETF Rankings →
           </Link>
-          <Link href="/portfolio" className="px-4 py-2 rounded-full border border-[var(--gray-300)] text-sm font-semibold hover:border-black transition-colors">
+          <Link href="/portfolio" className="px-4 py-2 rounded-full border border-[var(--gray-300)] text-sm font-semibold hover:border-black transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--crady-accent)] focus-visible:ring-offset-2">
             Real Historical Return Calculator →
           </Link>
         </div>

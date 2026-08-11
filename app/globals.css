@@ -11,6 +11,16 @@
   --gray-400: #9e9e9e;
   --gray-500: #737373;
   --gray-600: #525252;
+  /* --gray-700/--gray-800 were referenced across the codebase (hover
+     states on bg-black buttons, some text colors) but never defined here —
+     an invalid var() on a non-inherited property like background-color
+     computes to `transparent`, not "no change," which is why every
+     `bg-black ... hover:bg-[var(--gray-800)]` button site-wide went
+     invisible (white text on transparent-over-white) on hover. Values
+     match Tailwind's standard neutral-700/800 steps, consistent with
+     --gray-500/600/900 above already matching neutral-500/600/900 exactly. */
+  --gray-700: #404040;
+  --gray-800: #262626;
   --gray-900: #171717;
 }
 
