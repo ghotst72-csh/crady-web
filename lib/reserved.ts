@@ -18,6 +18,7 @@ export const RESERVED_PATHS = new Set([
   "account-deletion",
   "data-terms",
   "what-is-a-covered-call-etf",
+  "etf-calculator",
   "sitemap.xml",
   "robots.txt",
   "favicon.ico",

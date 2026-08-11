@@ -46,6 +46,17 @@ describe("getLocaleTargetPath — to Korean", () => {
     expect(getLocaleTargetPath("/what-is-a-covered-call-etf", "ko")).toBe("/ko");
   });
 
+  // Regression test for the 2026-08-11 production incident: /etf-calculator
+  // is EN-only (no app/ko/etf-calculator route) but was missing from
+  // NO_KO_EQUIVALENT, so this returned "/ko/etf-calculator" — a URL the
+  // app/ko/[ticker] catch-all 404'd on. Any visitor with a stored "ko"
+  // preference (set from this exact page's own language-recommendation
+  // card, among others) hitting /etf-calculator was hard-redirected
+  // straight into that dead path via LanguagePreferenceManager.
+  it("falls back to /ko home for the ETF Calculator (no Korean equivalent)", () => {
+    expect(getLocaleTargetPath("/etf-calculator", "ko")).toBe("/ko");
+  });
+
   it("falls back to /ko home for other reserved paths", () => {
     expect(getLocaleTargetPath("/sitemap.xml", "ko")).toBe("/ko");
     expect(getLocaleTargetPath("/api", "ko")).toBe("/ko");

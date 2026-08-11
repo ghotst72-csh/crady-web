@@ -3,10 +3,11 @@ import { RESERVED_PATHS } from "@/lib/reserved";
 // Pages that exist in both trees with an identical trailing segment —
 // /about <-> /ko/about, /{ticker} <-> /ko/{ticker}, etc. Magazine, the
 // external legal redirects (privacy/terms/account-deletion), the data/usage
-// terms page, and the covered-call Learn landing page exist ONLY under
-// (en) — there is no /ko equivalent (see the International SEO report) —
-// so switching language from one of those pages has no exact target and
-// falls back to the target language's home page instead of a broken link.
+// terms page, the covered-call Learn landing page, and the ETF Calculator
+// exist ONLY under (en) — there is no /ko equivalent (see the International
+// SEO report) — so switching language from one of those pages has no exact
+// target and falls back to the target language's home page instead of a
+// broken link.
 //
 // PRODUCTION INCIDENT (2026-08-10): "what-is-a-covered-call-etf" was
 // missing from this set. Without an entry here, getLocaleTargetPath fell
@@ -28,6 +29,7 @@ const NO_KO_EQUIVALENT = new Set([
   "account-deletion",
   "data-terms",
   "what-is-a-covered-call-etf",
+  "etf-calculator",
 ]);
 
 /** Given the CURRENT pathname (as returned by usePathname(), always
