@@ -8,6 +8,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { MobileDrawer } from "@/components/layout/MobileDrawer";
 import { FooterLanguageLink } from "@/components/i18n/FooterLanguageLink";
 import { LanguagePreferenceManager } from "@/components/i18n/LanguagePreferenceManager";
+import { Logo } from "@/components/branding/Logo";
 import { getHomeSnapshot, toSearchIndex } from "@/lib/data";
 import "../globals.css";
 
@@ -87,9 +88,7 @@ export default async function EnglishRootLayout({
           <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10">
             <div className="flex flex-col sm:flex-row sm:justify-between gap-8">
               <div className="max-w-sm">
-                <div className="font-bold text-lg tracking-tight">
-                  CRA<span className="text-[#92400e]">DY</span>
-                </div>
+                <Logo variant="horizontal" size="md" />
                 <p className="mt-2 text-sm text-[var(--gray-600)] leading-relaxed">
                   A data platform for high-dividend covered-call ETFs from YieldMax, Roundhill,
                   and Defiance — dividend schedules, prices, and CRADY scores.

@@ -8,6 +8,7 @@ import { MobileSearch } from "./search/MobileSearch";
 import { LanguageSwitcher } from "./i18n/LanguageSwitcher";
 import { AuthStatus } from "./auth/AuthStatus";
 import { useNavDrawer } from "./layout/NavDrawerProvider";
+import { Logo } from "./branding/Logo";
 import type { SearchEntry } from "@/lib/search/searchTickers";
 
 // Scroll direction thresholds — small jitters (<10px) don't trigger a
@@ -103,26 +104,28 @@ export function Header({
             <Menu size={20} strokeWidth={2} aria-hidden="true" />
           </button>
 
-          <Link href={homeHref} className="font-bold text-lg tracking-tight shrink-0">
-            {/* #92400e — see the CRADY Authority & Google Trust Phase 1
-                report for the WCAG contrast fix behind this exact value. */}
-            CRA<span className="text-[#92400e]">DY</span>
+          <Link href={homeHref} className="shrink-0">
+            <Logo variant="horizontal" size="md" showTagline />
           </Link>
 
           <div className="flex-1" />
 
           {/* Always-visible desktop trio, once the Sidebar is showing
               (xl:+) — no nav links here anymore, so there's no overflow
-              budget to fight over. Below xl:, the compact mobile row
-              (hamburger already rendered above + language + search-sheet
-              trigger + account) takes over instead. */}
-          <div className="hidden xl:block shrink-0">
-            <LanguageSwitcher lang={lang} />
-          </div>
-          <div className="hidden xl:block w-[230px] shrink-0">
+              budget to fight over. Search sits in its own centered zone
+              (CRADY Homepage Final Redesign, 2026-08-12 — matching the
+              approved header proportions) between two equal flex spacers,
+              wider than before so it reads as the header's primary
+              action, not an afterthought beside the account menu. Below
+              xl:, the compact mobile row (hamburger already rendered above
+              + language + search-sheet trigger + account) takes over
+              instead. */}
+          <div className="hidden xl:block w-full max-w-md shrink-0">
             <TickerSearch index={searchIndex} lang={lang} basePath={basePath} />
           </div>
-          <div className="hidden xl:block shrink-0">
+          <div className="flex-1" />
+          <div className="hidden xl:flex items-center gap-2 shrink-0">
+            <LanguageSwitcher lang={lang} />
             <AuthStatus lang={lang} />
           </div>
           <div className="xl:hidden flex items-center gap-1">

@@ -42,10 +42,10 @@ export function MagazineTeaser({ snapshot, lang = "en" }: { snapshot: EtfSnapsho
   ].filter((s): s is { label: string; value: string } => s != null);
 
   return (
-    <section className="mx-auto max-w-6xl px-4 sm:px-6 py-8 border-t border-[var(--gray-200)]">
+    <div className="rounded-xl border border-[var(--gray-200)] bg-white p-5">
       <div className="flex items-baseline justify-between mb-1">
-        <h2 className="text-lg font-bold">{T.heading[lang]}</h2>
-        <Link href="/magazine" className="text-sm text-[var(--gray-500)] hover:text-black shrink-0">
+        <h2 className="text-sm font-bold text-[var(--gray-900)]">{T.heading[lang]}</h2>
+        <Link href="/magazine" className="text-xs font-semibold text-blue-600 hover:underline shrink-0">
           {T.viewAll[lang]}
         </Link>
       </div>
@@ -83,6 +83,6 @@ export function MagazineTeaser({ snapshot, lang = "en" }: { snapshot: EtfSnapsho
           </div>
         )}
       </div>
-    </section>
+    </div>
   );
 }

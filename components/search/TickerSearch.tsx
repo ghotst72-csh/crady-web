@@ -26,6 +26,8 @@ export function TickerSearch({
   lang = "en",
   basePath = "",
   className = "",
+  inputClassName = "",
+  accentClassName = "text-[var(--crady-accent)]",
   autoFocus = false,
   onNavigate,
   analytics,
@@ -34,6 +36,16 @@ export function TickerSearch({
   lang?: "en" | "ko";
   basePath?: string;
   className?: string;
+  /** Extra classes merged onto the `<input>` itself — lets a caller (e.g.
+   * a larger hero variant) resize the field without needing a second
+   * implementation. */
+  inputClassName?: string;
+  /** Overrides the two internal accent spots (match-highlight, yield
+   * figure) — both default to the sitewide `--crady-accent` token. A
+   * caller embedding this inside an all-blue section can pass a Tailwind
+   * text color class here instead, without changing the shared token or
+   * any other caller's appearance. */
+  accentClassName?: string;
   autoFocus?: boolean;
   /** Called after a result is chosen (e.g. to close a mobile sheet). */
   onNavigate?: () => void;
@@ -139,7 +151,7 @@ export function TickerSearch({
           onChange={(e) => handleChange(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={T.placeholder[lang]}
-          className="w-full pl-8 pr-8 py-2 text-sm rounded-full border border-[var(--gray-200)] bg-[var(--gray-50)] placeholder:text-[var(--gray-400)] outline-none transition-colors focus:bg-white focus:border-black focus-visible:ring-2 focus-visible:ring-[var(--crady-accent)]"
+          className={`w-full pl-8 pr-8 py-2 text-sm rounded-full border border-[var(--gray-200)] bg-[var(--gray-50)] placeholder:text-[var(--gray-400)] outline-none transition-colors focus:bg-white focus:border-black focus-visible:ring-2 focus-visible:ring-[var(--crady-accent)] ${inputClassName}`}
         />
         {query && (
           <button
@@ -191,7 +203,7 @@ export function TickerSearch({
                         {tickerParts.match ? (
                           <>
                             {tickerParts.before}
-                            <span className="text-[var(--crady-accent)]">{tickerParts.match}</span>
+                            <span className={accentClassName}>{tickerParts.match}</span>
                             {tickerParts.after}
                           </>
                         ) : (
@@ -209,7 +221,7 @@ export function TickerSearch({
                   {(r.annualYieldPct != null || r.cradyScore != null) && (
                     <span className="shrink-0 text-right text-[11px] text-[var(--gray-500)]">
                       {r.annualYieldPct != null && (
-                        <span className="block font-semibold text-[var(--crady-accent)]">
+                        <span className={`block font-semibold ${accentClassName}`}>
                           {r.annualYieldPct.toFixed(1)}%
                         </span>
                       )}

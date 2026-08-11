@@ -24,8 +24,19 @@ describe("NAVIGATION data integrity", () => {
     expect(new Set(childKeys).size).toBe(childKeys.length);
   });
 
-  it("Dividend Predictions is the first section after Home (brand positioning)", () => {
-    expect(NAVIGATION[0].key).toBe("predictions");
+  // CRADY Homepage Final Redesign (2026-08-12): the approved homepage mock
+  // places ETF Calculator and the Covered Call Guide first, ahead of
+  // Dividend Predictions — promoted from nested submenu children (3 levels
+  // deep under "High-Yield ETFs" / "Learn") to top-level sections,
+  // superseding the earlier "Predictions is literally first" brand-
+  // positioning call this test used to assert.
+  it("ETF Calculator and Covered Call Guide are the first two sections after Home, per the approved homepage design", () => {
+    expect(NAVIGATION[0].key).toBe("etf-calculator-top");
+    expect(NAVIGATION[1].key).toBe("covered-call-guide");
+  });
+
+  it("Dividend Predictions follows immediately after the two promoted tool destinations", () => {
+    expect(NAVIGATION[2].key).toBe("predictions");
   });
 });
 

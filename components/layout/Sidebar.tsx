@@ -1,4 +1,5 @@
 import { NavList } from "./NavList";
+import { SidebarCta } from "./SidebarCta";
 
 /** Wide-desktop persistent sidebar — visible at `xl:` (1280px) and up,
  * hidden below that in favor of the hamburger + MobileDrawer (Header.tsx
@@ -14,6 +15,7 @@ export function Sidebar({ lang = "en" }: { lang?: "en" | "ko" }) {
       aria-label={lang === "ko" ? "사이드바" : "Sidebar"}
     >
       <NavList lang={lang} />
+      <SidebarCta lang={lang} />
     </aside>
   );
 }

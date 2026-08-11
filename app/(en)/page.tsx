@@ -1,35 +1,22 @@
 import type { Metadata } from "next";
 import {
   getHomeSnapshot,
-  getKeyMetrics,
   topByAnnualYield,
   topByCradyScoreSnapshot,
-  topRecentlyIncreased,
   nextDistributionsTimeline,
+  toSearchIndex,
 } from "@/lib/data";
-import { getLatestAnnouncement, getDistributionRowsForAnnouncement, getDistributionTrustStats } from "@/lib/distributions/data";
+import { getRecentAnnouncedDistributions } from "@/lib/distributions/data";
 import { getRecentChangeEvents } from "@/lib/activity/data";
-import { buildHomeIntelligence } from "@/lib/home/intelligence";
 import { buildWeeklyIntelligence } from "@/lib/home/weekly";
-import { HomeIntelligence } from "@/components/home/HomeIntelligence";
 import { WeeklyIntelligencePreview } from "@/components/home/WeeklyIntelligencePreview";
-import { WatchlistIntelligence } from "@/components/etf/WatchlistIntelligence";
-import { HeroSection } from "@/components/home/Hero";
-import { TrustBar } from "@/components/home/TrustBar";
-import { TodaysHighlights } from "@/components/home/TodaysHighlights";
-import { MarketSummary } from "@/components/home/MarketSummary";
-import { QuickInsights } from "@/components/home/QuickInsights";
-import { NextDistributionsRail } from "@/components/NextDistributionsRail";
-import { OfficialAnnouncementsPreview } from "@/components/home/OfficialAnnouncementsPreview";
-import { RankingPreview } from "@/components/RankingPreview";
+import { HeroSearch } from "@/components/home/HeroSearch";
+import { QuickActions } from "@/components/home/QuickActions";
+import { EtfTable, TickerCell, NameCell, ConfidenceBar } from "@/components/home/EtfTable";
+import { RecentlyAnnouncedTable } from "@/components/home/RecentlyAnnouncedTable";
 import { MagazineTeaser } from "@/components/home/MagazineTeaser";
 import { AppPromoSection } from "@/components/AppPromoSection";
-import { Suspense } from "react";
-import { SitewideActivitySection } from "@/components/activity/SitewideActivitySection";
-import { EtfCard } from "@/components/etf/EtfCard";
-import { CardCarousel, CarouselItem } from "@/components/etf/CardCarousel";
-import { WatchlistSection } from "@/components/etf/WatchlistSection";
-import { snapshotToCardData } from "@/lib/etf/toCardData";
+import { CalendarClock, TrendingUp, Target } from "lucide-react";
 
 export const revalidate = 3600;
 
@@ -64,143 +51,90 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const [snapshot, keyMetrics, announcement, trustStats, changeEventsToday, changeEvents7d] = await Promise.all([
+  const [snapshot, changeEvents7d, recentAnnounced] = await Promise.all([
     getHomeSnapshot(),
-    getKeyMetrics(),
-    getLatestAnnouncement(),
-    getDistributionTrustStats(),
-    getRecentChangeEvents({ days: 1, lang: "en" }),
     getRecentChangeEvents({ days: 7, lang: "en" }),
+    getRecentAnnouncedDistributions(5),
   ]);
-  const announcementRows = announcement ? await getDistributionRowsForAnnouncement(announcement.id) : [];
 
-  // CRADY Intelligence 4.0, Items #3/#10/#13 — Home/Weekly/Watchlist
-  // Intelligence, all built from the two change-event queries above plus
-  // the already-fetched snapshot. Zero additional queries.
-  const homeIntelligence = buildHomeIntelligence(snapshot, changeEventsToday, "en");
   const weeklyIntelligence = buildWeeklyIntelligence(snapshot, changeEvents7d);
 
   const yieldTop10 = topByAnnualYield(snapshot, 10);
   const nextDistributions = nextDistributionsTimeline(snapshot, 10);
+  const predictionsTop = [...nextDistributions]
+    .sort((a, b) => (b.nextPredictedConfidence ?? -1) - (a.nextPredictedConfidence ?? -1))
+    .slice(0, 5);
   const cradyTop = topByCradyScoreSnapshot(snapshot, 6);
-  const increasedTop = topRecentlyIncreased(snapshot, 6);
-  const popularCards = topByCradyScoreSnapshot(snapshot, 6);
-  const trendingCards = topRecentlyIncreased(snapshot, 6);
-  const risingCount = snapshot.filter((e) => e.dividendTrend === "up").length;
-  const lastUpdatedIso = snapshot.reduce<string | null>(
-    (max, e) => (e.calculatedAt && (!max || e.calculatedAt > max) ? e.calculatedAt : max),
-    null
-  );
-  const nextExDividend = snapshot
-    .filter((e) => e.nextPredictedExDate != null)
-    .sort((a, b) => (a.nextPredictedExDate! < b.nextPredictedExDate! ? -1 : 1))[0];
-  const topPick = cradyTop[0]?.cradyScore != null ? { ticker: cradyTop[0].ticker, cradyScore: cradyTop[0].cradyScore } : null;
 
   return (
     <div>
-      {/* Visually hidden — every page needs exactly one <h1> describing its
-          content; the Hero's own big number/ticker isn't a page title (it
-          rotates per user interaction and per data refresh), so this
-          restores correct document structure without changing the Hero's
-          visual design (AI Overview Optimization Phase 1). */}
-      <h1 className="sr-only">CRADY — YieldMax &amp; Covered Call ETF Dividend Tracker</h1>
+      <section className="mx-auto max-w-6xl px-4 sm:px-6 pt-6 pb-12">
+        <HeroSearch
+          searchIndex={toSearchIndex(snapshot)}
+          popularTickers={cradyTop.slice(0, 5).map((e) => e.ticker)}
+          lang="en"
+        />
 
-      {/* Phase 2 — the site's primary message leads the page: CRADY
-          predicts upcoming dividends before they're officially announced.
-          Moved up from its old position (after QuickInsights, several
-          screens down) to right after the h1 — spec §10's "a new visitor
-          should understand within seconds" requirement. */}
-      <NextDistributionsRail items={nextDistributions} lang="en" />
+        <QuickActions lang="en" />
 
-      {/* Today's highest-yield spotlight — still a real, useful module,
-          now secondary to the prediction rail above it rather than the
-          page's very first thing. */}
-      <HeroSection
-        top10={yieldTop10}
-        weekCount={keyMetrics.weekCount}
-        nextExDividend={
-          nextExDividend ? { ticker: nextExDividend.ticker, exDate: nextExDividend.nextPredictedExDate! } : null
-        }
-        topPick={topPick}
-        lang="en"
-      />
-      <TrustBar
-        etfsTracked={snapshot.length}
-        distributionRecords={trustStats.distributionRecords}
-        announcementsTracked={trustStats.announcementsTracked}
-        predictionCount={keyMetrics.nextPredictionCount}
-        lastUpdatedIso={lastUpdatedIso}
-        lang="en"
-      />
+        <div className="mt-6 grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <EtfTable
+            title="Next Distributions"
+            icon={CalendarClock}
+            viewAllHref="/calendar"
+            viewAllLabel="View Calendar"
+            rows={nextDistributions.slice(0, 5)}
+            columns={[
+              { header: "Ticker", render: (row) => <TickerCell row={row} /> },
+              { header: "ETF Name", render: (row) => <NameCell row={row} /> },
+              { header: "Ex-Date", align: "right", render: (row) => <span className="text-[var(--gray-600)]">{row.nextPredictedExDate ?? "—"}</span> },
+              { header: "Payment Date", align: "right", render: (row) => <span className="text-[var(--gray-600)]">{row.nextPredictedDate ?? "—"}</span> },
+              { header: "Amount", align: "right", render: (row) => <span className="font-semibold">{row.nextPredictedAmount != null ? `$${row.nextPredictedAmount.toFixed(4)}` : "—"}</span> },
+              { header: "Status", align: "right", render: () => <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[11px] font-semibold">Expected</span> },
+            ]}
+          />
+          <EtfTable
+            title="Highest Distribution Yields"
+            icon={TrendingUp}
+            viewAllHref="/ranking"
+            viewAllLabel="View Rankings"
+            rows={yieldTop10.slice(0, 5)}
+            columns={[
+              { header: "Ticker", render: (row) => <TickerCell row={row} /> },
+              { header: "ETF Name", render: (row) => <NameCell row={row} /> },
+              { header: "Yield (TTM)", align: "right", render: (row) => <span className="font-semibold text-blue-700">{row.annualYieldPct != null ? `${row.annualYieldPct.toFixed(1)}%` : "—"}</span> },
+              { header: "CRADY Score", align: "right", render: (row) => <span className="text-[var(--gray-600)]">{row.cradyScore != null ? row.cradyScore.toFixed(1) : "—"}</span> },
+            ]}
+          />
+        </div>
 
-      <section className="mx-auto max-w-6xl px-4 sm:px-6 pt-6 space-y-4">
-        <HomeIntelligence data={homeIntelligence} lang="en" />
-        <WatchlistIntelligence changeEventsToday={changeEventsToday} lang="en" />
-        <WatchlistSection snapshot={snapshot} lang="en" />
+        <div className="mt-6 grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <EtfTable
+            title="CRADY Predictions"
+            icon={Target}
+            viewAllHref="/next-dividend"
+            viewAllLabel="View All"
+            rows={predictionsTop}
+            columns={[
+              { header: "Ticker", render: (row) => <TickerCell row={row} /> },
+              { header: "Predicted Amount", align: "right", render: (row) => <span className="font-semibold">{row.nextPredictedAmount != null ? `$${row.nextPredictedAmount.toFixed(4)}` : "—"}</span> },
+              { header: "Confidence", align: "right", render: (row) => <ConfidenceBar value={row.nextPredictedConfidence} /> },
+              { header: "Expected Payment", align: "right", render: (row) => <span className="text-[var(--gray-600)]">{row.nextPredictedDate ?? "—"}</span> },
+            ]}
+          />
+          <RecentlyAnnouncedTable rows={recentAnnounced} lang="en" />
+        </div>
+
+        {/* Secondary content — kept visually smaller/quieter than the
+            financial tables above, per the approved design's "tools and
+            data first, editorial second" hierarchy. */}
+        <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+          <div className="lg:col-span-2">
+            <MagazineTeaser snapshot={snapshot} lang="en" />
+          </div>
+          <WeeklyIntelligencePreview data={weeklyIntelligence} lang="en" />
+        </div>
       </section>
-
-      <TodaysHighlights
-        data={{
-          announcementCount: announcement?.etf_count ?? null,
-          announcementDate: announcement?.announcement_date ?? null,
-          todayCount: keyMetrics.todayCount,
-          weekCount: keyMetrics.weekCount,
-          highestYieldTicker: yieldTop10[0]?.ticker ?? null,
-          highestYieldPct: yieldTop10[0]?.annualYieldPct ?? null,
-          risingCount,
-        }}
-        lang="en"
-      />
-
-      <MarketSummary
-        announcementRows={announcementRows}
-        announcementCount={announcement?.etf_count ?? null}
-        todayCount={keyMetrics.todayCount}
-        weekCount={keyMetrics.weekCount}
-        lang="en"
-      />
-
-      <QuickInsights snapshot={snapshot} lang="en" />
-
-      {/* Phase 2 — trimmed from 5 carousels to 2 (spec §1/§10: "a small
-          number of strong sections," not "20 cards, 15 KPIs, several
-          unrelated modules"). Popular/Trending are the two carousels most
-          directly tied to CRADY's own prediction/stability scoring;
-          Recently Declared, High Income and Low Risk were redundant with
-          Ranking and the yield-focused Hero above. */}
-      <section className="mx-auto max-w-6xl px-4 sm:px-6 py-8 border-t border-[var(--gray-200)] space-y-8">
-        <CardCarousel title="Popular ETFs" subtitle="Highest CRADY Score right now" viewAllHref="/ranking" viewAllLabel="View ranking →">
-          {popularCards.map((etf) => (
-            <CarouselItem key={etf.ticker}>
-              <EtfCard data={snapshotToCardData(etf)} compact lang="en" />
-            </CarouselItem>
-          ))}
-        </CardCarousel>
-
-        <CardCarousel title="Trending" subtitle="Distributions rising vs. last payment" viewAllHref="/ranking" viewAllLabel="View ranking →">
-          {trendingCards.map((etf) => (
-            <CarouselItem key={etf.ticker}>
-              <EtfCard data={snapshotToCardData(etf)} compact lang="en" />
-            </CarouselItem>
-          ))}
-        </CardCarousel>
-
-        <WeeklyIntelligencePreview data={weeklyIntelligence} lang="en" />
-      </section>
-
-      {announcement && (
-        <OfficialAnnouncementsPreview announcement={announcement} rows={announcementRows} lang="en" />
-      )}
-
-      <RankingPreview cradyTop={cradyTop} yieldTop={yieldTop10} increasedTop={increasedTop} lang="en" />
-
-      <section className="mx-auto max-w-6xl px-4 sm:px-6 py-8 border-t border-[var(--gray-200)]">
-        <Suspense fallback={null}>
-          <SitewideActivitySection lang="en" />
-        </Suspense>
-      </section>
-
-      <MagazineTeaser snapshot={snapshot} lang="en" />
 
       <AppPromoSection lang="en" />
     </div>

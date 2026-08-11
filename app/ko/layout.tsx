@@ -8,6 +8,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { MobileDrawer } from "@/components/layout/MobileDrawer";
 import { FooterLanguageLink } from "@/components/i18n/FooterLanguageLink";
 import { LanguagePreferenceManager } from "@/components/i18n/LanguagePreferenceManager";
+import { Logo } from "@/components/branding/Logo";
 import { getHomeSnapshot, toSearchIndex } from "@/lib/data";
 import "../globals.css";
 
@@ -82,9 +83,7 @@ export default async function KoreanRootLayout({
           <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10">
             <div className="flex flex-col sm:flex-row sm:justify-between gap-8">
               <div className="max-w-sm">
-                <div className="font-bold text-lg tracking-tight">
-                  CRA<span className="text-[#92400e]">DY</span>
-                </div>
+                <Logo variant="horizontal" size="md" />
                 <p className="mt-2 text-sm text-[var(--gray-600)] leading-relaxed">
                   YieldMax, Roundhill, Defiance 등 고배당 커버드콜 ETF의 배당 일정, 가격, CRADY
                   점수를 데이터 기반으로 제공하는 정보 플랫폼입니다.

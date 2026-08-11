@@ -1,35 +1,22 @@
 import type { Metadata } from "next";
 import {
   getHomeSnapshot,
-  getKeyMetrics,
   topByAnnualYield,
   topByCradyScoreSnapshot,
-  topRecentlyIncreased,
   nextDistributionsTimeline,
+  toSearchIndex,
 } from "@/lib/data";
-import { getLatestAnnouncement, getDistributionRowsForAnnouncement, getDistributionTrustStats } from "@/lib/distributions/data";
+import { getRecentAnnouncedDistributions } from "@/lib/distributions/data";
 import { getRecentChangeEvents } from "@/lib/activity/data";
-import { buildHomeIntelligence } from "@/lib/home/intelligence";
 import { buildWeeklyIntelligence } from "@/lib/home/weekly";
-import { HomeIntelligence } from "@/components/home/HomeIntelligence";
 import { WeeklyIntelligencePreview } from "@/components/home/WeeklyIntelligencePreview";
-import { WatchlistIntelligence } from "@/components/etf/WatchlistIntelligence";
-import { HeroSection } from "@/components/home/Hero";
-import { TrustBar } from "@/components/home/TrustBar";
-import { TodaysHighlights } from "@/components/home/TodaysHighlights";
-import { MarketSummary } from "@/components/home/MarketSummary";
-import { QuickInsights } from "@/components/home/QuickInsights";
-import { NextDistributionsRail } from "@/components/NextDistributionsRail";
-import { OfficialAnnouncementsPreview } from "@/components/home/OfficialAnnouncementsPreview";
-import { RankingPreview } from "@/components/RankingPreview";
+import { HeroSearch } from "@/components/home/HeroSearch";
+import { QuickActions } from "@/components/home/QuickActions";
+import { EtfTable, TickerCell, NameCell, ConfidenceBar } from "@/components/home/EtfTable";
+import { RecentlyAnnouncedTable } from "@/components/home/RecentlyAnnouncedTable";
 import { MagazineTeaser } from "@/components/home/MagazineTeaser";
 import { AppPromoSection } from "@/components/AppPromoSection";
-import { Suspense } from "react";
-import { SitewideActivitySection } from "@/components/activity/SitewideActivitySection";
-import { EtfCard } from "@/components/etf/EtfCard";
-import { CardCarousel, CarouselItem } from "@/components/etf/CardCarousel";
-import { WatchlistSection } from "@/components/etf/WatchlistSection";
-import { snapshotToCardData } from "@/lib/etf/toCardData";
+import { CalendarClock, TrendingUp, Target } from "lucide-react";
 
 export const revalidate = 3600;
 
@@ -64,140 +51,91 @@ export const metadata: Metadata = {
 };
 
 export default async function KoreanHomePage() {
-  const [snapshot, keyMetrics, announcement, trustStats, changeEventsToday, changeEvents7d] = await Promise.all([
+  const [snapshot, changeEvents7d, recentAnnounced] = await Promise.all([
     getHomeSnapshot(),
-    getKeyMetrics(),
-    getLatestAnnouncement(),
-    getDistributionTrustStats(),
-    getRecentChangeEvents({ days: 1, lang: "ko" }),
     getRecentChangeEvents({ days: 7, lang: "ko" }),
+    getRecentAnnouncedDistributions(5),
   ]);
-  const announcementRows = announcement ? await getDistributionRowsForAnnouncement(announcement.id) : [];
 
-  const homeIntelligence = buildHomeIntelligence(snapshot, changeEventsToday, "ko");
   const weeklyIntelligence = buildWeeklyIntelligence(snapshot, changeEvents7d);
 
   const yieldTop10 = topByAnnualYield(snapshot, 10);
   const nextDistributions = nextDistributionsTimeline(snapshot, 10);
+  const predictionsTop = [...nextDistributions]
+    .sort((a, b) => (b.nextPredictedConfidence ?? -1) - (a.nextPredictedConfidence ?? -1))
+    .slice(0, 5);
   const cradyTop = topByCradyScoreSnapshot(snapshot, 6);
-  const increasedTop = topRecentlyIncreased(snapshot, 6);
-  const popularCards = topByCradyScoreSnapshot(snapshot, 6);
-  const trendingCards = topRecentlyIncreased(snapshot, 6);
-  const risingCount = snapshot.filter((e) => e.dividendTrend === "up").length;
-  const lastUpdatedIso = snapshot.reduce<string | null>(
-    (max, e) => (e.calculatedAt && (!max || e.calculatedAt > max) ? e.calculatedAt : max),
-    null
-  );
-  const nextExDividend = snapshot
-    .filter((e) => e.nextPredictedExDate != null)
-    .sort((a, b) => (a.nextPredictedExDate! < b.nextPredictedExDate! ? -1 : 1))[0];
-  const topPick = cradyTop[0]?.cradyScore != null ? { ticker: cradyTop[0].ticker, cradyScore: cradyTop[0].cradyScore } : null;
 
   return (
     <div>
-      {/* Visually hidden — see the English homepage for the full rationale. */}
-      <h1 className="sr-only">CRADY — YieldMax·커버드콜 ETF 배당 트래커</h1>
-
-      {/* Phase 2 — see the English homepage for the full rationale;
-          mirrored 1:1 with lang="ko". */}
-      <NextDistributionsRail items={nextDistributions} lang="ko" basePath="/ko" />
-
-      <HeroSection
-        top10={yieldTop10}
-        weekCount={keyMetrics.weekCount}
-        nextExDividend={
-          nextExDividend ? { ticker: nextExDividend.ticker, exDate: nextExDividend.nextPredictedExDate! } : null
-        }
-        topPick={topPick}
-        lang="ko"
-        basePath="/ko"
-      />
-      <TrustBar
-        etfsTracked={snapshot.length}
-        distributionRecords={trustStats.distributionRecords}
-        announcementsTracked={trustStats.announcementsTracked}
-        predictionCount={keyMetrics.nextPredictionCount}
-        lastUpdatedIso={lastUpdatedIso}
-        lang="ko"
-      />
-
-      <section className="mx-auto max-w-6xl px-4 sm:px-6 pt-6 space-y-4">
-        <HomeIntelligence data={homeIntelligence} lang="ko" basePath="/ko" />
-        <WatchlistIntelligence changeEventsToday={changeEventsToday} lang="ko" basePath="/ko" />
-        <WatchlistSection snapshot={snapshot} lang="ko" />
-      </section>
-
-      <TodaysHighlights
-        data={{
-          announcementCount: announcement?.etf_count ?? null,
-          announcementDate: announcement?.announcement_date ?? null,
-          todayCount: keyMetrics.todayCount,
-          weekCount: keyMetrics.weekCount,
-          highestYieldTicker: yieldTop10[0]?.ticker ?? null,
-          highestYieldPct: yieldTop10[0]?.annualYieldPct ?? null,
-          risingCount,
-        }}
-        lang="ko"
-        basePath="/ko"
-      />
-
-      <MarketSummary
-        announcementRows={announcementRows}
-        announcementCount={announcement?.etf_count ?? null}
-        todayCount={keyMetrics.todayCount}
-        weekCount={keyMetrics.weekCount}
-        lang="ko"
-        basePath="/ko"
-      />
-
-      <QuickInsights snapshot={snapshot} lang="ko" basePath="/ko" />
-
-      {/* Phase 2 — trimmed from 5 carousels to 2; see the English homepage
-          for the full rationale. */}
-      <section className="mx-auto max-w-6xl px-4 sm:px-6 py-8 border-t border-[var(--gray-200)] space-y-8">
-        <CardCarousel title="인기 ETF" subtitle="현재 CRADY 점수가 가장 높은 ETF" viewAllHref="/ko/ranking" viewAllLabel="랭킹 보기 →">
-          {popularCards.map((etf) => (
-            <CarouselItem key={etf.ticker}>
-              <EtfCard data={snapshotToCardData(etf)} compact lang="ko" />
-            </CarouselItem>
-          ))}
-        </CardCarousel>
-
-        <CardCarousel title="트렌딩" subtitle="직전 지급 대비 분배금이 증가한 ETF" viewAllHref="/ko/ranking" viewAllLabel="랭킹 보기 →">
-          {trendingCards.map((etf) => (
-            <CarouselItem key={etf.ticker}>
-              <EtfCard data={snapshotToCardData(etf)} compact lang="ko" />
-            </CarouselItem>
-          ))}
-        </CardCarousel>
-
-        <WeeklyIntelligencePreview data={weeklyIntelligence} lang="ko" basePath="/ko" />
-      </section>
-
-      {announcement && (
-        <OfficialAnnouncementsPreview
-          announcement={announcement}
-          rows={announcementRows}
+      <section className="mx-auto max-w-6xl px-4 sm:px-6 pt-6 pb-12">
+        <HeroSearch
+          searchIndex={toSearchIndex(snapshot)}
+          popularTickers={cradyTop.slice(0, 5).map((e) => e.ticker)}
           lang="ko"
           basePath="/ko"
         />
-      )}
 
-      <RankingPreview
-        cradyTop={cradyTop}
-        yieldTop={yieldTop10}
-        increasedTop={increasedTop}
-        lang="ko"
-        basePath="/ko"
-      />
+        <QuickActions lang="ko" basePath="/ko" />
 
-      <section className="mx-auto max-w-6xl px-4 sm:px-6 py-8 border-t border-[var(--gray-200)]">
-        <Suspense fallback={null}>
-          <SitewideActivitySection lang="ko" />
-        </Suspense>
+        <div className="mt-6 grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <EtfTable
+            title="다음 분배금"
+            icon={CalendarClock}
+            viewAllHref="/calendar"
+            viewAllLabel="캘린더 보기"
+            rows={nextDistributions.slice(0, 5)}
+            basePath="/ko"
+            columns={[
+              { header: "티커", render: (row) => <TickerCell row={row} basePath="/ko" /> },
+              { header: "ETF 이름", render: (row) => <NameCell row={row} /> },
+              { header: "배당락일", align: "right", render: (row) => <span className="text-[var(--gray-600)]">{row.nextPredictedExDate ?? "—"}</span> },
+              { header: "지급일", align: "right", render: (row) => <span className="text-[var(--gray-600)]">{row.nextPredictedDate ?? "—"}</span> },
+              { header: "금액", align: "right", render: (row) => <span className="font-semibold">{row.nextPredictedAmount != null ? `$${row.nextPredictedAmount.toFixed(4)}` : "—"}</span> },
+              { header: "상태", align: "right", render: () => <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[11px] font-semibold">예상</span> },
+            ]}
+          />
+          <EtfTable
+            title="최고 배당률"
+            icon={TrendingUp}
+            viewAllHref="/ranking"
+            viewAllLabel="랭킹 보기"
+            rows={yieldTop10.slice(0, 5)}
+            basePath="/ko"
+            columns={[
+              { header: "티커", render: (row) => <TickerCell row={row} basePath="/ko" /> },
+              { header: "ETF 이름", render: (row) => <NameCell row={row} /> },
+              { header: "배당률 (TTM)", align: "right", render: (row) => <span className="font-semibold text-blue-700">{row.annualYieldPct != null ? `${row.annualYieldPct.toFixed(1)}%` : "—"}</span> },
+              { header: "CRADY 점수", align: "right", render: (row) => <span className="text-[var(--gray-600)]">{row.cradyScore != null ? row.cradyScore.toFixed(1) : "—"}</span> },
+            ]}
+          />
+        </div>
+
+        <div className="mt-6 grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <EtfTable
+            title="CRADY 예측"
+            icon={Target}
+            viewAllHref="/next-dividend"
+            viewAllLabel="전체 보기"
+            rows={predictionsTop}
+            basePath="/ko"
+            columns={[
+              { header: "티커", render: (row) => <TickerCell row={row} basePath="/ko" /> },
+              { header: "예측 금액", align: "right", render: (row) => <span className="font-semibold">{row.nextPredictedAmount != null ? `$${row.nextPredictedAmount.toFixed(4)}` : "—"}</span> },
+              { header: "신뢰도", align: "right", render: (row) => <ConfidenceBar value={row.nextPredictedConfidence} /> },
+              { header: "예상 지급일", align: "right", render: (row) => <span className="text-[var(--gray-600)]">{row.nextPredictedDate ?? "—"}</span> },
+            ]}
+          />
+          <RecentlyAnnouncedTable rows={recentAnnounced} lang="ko" basePath="/ko" />
+        </div>
+
+        <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+          <div className="lg:col-span-2">
+            <MagazineTeaser snapshot={snapshot} lang="ko" />
+          </div>
+          <WeeklyIntelligencePreview data={weeklyIntelligence} lang="ko" basePath="/ko" />
+        </div>
       </section>
-
-      <MagazineTeaser snapshot={snapshot} lang="ko" />
 
       <AppPromoSection lang="ko" />
     </div>

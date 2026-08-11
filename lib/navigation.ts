@@ -1,4 +1,4 @@
-import { Target, Wallet, BarChart3, User, Newspaper, GraduationCap, Info, type LucideIcon } from "lucide-react";
+import { Target, Wallet, BarChart3, User, Newspaper, Info, Calculator, BookOpen, type LucideIcon } from "lucide-react";
 
 /** CRADY Site Architecture Phase 1 — the single source of truth for the
  * global IA, shared verbatim by the desktop Sidebar and the mobile/tablet
@@ -45,11 +45,38 @@ export const NAV_HOME: NavChild = {
 
 export const NAVIGATION: NavSection[] = [
   {
+    // Promoted to a top-level, always-visible destination, first in the
+    // list right after Home (CRADY Homepage Final Redesign, 2026-08-12,
+    // matching the approved homepage mock's exact nav order) — previously
+    // nested under "High-Yield ETFs" where it wasn't immediately visible.
+    // English-only (no /ko route yet — see NO_KO_EQUIVALENT in
+    // lib/i18n/localePath.ts), so koHref points at the same English URL
+    // rather than a /ko path that doesn't exist, same pattern as every
+    // other English-only page here.
+    key: "etf-calculator-top",
+    label: { en: "ETF Calculator", ko: "ETF 계산기" },
+    icon: Calculator,
+    children: [
+      { key: "etf-calculator", label: { en: "ETF Calculator", ko: "ETF 계산기" }, href: "/etf-calculator", koHref: "/etf-calculator" },
+    ],
+  },
+  {
+    // Same promotion, same reasoning, for the Covered Call Guide —
+    // previously nested under "Learn" (now removed, see below).
+    key: "covered-call-guide",
+    label: { en: "Covered Call Guide", ko: "커버드콜 가이드" },
+    icon: BookOpen,
+    children: [
+      {
+        key: "covered-call-etf-top",
+        label: { en: "What Is a Covered Call ETF?", ko: "커버드콜 ETF란?" },
+        href: "/what-is-a-covered-call-etf",
+        koHref: "/what-is-a-covered-call-etf",
+      },
+    ],
+  },
+  {
     key: "predictions",
-    // The most important product category (see the phase brief §2/§4) —
-    // placed first after Home, not visually louder, so the taxonomy
-    // itself communicates "this site is fundamentally about dividend
-    // prediction" without a gradient or badge doing the talking.
     label: { en: "Dividend Predictions", ko: "배당 예측" },
     icon: Target,
     children: [{ key: "next-dividend", label: { en: "Next Dividend", ko: "다음 배당" }, href: "/next-dividend" }],
@@ -71,11 +98,6 @@ export const NAVIGATION: NavSection[] = [
     children: [
       { key: "ranking", label: { en: "ETF Rankings", ko: "ETF 랭킹" }, href: "/ranking" },
       { key: "compare", label: { en: "Compare ETFs", ko: "ETF 비교" }, href: "/compare" },
-      // English-only for now (no /ko/etf-calculator page yet) — koHref
-      // points the Korean nav at the same English URL rather than a /ko
-      // path that doesn't exist, same pattern already used for Learn and
-      // Magazine above.
-      { key: "etf-calculator", label: { en: "ETF Calculator", ko: "ETF 계산기" }, href: "/etf-calculator", koHref: "/etf-calculator" },
     ],
   },
   {
@@ -83,25 +105,6 @@ export const NAVIGATION: NavSection[] = [
     label: { en: "My CRADY", ko: "내 CRADY" },
     icon: User,
     children: [{ key: "portfolio", label: { en: "Portfolio", ko: "포트폴리오" }, href: "/portfolio" }],
-  },
-  {
-    // A single real destination today (collapses to one direct link — see
-    // NavList), built as a full section so future Learn pages (the visual-
-    // education format piloted here) slot in as more children later with
-    // no restructuring. English-only content (like Magazine), so `koHref`
-    // points the Korean nav at the same English URL rather than a /ko path
-    // that doesn't exist — same pattern Magazine already uses.
-    key: "learn",
-    label: { en: "Learn", ko: "배우기" },
-    icon: GraduationCap,
-    children: [
-      {
-        key: "covered-call-etf",
-        label: { en: "What Is a Covered Call ETF?", ko: "커버드콜 ETF란?" },
-        href: "/what-is-a-covered-call-etf",
-        koHref: "/what-is-a-covered-call-etf",
-      },
-    ],
   },
   {
     key: "content",

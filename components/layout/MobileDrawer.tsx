@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { useNavDrawer } from "./NavDrawerProvider";
 import { NavList } from "./NavList";
+import { Logo } from "../branding/Logo";
 
 const T = {
   menu: { en: "Menu", ko: "메뉴" },
@@ -46,9 +47,7 @@ export function MobileDrawer({ lang = "en" }: { lang?: "en" | "ko" }) {
         className="absolute left-0 top-0 h-full w-[82vw] max-w-[320px] bg-white shadow-xl flex flex-col"
       >
         <div className="h-14 shrink-0 flex items-center justify-between px-4 border-b border-[var(--gray-200)]">
-          <span className="font-bold text-lg tracking-tight">
-            CRA<span className="text-[#92400e]">DY</span>
-          </span>
+          <Logo variant="horizontal" size="sm" />
           <button
             type="button"
             onClick={close}

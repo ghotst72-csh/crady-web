@@ -107,6 +107,29 @@ export async function getDistributionRowsForAnnouncement(
   });
 }
 
+export type RecentAnnouncedRow = DistributionRow & { announcedDate: string };
+
+/** A cross-announcement "recently announced" feed for the homepage's
+ * Recently Announced table (CRADY Homepage Final Redesign, 2026-08-12) —
+ * unlike getDistributionRowsForAnnouncement (rows from ONE batch, sharing
+ * one announcement_date), this pulls rows from the most recent several
+ * announcement batches so each row can carry its own real announced date,
+ * matching the approved design's per-row "Announced" column. Composes only
+ * existing queries (getAllAnnouncements + getDistributionRowsForAnnouncement)
+ * — no new tables, no pipeline changes. */
+export async function getRecentAnnouncedDistributions(limit = 6): Promise<RecentAnnouncedRow[]> {
+  const announcements = await getAllAnnouncements();
+  const out: RecentAnnouncedRow[] = [];
+  for (const announcement of announcements) {
+    if (out.length >= limit) break;
+    const rows = await getDistributionRowsForAnnouncement(announcement.id);
+    for (const row of rows) {
+      out.push({ ...row, announcedDate: announcement.announcement_date });
+    }
+  }
+  return out.slice(0, limit);
+}
+
 export type OfficialDistributionForTicker = {
   ticker: string;
   amount: number | null;
