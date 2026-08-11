@@ -29,6 +29,7 @@ import { HubArticleList } from "@/components/magazine/HubArticleList";
 import { RelatedContent } from "@/components/RelatedContent";
 import { PageTrustFooter } from "@/components/seo/PageTrustFooter";
 import { PageShell } from "@/components/layout/PageShell";
+import { CoveredCallGuideRedesign } from "@/components/magazine/CoveredCallGuideRedesign";
 
 export const revalidate = 3600;
 
@@ -158,6 +159,12 @@ export default async function MagazinePage({
   }
 
   if (resolved.kind === "standalone") {
+    // 2026-08-11 visual redesign — special-cased for this one slug only so
+    // the other 9 standalone guides keep rendering through the shared
+    // template below, completely unaffected.
+    if (resolved.page === "covered-call-etf-guide") {
+      return <CoveredCallGuideRedesign />;
+    }
     return <StandalonePage slug={resolved.page} />;
   }
 
