@@ -1,337 +1,315 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
-import Link from "next/link";
+import { useMemo, useState, useTransition } from "react";
+import { Calendar, DollarSign, Sparkles } from "lucide-react";
 import { TickerAutocompleteInput } from "@/components/portfolio/TickerAutocompleteInput";
 import type { SearchEntry } from "@/lib/search/searchTickers";
-import { calculateEtfProjection, type CalculatorInputs } from "@/lib/etfCalculator/calculations";
-import { getRealEtfStats, type RealEtfStats } from "@/lib/etfCalculator/realEtfStats";
 import { providerLabel } from "@/lib/providers";
-import { GrowthChart } from "./GrowthChart";
+import { resolvePurchasePrice } from "@/lib/portfolio/calculations";
+import { getPriceHistoryForTicker } from "@/lib/etfCalculator/priceHistoryForTicker";
+import { calculateHistoricalReturn, type HistoricalReturnResponse } from "@/lib/etfCalculator/historicalReturn";
+import { HistoricalResultCard } from "./HistoricalResultCard";
 
-const DEFAULTS = {
-  initialInvestment: "10000",
-  monthlyInvestment: "500",
-  years: "20",
-  expectedAnnualReturnPct: "8",
-  annualFeePct: "0.15",
-  distributionYieldPct: "0",
-};
-
-function fmtUsd(n: number, digits = 0): string {
-  const sign = n < 0 ? "-" : "";
-  return `${sign}$${Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+function isoDaysAgo(days: number): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - days);
+  return d.toISOString().slice(0, 10);
+}
+function fmtDate(iso: string): string {
+  return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
 }
 
-function fmtPct(n: number, digits = 2): string {
-  const sign = n > 0 ? "+" : "";
-  return `${sign}${n.toFixed(digits)}%`;
-}
-
-function toNumber(raw: string): number {
-  const n = parseFloat(raw);
-  return Number.isFinite(n) ? n : 0;
-}
+type PricePoint = { trade_date: string; close_price: number | null };
 
 export function EtfCalculator({ searchIndex }: { searchIndex: SearchEntry[] }) {
-  const [initialInvestment, setInitialInvestment] = useState(DEFAULTS.initialInvestment);
-  const [monthlyInvestment, setMonthlyInvestment] = useState(DEFAULTS.monthlyInvestment);
-  const [years, setYears] = useState(DEFAULTS.years);
-  const [expectedAnnualReturnPct, setExpectedAnnualReturnPct] = useState(DEFAULTS.expectedAnnualReturnPct);
-  const [annualFeePct, setAnnualFeePct] = useState(DEFAULTS.annualFeePct);
-  const [distributionYieldPct, setDistributionYieldPct] = useState(DEFAULTS.distributionYieldPct);
-  const [reinvestDistributions, setReinvestDistributions] = useState(true);
-
   const [tickerQuery, setTickerQuery] = useState("");
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
-  const [etfStats, setEtfStats] = useState<RealEtfStats | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [etfMeta, setEtfMeta] = useState<{ name: string | null; providerId: string } | null>(null);
+  const [priceHistory, setPriceHistory] = useState<PricePoint[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
-  const resultsRef = useRef<HTMLDivElement>(null);
+  const [purchaseDate, setPurchaseDate] = useState(isoDaysAgo(365));
+  const [saleDate, setSaleDate] = useState(todayIso());
+  const [investmentAmount, setInvestmentAmount] = useState("10000");
+  const [dripOn, setDripOn] = useState(false);
 
-  const inputs: Partial<CalculatorInputs> = {
-    initialInvestment: toNumber(initialInvestment),
-    monthlyInvestment: toNumber(monthlyInvestment),
-    years: toNumber(years),
-    expectedAnnualReturnPct: toNumber(expectedAnnualReturnPct),
-    annualFeePct: toNumber(annualFeePct),
-    distributionYieldPct: toNumber(distributionYieldPct),
-    reinvestDistributions,
-  };
-
-  // Recomputed on every keystroke — cheap, pure, client-side, no reload.
-  // Deliberately listing primitive fields, not `inputs` itself: that object
-  // literal is a fresh reference every render, which would defeat the memo
-  // entirely (recompute on every render, not just on an actual value change).
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const result = useMemo(() => calculateEtfProjection(inputs), [
-    inputs.initialInvestment,
-    inputs.monthlyInvestment,
-    inputs.years,
-    inputs.expectedAnnualReturnPct,
-    inputs.annualFeePct,
-    inputs.distributionYieldPct,
-    inputs.reinvestDistributions,
-  ]);
+  const [result, setResult] = useState<HistoricalReturnResponse | null>(null);
+  const [isCalculating, startCalculating] = useTransition();
 
   function handleSelectTicker(ticker: string) {
     setSelectedTicker(ticker);
     setTickerQuery(ticker);
-    setEtfStats(null);
-    const snapshot = searchIndex.find((e) => e.ticker === ticker) ?? null;
-    startTransition(async () => {
-      const stats = await getRealEtfStats(ticker, snapshot);
-      setEtfStats(stats);
-      if (stats) {
-        if (stats.trailingTotalReturnPct != null) setExpectedAnnualReturnPct(stats.trailingTotalReturnPct.toFixed(2));
-        if (stats.expenseRatioPct != null) setAnnualFeePct(stats.expenseRatioPct.toFixed(2));
-        if (stats.distributionYieldPct != null) setDistributionYieldPct(stats.distributionYieldPct.toFixed(2));
-      }
+    setResult(null);
+    const entry = searchIndex.find((e) => e.ticker === ticker) ?? null;
+    setEtfMeta(entry ? { name: entry.name, providerId: entry.provider_id } : null);
+    setPriceHistory([]);
+    setHistoryLoading(true);
+    getPriceHistoryForTicker(ticker)
+      .then((h) => setPriceHistory(h))
+      .finally(() => setHistoryLoading(false));
+  }
+
+  function handleChangeTicker() {
+    setSelectedTicker(null);
+    setTickerQuery("");
+    setEtfMeta(null);
+    setPriceHistory([]);
+    setResult(null);
+  }
+
+  // Purely client-side, instant — the exact same pure resolver the final
+  // "Calculate Return" server action uses, run against the price history
+  // already fetched once for this ticker. No extra round trip per
+  // keystroke/date change.
+  const purchasePreview = useMemo(
+    () => (priceHistory.length > 0 && purchaseDate ? resolvePurchasePrice(priceHistory, purchaseDate, null) : null),
+    [priceHistory, purchaseDate]
+  );
+  const salePreview = useMemo(
+    () => (priceHistory.length > 0 && saleDate ? resolvePurchasePrice(priceHistory, saleDate, null) : null),
+    [priceHistory, saleDate]
+  );
+
+  const amountNumber = parseFloat(investmentAmount);
+  const canCalculate =
+    !!selectedTicker && !!purchaseDate && !!saleDate && saleDate >= purchaseDate && Number.isFinite(amountNumber) && amountNumber > 0;
+
+  function handleCalculate() {
+    if (!selectedTicker || !canCalculate) return;
+    startCalculating(async () => {
+      const r = await calculateHistoricalReturn(selectedTicker, purchaseDate, saleDate, amountNumber);
+      setResult(r);
     });
   }
 
-  function clearTicker() {
-    setSelectedTicker(null);
-    setEtfStats(null);
-    setTickerQuery("");
-  }
-
   function handleReset() {
-    setInitialInvestment(DEFAULTS.initialInvestment);
-    setMonthlyInvestment(DEFAULTS.monthlyInvestment);
-    setYears(DEFAULTS.years);
-    setExpectedAnnualReturnPct(DEFAULTS.expectedAnnualReturnPct);
-    setAnnualFeePct(DEFAULTS.annualFeePct);
-    setDistributionYieldPct(DEFAULTS.distributionYieldPct);
-    setReinvestDistributions(true);
-    clearTicker();
-  }
-
-  function handleCalculateClick() {
-    resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    handleChangeTicker();
+    setPurchaseDate(isoDaysAgo(365));
+    setSaleDate(todayIso());
+    setInvestmentAmount("10000");
+    setDripOn(false);
   }
 
   return (
-    <div>
-      {/* ---- Calculate with a Real ETF ---- */}
-      <div className="border border-[var(--gray-200)] rounded-xl p-4 sm:p-5 mb-5">
-        <div className="text-sm font-bold text-[var(--gray-900)]">Calculate with a Real ETF</div>
-        <p className="mt-1 text-xs text-[var(--gray-500)]">
-          Optional. Search a ticker CRADY tracks to prefill the return, fee, and yield fields below with real data —
-          fields with no reliable data stay exactly as you set them.
-        </p>
-        <div className="mt-3 max-w-sm">
-          <TickerAutocompleteInput
-            index={searchIndex}
-            value={tickerQuery}
-            onChange={setTickerQuery}
-            onSelect={handleSelectTicker}
-            placeholder="Search ticker, e.g. TSLY, MSTY..."
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+      {/* ---- Input card ---- */}
+      <div className="border border-[var(--gray-200)] rounded-2xl p-4 sm:p-5">
+        {/* Step 1 — ETF */}
+        <StepLabel n={1}>ETF</StepLabel>
+        {!selectedTicker ? (
+          <div className="mt-2">
+            <TickerAutocompleteInput
+              index={searchIndex}
+              value={tickerQuery}
+              onChange={setTickerQuery}
+              onSelect={handleSelectTicker}
+              placeholder="Search ticker, e.g. CONY, TSLY, MSTY..."
+            />
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={handleChangeTicker}
+            className="mt-2 w-full flex items-center gap-3 rounded-xl border border-[var(--gray-200)] px-3.5 py-3 text-left hover:border-black transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--crady-accent)]"
+          >
+            <span className="shrink-0 w-10 h-10 rounded-full bg-[var(--gray-900)] text-white flex items-center justify-center text-xs font-bold">
+              {selectedTicker.slice(0, 2)}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-bold text-sm">{selectedTicker}</span>
+              <span className="block text-xs text-[var(--gray-500)] truncate">
+                {etfMeta?.name ?? "—"} {etfMeta && `· ${providerLabel(etfMeta.providerId)}`}
+              </span>
+            </span>
+            <span className="shrink-0 text-xs font-semibold text-[#92400e]">Change</span>
+          </button>
+        )}
+
+        {/* Step 2 — Purchase */}
+        <StepLabel n={2} className="mt-5">Purchase</StepLabel>
+        <DateField
+          value={purchaseDate}
+          onChange={setPurchaseDate}
+          max={saleDate || todayIso()}
+          disabled={!selectedTicker}
+          preview={purchasePreview}
+          loading={historyLoading}
+        />
+
+        {/* Step 3 — Sale */}
+        <StepLabel n={3} className="mt-5">Sale</StepLabel>
+        <DateField
+          value={saleDate}
+          onChange={setSaleDate}
+          min={purchaseDate}
+          max={todayIso()}
+          disabled={!selectedTicker}
+          preview={salePreview}
+          loading={historyLoading}
+        />
+
+        {/* Step 4 — Investment */}
+        <StepLabel n={4} className="mt-5">Investment</StepLabel>
+        <div className="mt-2 flex items-center rounded-xl border border-[var(--gray-200)] focus-within:border-black overflow-hidden">
+          <span className="pl-3.5 text-[var(--gray-400)]">
+            <DollarSign size={18} aria-hidden="true" />
+          </span>
+          <input
+            type="number"
+            inputMode="decimal"
+            min={0}
+            value={investmentAmount}
+            onChange={(e) => setInvestmentAmount(e.target.value)}
+            className="w-full pl-1.5 pr-3.5 py-3 text-lg font-bold outline-none tabular-nums"
+            placeholder="10,000"
           />
         </div>
-        {selectedTicker && (
-          <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs">
-            <span className="font-bold text-sm">{selectedTicker}</span>
-            {isPending ? (
-              <span className="text-[var(--gray-400)]">Loading real data…</span>
-            ) : etfStats ? (
-              <>
-                {etfStats.name && <span className="text-[var(--gray-500)]">{etfStats.name}</span>}
-                <span className="text-[var(--gray-500)]">{providerLabel(etfStats.providerId)}</span>
-                {etfStats.currentPrice != null && (
-                  <span className="text-[var(--gray-600)]">
-                    Current price: <b>{fmtUsd(etfStats.currentPrice, 2)}</b>
-                  </span>
-                )}
-                {etfStats.trailingTotalReturnPct != null ? (
-                  <span className="text-[var(--gray-600)]">
-                    Trailing 12mo return: <b>{fmtPct(etfStats.trailingTotalReturnPct)}</b>
-                  </span>
-                ) : (
-                  <span className="text-[var(--gray-400)]">
-                    Trailing return unavailable{etfStats.trailingReturnUnavailableReason === "split-anomaly" ? " (price anomaly detected)" : " (not enough history)"}
-                  </span>
-                )}
-                {etfStats.distributionYieldPct != null && (
-                  <span className="text-[var(--gray-600)]">
-                    Distribution yield: <b>{etfStats.distributionYieldPct.toFixed(2)}%</b>
-                  </span>
-                )}
-                {etfStats.expenseRatioPct != null && (
-                  <span className="text-[var(--gray-600)]">
-                    Expense ratio: <b>{etfStats.expenseRatioPct.toFixed(2)}%</b>
-                  </span>
-                )}
-              </>
-            ) : null}
-            <button type="button" onClick={clearTicker} className="text-[var(--gray-400)] hover:text-black underline outline-none focus-visible:ring-2 focus-visible:ring-[var(--crady-accent)] rounded">
-              Clear
-            </button>
+
+        <button
+          type="button"
+          disabled={!canCalculate || isCalculating}
+          onClick={handleCalculate}
+          className="mt-5 w-full px-4 py-3 rounded-xl bg-black text-white text-sm font-bold hover:bg-[var(--gray-800)] active:bg-[var(--gray-900)] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--crady-accent)] focus-visible:ring-offset-2 disabled:bg-[var(--gray-300)] disabled:text-[var(--gray-500)] disabled:cursor-not-allowed"
+        >
+          {isCalculating ? "Calculating…" : "Calculate Return"}
+        </button>
+        <button
+          type="button"
+          onClick={handleReset}
+          className="mt-2 w-full px-4 py-2 rounded-xl text-xs font-semibold text-[var(--gray-500)] hover:text-black transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--crady-accent)] rounded-xl"
+        >
+          Reset
+        </button>
+
+        {/* Secondary: DRIP toggle — deliberately small/quiet vs. the 4 main inputs above. */}
+        <div className="mt-4 pt-4 border-t border-[var(--gray-100)] flex items-center justify-between gap-3">
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-[var(--gray-600)]">
+            <Sparkles size={13} className="text-[var(--gray-400)]" aria-hidden="true" />
+            Reinvest Distributions (DRIP)
+          </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={dripOn}
+            onClick={() => setDripOn((v) => !v)}
+            className={`relative w-9 h-5 rounded-full transition-colors shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-[var(--crady-accent)] focus-visible:ring-offset-2 ${dripOn ? "bg-blue-600" : "bg-[var(--gray-200)]"}`}
+          >
+            <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${dripOn ? "translate-x-4" : ""}`} />
+          </button>
+        </div>
+      </div>
+
+      {/* ---- Results ---- */}
+      <div className="border border-[var(--gray-200)] rounded-2xl p-4 sm:p-5 min-h-[240px]">
+        {!result && !isCalculating && (
+          <div className="h-full flex flex-col items-center justify-center text-center py-12 text-[var(--gray-400)]">
+            <Calendar size={28} className="mb-2" aria-hidden="true" />
+            <p className="text-sm">Pick an ETF, purchase date, sale date, and amount, then Calculate Return.</p>
           </div>
         )}
+        {isCalculating && (
+          <div className="h-full flex flex-col items-center justify-center text-center py-12 text-[var(--gray-400)]">
+            <p className="text-sm">Calculating from real price and distribution history…</p>
+          </div>
+        )}
+        {result && !isCalculating && (
+          result.ok ? (
+            <HistoricalResultCard result={result} dripOn={dripOn} />
+          ) : (
+            <ErrorState result={result} />
+          )
+        )}
       </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        {/* ---- Input panel ---- */}
-        <div className="border border-[var(--gray-200)] rounded-xl p-4 sm:p-5">
-          <div className="text-sm font-bold text-[var(--gray-900)] mb-4">1. Input Your Investment</div>
-
-          <div className="space-y-4">
-            <NumberField label="Initial Investment" hint="The amount you plan to invest initially." unit="USD" value={initialInvestment} onChange={setInitialInvestment} />
-            <NumberField label="Monthly Investment" hint="Additional amount invested each month." unit="USD" value={monthlyInvestment} onChange={setMonthlyInvestment} />
-            <NumberField label="Investment Period" hint="How long do you plan to invest?" unit="Years" value={years} onChange={setYears} />
-            <NumberField label="Expected Annual Return (Average)" hint="Total return assumption — price change plus distributions." unit="%" value={expectedAnnualReturnPct} onChange={setExpectedAnnualReturnPct} allowNegative />
-            <NumberField label="Annual Fee (Expense Ratio, etc.)" hint="Total annual fees of the ETF." unit="%" value={annualFeePct} onChange={setAnnualFeePct} />
-            <NumberField label="Assumed Distribution Yield" hint="Portion of the return above assumed to arrive as cash distributions, not price growth." unit="%" value={distributionYieldPct} onChange={setDistributionYieldPct} />
-
-            <div>
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-semibold text-[var(--gray-800)]">Reinvest Distributions</label>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={reinvestDistributions}
-                  onClick={() => setReinvestDistributions((v) => !v)}
-                  className={`relative w-11 h-6 rounded-full transition-colors shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-[var(--crady-accent)] focus-visible:ring-offset-2 ${reinvestDistributions ? "bg-black" : "bg-[var(--gray-200)]"}`}
-                >
-                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${reinvestDistributions ? "translate-x-5" : ""}`} />
-                </button>
-              </div>
-              <p className="mt-1 text-xs text-[var(--gray-500)]">
-                {reinvestDistributions
-                  ? "ON — distributions buy more shares and compound into the portfolio value."
-                  : "OFF — distributions are paid out as cash and tracked separately from portfolio value."}
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-5 flex gap-3">
-            <button
-              type="button"
-              onClick={handleCalculateClick}
-              className="flex-1 px-4 py-2.5 rounded-lg bg-black text-white text-sm font-semibold hover:bg-[var(--gray-800)] active:bg-[var(--gray-900)] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--crady-accent)] focus-visible:ring-offset-2 disabled:bg-[var(--gray-300)] disabled:text-[var(--gray-500)] disabled:cursor-not-allowed"
-            >
-              Calculate
-            </button>
-            <button
-              type="button"
-              onClick={handleReset}
-              className="px-4 py-2.5 rounded-lg border border-[var(--gray-300)] text-sm font-semibold hover:border-black active:bg-[var(--gray-50)] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--crady-accent)] focus-visible:ring-offset-2 disabled:text-[var(--gray-400)] disabled:cursor-not-allowed"
-            >
-              Reset
-            </button>
-          </div>
-        </div>
-
-        {/* ---- Results panel ---- */}
-        <div ref={resultsRef} className="border border-[var(--gray-200)] rounded-xl p-4 sm:p-5 scroll-mt-20">
-          <div className="text-sm font-bold text-[var(--gray-900)] mb-4">2. Results</div>
-
-          <div className="rounded-xl bg-[var(--gray-900)] px-5 py-6 text-center">
-            <div className="text-xs font-semibold text-white/60 uppercase tracking-wide">Estimated Final Portfolio Value</div>
-            <div className="mt-1.5 text-3xl sm:text-4xl font-black tracking-tight text-white">
-              {fmtUsd(result.endingPortfolioValue)}
-            </div>
-            <div className="mt-1 text-xs text-white/50">
-              (Total Invested: {fmtUsd(result.totalContributions)})
-            </div>
-          </div>
-
-          <div className="mt-4 divide-y divide-[var(--gray-100)] text-sm">
-            <ResultRow label="Total Contributions" value={fmtUsd(result.totalContributions)} />
-            <ResultRow
-              label="Total Estimated Return"
-              value={fmtUsd(result.totalEstimatedReturnAmount)}
-              sublabel={result.totalReturnPct != null ? fmtPct(result.totalReturnPct) : "—"}
-            />
-            {!reinvestDistributions && result.totalDistributionsReceived > 0 && (
-              <ResultRow label="Distributions Received (cash, not reinvested)" value={fmtUsd(result.totalDistributionsReceived)} />
-            )}
-            <ResultRow label="Money Multiple" value={result.moneyMultiple != null ? `${result.moneyMultiple.toFixed(2)}x` : "—"} />
-          </div>
-
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <MiniStat label="Total Return" value={result.totalReturnPct} />
-            <MiniStat label="Annualized Return (After Fees)" value={result.annualizedReturnPct} />
-          </div>
-
-          <div className="mt-5">
-            <div className="text-xs font-semibold text-[var(--gray-500)] uppercase tracking-wide mb-2">Portfolio Growth Over Time</div>
-            <GrowthChart yearly={result.yearly} />
-          </div>
-        </div>
-      </div>
-
-      <p className="mt-4 text-xs text-[var(--gray-400)]">
-        This is a projection based on the assumptions above, not a guarantee. See{" "}
-        <a href="#how-this-works" className="underline hover:text-black">
-          how this calculation works
-        </a>{" "}
-        below. For a look at real historical returns instead of a projection, see the{" "}
-        <Link href="/portfolio" className="underline hover:text-black">
-          Portfolio Total Return Calculator
-        </Link>
-        .
-      </p>
     </div>
   );
 }
 
-function NumberField({
-  label,
-  hint,
-  unit,
+function StepLabel({ n, children, className = "" }: { n: number; children: React.ReactNode; className?: string }) {
+  return (
+    <div className={`flex items-center gap-2 ${className}`}>
+      <span className="shrink-0 w-5 h-5 rounded-full bg-[var(--gray-900)] text-white text-[10px] font-bold flex items-center justify-center">
+        {n}
+      </span>
+      <span className="text-xs font-bold text-[var(--gray-900)] uppercase tracking-wide">{children}</span>
+    </div>
+  );
+}
+
+function DateField({
   value,
   onChange,
-  allowNegative = false,
+  min,
+  max,
+  disabled,
+  preview,
+  loading,
 }: {
-  label: string;
-  hint: string;
-  unit: string;
   value: string;
   onChange: (v: string) => void;
-  allowNegative?: boolean;
+  min?: string;
+  max?: string;
+  disabled?: boolean;
+  preview: { effectiveDate: string; effectivePrice: number; dateAdjusted: boolean } | null;
+  loading: boolean;
 }) {
   return (
-    <div>
-      <label className="text-sm font-semibold text-[var(--gray-800)]">{label}</label>
-      <div className="mt-1.5 flex rounded-lg border border-[var(--gray-200)] focus-within:border-black overflow-hidden">
-        <input
-          type="number"
-          inputMode="decimal"
-          min={allowNegative ? undefined : 0}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-full px-3 py-2 text-sm outline-none tabular-nums"
-        />
-        <span className="shrink-0 flex items-center px-3 text-xs font-medium text-[var(--gray-500)] bg-[var(--gray-50)] border-l border-[var(--gray-200)]">
-          {unit}
+    <div className="mt-2">
+      <div className="flex items-center rounded-xl border border-[var(--gray-200)] focus-within:border-black overflow-hidden">
+        <span className="pl-3.5 text-[var(--gray-400)]">
+          <Calendar size={16} aria-hidden="true" />
         </span>
+        <input
+          type="date"
+          value={value}
+          min={min}
+          max={max}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full pl-2 pr-3.5 py-2.5 text-sm outline-none disabled:bg-[var(--gray-50)] disabled:text-[var(--gray-400)] tabular-nums"
+        />
       </div>
-      <p className="mt-1 text-xs text-[var(--gray-500)]">{hint}</p>
+      <div className="mt-1.5 min-h-[18px] text-xs">
+        {disabled ? (
+          <span className="text-[var(--gray-400)]">Select an ETF first</span>
+        ) : loading ? (
+          <span className="text-[var(--gray-400)]">Loading price history…</span>
+        ) : preview ? (
+          <span className="text-[var(--gray-600)]">
+            {preview.dateAdjusted && <span className="text-[var(--gray-400)]">(adjusted to {fmtDate(preview.effectiveDate)}) </span>}
+            <span className="font-semibold text-[var(--gray-900)]">${preview.effectivePrice.toFixed(2)}</span>
+          </span>
+        ) : value ? (
+          <span className="text-[var(--gray-400)]">Not trading on or before this date</span>
+        ) : null}
+      </div>
     </div>
   );
 }
 
-function ResultRow({ label, value, sublabel }: { label: string; value: string; sublabel?: string }) {
+function ErrorState({ result }: { result: Extract<HistoricalReturnResponse, { ok: false }> }) {
+  const messages: Record<string, string> = {
+    "invalid-range": "The sale date must be on or after the purchase date, and the investment amount must be greater than $0.",
+    "not-listed-yet": `${result.ticker} has no recorded price on or before the selected purchase date — it likely wasn't listed yet.`,
+    "insufficient-data": `Not enough price history is available for ${result.ticker} to resolve the sale date.`,
+    "split-anomaly":
+      "A large single-day price change was detected between these dates, consistent with a stock split or reverse split that CRADY's price data doesn't carry a ratio for. Showing a return number here could be badly wrong, so it's withheld rather than risk misleading you.",
+  };
   return (
-    <div className="flex items-center justify-between py-2.5 gap-3">
-      <span className="text-[var(--gray-600)]">{label}</span>
-      <span className="text-right font-semibold text-[var(--gray-900)] tabular-nums">
-        {value}
-        {sublabel && <span className="ml-1.5 font-normal text-[var(--gray-500)] text-xs">({sublabel})</span>}
-      </span>
-    </div>
-  );
-}
-
-function MiniStat({ label, value }: { label: string; value: number | null }) {
-  const color = value == null ? "var(--gray-400)" : value >= 0 ? "#0ca30c" : "#d03b3b";
-  return (
-    <div className="rounded-lg bg-[var(--gray-50)] px-3 py-3 text-center">
-      <div className="text-[11px] font-semibold text-[var(--gray-500)]">{label}</div>
-      <div className="mt-0.5 text-lg font-black tracking-tight" style={{ color }}>
-        {value != null ? fmtPct(value) : "—"}
+    <div className="py-6">
+      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-[var(--gray-800)]">
+        {messages[result.reason]}
+        {result.reason === "split-anomaly" && result.splitWarnings && (
+          <ul className="mt-2 text-xs text-[var(--gray-600)] list-disc pl-4">
+            {result.splitWarnings.map((w) => (
+              <li key={w.date}>
+                {fmtDate(w.date)}: price moved by a factor of {w.ratio.toFixed(2)}x from the prior trading day
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );

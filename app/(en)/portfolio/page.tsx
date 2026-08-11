@@ -49,7 +49,7 @@ export default async function PortfolioPage({
       </p>
       <p className="mt-2 text-sm">
         <Link href="/etf-calculator" className="text-[#92400e] hover:underline font-medium">
-          Want to project future growth instead of looking back? Try the ETF Calculator →
+          Just checking one ETF and one purchase date? Try the simpler ETF Calculator →
         </Link>
       </p>
 
