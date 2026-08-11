@@ -71,6 +71,11 @@ export const NAVIGATION: NavSection[] = [
     children: [
       { key: "ranking", label: { en: "ETF Rankings", ko: "ETF 랭킹" }, href: "/ranking" },
       { key: "compare", label: { en: "Compare ETFs", ko: "ETF 비교" }, href: "/compare" },
+      // English-only for now (no /ko/etf-calculator page yet) — koHref
+      // points the Korean nav at the same English URL rather than a /ko
+      // path that doesn't exist, same pattern already used for Learn and
+      // Magazine above.
+      { key: "etf-calculator", label: { en: "ETF Calculator", ko: "ETF 계산기" }, href: "/etf-calculator", koHref: "/etf-calculator" },
     ],
   },
   {

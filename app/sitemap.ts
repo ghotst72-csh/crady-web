@@ -323,6 +323,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
     },
     {
+      // Interactive tool page, English-only for now (no /ko counterpart).
+      url: "https://crady.net/etf-calculator",
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
+    {
       url: "https://crady.net/about",
       lastModified: mostRecentCalculatedAt ?? undefined,
       changeFrequency: "monthly",

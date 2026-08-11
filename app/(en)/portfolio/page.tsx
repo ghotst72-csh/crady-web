@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { getHomeSnapshot, toSearchIndex } from "@/lib/data";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { PortfolioAnalyzer } from "@/components/portfolio/PortfolioAnalyzer";
@@ -45,6 +46,11 @@ export default async function PortfolioPage({
         (based on each payment&apos;s ex-dividend date), separated from raw price movement. Then
         compare it against what the same money would have returned in a real alternative ETF
         bought on the exact same date.
+      </p>
+      <p className="mt-2 text-sm">
+        <Link href="/etf-calculator" className="text-[#92400e] hover:underline font-medium">
+          Want to project future growth instead of looking back? Try the ETF Calculator →
+        </Link>
       </p>
 
       <div className="mt-8">
