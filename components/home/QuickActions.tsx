@@ -61,10 +61,10 @@ export function QuickActions({ lang = "en", basePath = "" }: { lang?: "en" | "ko
             href={resolvedHref}
             className="group relative rounded-xl border border-[var(--gray-200)] bg-white p-4 hover:border-blue-300 hover:shadow-sm transition-all"
           >
-            <span className="inline-flex w-9 h-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-              <Icon size={18} strokeWidth={2} aria-hidden="true" />
+            <span className="inline-flex w-11 h-11 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+              <Icon size={23} strokeWidth={2} aria-hidden="true" />
             </span>
-            <div className="mt-3 text-sm font-bold text-[var(--gray-900)]">{copy.title[lang]}</div>
+            <div className="mt-3 text-[15px] font-extrabold tracking-tight text-[var(--gray-900)]">{copy.title[lang]}</div>
             <p className="mt-0.5 text-xs text-[var(--gray-500)] leading-snug">{copy.body[lang]}</p>
             <ArrowRight
               size={14}
