@@ -88,8 +88,7 @@ export default async function EtfCalculatorPage() {
 
       <h1 className="text-2xl sm:text-3xl font-black tracking-tight">ETF Return Calculator</h1>
       <p className="mt-2 text-[15px] sm:text-base text-[var(--gray-600)] max-w-2xl">
-        Pick a real ETF, a purchase date, and a sale date. CRADY looks up the actual historical prices and every
-        distribution paid in between — no projections, no assumptions.
+        See what actually happened to your investment — using real prices and every distribution paid.
       </p>
 
       <div className="mt-6">

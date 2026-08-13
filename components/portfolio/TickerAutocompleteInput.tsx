@@ -9,12 +9,18 @@ export function TickerAutocompleteInput({
   onChange,
   onSelect,
   placeholder,
+  inputClassName,
 }: {
   index: SearchEntry[];
   value: string;
   onChange: (v: string) => void;
   onSelect: (ticker: string) => void;
   placeholder?: string;
+  /** Extra classes merged onto the `<input>` — lets a caller (e.g. a
+   * larger calculator-style variant) resize the field without a second
+   * implementation or affecting the default (Portfolio Analyzer, Compare)
+   * appearance. */
+  inputClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
   const results = searchTickers(index, value, 6);
@@ -33,7 +39,7 @@ export function TickerAutocompleteInput({
         placeholder={placeholder}
         autoComplete="off"
         spellCheck={false}
-        className="w-full px-3 py-2 border border-[var(--gray-200)] rounded-lg text-sm focus:outline-none focus:border-black tabular-nums"
+        className={`w-full px-3 py-2 border border-[var(--gray-200)] rounded-lg text-sm focus:outline-none focus:border-black tabular-nums ${inputClassName ?? ""}`}
       />
       {open && results.length > 0 && (
         <div className="absolute z-20 mt-1 w-full bg-white border border-[var(--gray-200)] rounded-lg shadow-lg overflow-hidden max-h-64 overflow-y-auto">
