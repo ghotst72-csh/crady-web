@@ -206,13 +206,52 @@ export function computePriceStatus(
 
 /** The pipeline has no split-ratio data to auto-adjust historical prices,
  * so a real (unrecorded) split would silently distort every return number
- * computed across it. Rather than pretend precision we don't have, flag
- * any single trading-day close-to-close ratio outside [0.4, 2.5] — far
- * beyond even this product category's normal daily volatility — as a
- * possible split, so the UI can show a warning instead of a confident
- * number. Does not attempt to auto-correct the math. */
+ * computed across it. Two detection tiers, both of which withhold the
+ * calculation — the distinction is for diagnostics/reporting, not for
+ * whether the result is trusted:
+ *
+ * 1. "high" confidence — the day-to-day close ratio lands within
+ *    SPLIT_RATIO_TOLERANCE of a common split/reverse-split multiple (2:1,
+ *    3:1, 1:2, 1:3, ...). A real split moves the price by very close to
+ *    *exactly* its declared ratio (modulo ordinary same-day trading
+ *    noise), so this catches common splits that the broad band below
+ *    would miss on its own — e.g. a plain 2-for-1 split (ratio 0.5) or a
+ *    1-for-2 reverse split (ratio 2.0) both fall inside the old
+ *    "obviously fine" [0.4, 2.5] range.
+ * 2. "ambiguous" confidence — the ratio falls outside the broad
+ *    [SPLIT_RATIO_LOW, SPLIT_RATIO_HIGH] band but doesn't match a common
+ *    split multiple: still far beyond this product category's normal
+ *    daily volatility, so still withheld, but not confidently identified
+ *    as a specific split ratio (could be a non-round split, a data
+ *    error, or a genuinely extreme market move). */
 const SPLIT_RATIO_LOW = 0.4;
 const SPLIT_RATIO_HIGH = 2.5;
+
+/** Relative tolerance around each common split ratio — a real split's
+ * close-to-close ratio should land very close to the exact declared
+ * multiple, so 7% comfortably absorbs ordinary same-day trading noise on
+ * the split date while staying far tighter than the gap between adjacent
+ * common ratios (2.0 vs 3.0), so two different ratios can't blur together. */
+const SPLIT_RATIO_TOLERANCE = 0.07;
+
+/** Forward (price drops: 1/N) and reverse (price rises: N) multiples for
+ * the common N-for-1 / 1-for-N split ratios. */
+const COMMON_SPLIT_RATIOS: number[] = [2, 3, 4, 5, 10].flatMap((n) => [n, 1 / n]);
+
+/** Nearest common split ratio within tolerance, or null if `ratio` isn't
+ * close to any of them. */
+function matchCommonSplitRatio(ratio: number): number | null {
+  let best: number | null = null;
+  let bestDistance = Infinity;
+  for (const target of COMMON_SPLIT_RATIOS) {
+    const relativeDistance = Math.abs(ratio - target) / target;
+    if (relativeDistance <= SPLIT_RATIO_TOLERANCE && relativeDistance < bestDistance) {
+      best = target;
+      bestDistance = relativeDistance;
+    }
+  }
+  return best;
+}
 
 // ── Dividend reinvestment simulation ───────────────────────────────────────
 
@@ -296,23 +335,37 @@ export function computeAlternativeReturn(
   return { currentValue, dividendsReceived, totalReturnPct, maxDrawdownPct };
 }
 
+export type SplitWarning = {
+  date: string;
+  ratio: number;
+  /** The common split multiple this ratio was matched against (e.g. 0.5
+   * for a 2-for-1 split, 2 for a 1-for-2 reverse split), or null when the
+   * ratio is merely outside the broad safety band without matching a
+   * specific known ratio. */
+  matchedSplitRatio: number | null;
+  confidence: "high" | "ambiguous";
+};
+
 export function detectSplitWarnings(
   history: PriceHistoryPoint[],
   fromDate: string,
   toDate: string
-): { date: string; ratio: number }[] {
+): SplitWarning[] {
   const points = history.filter(
     (h): h is { trade_date: string; close_price: number } =>
       h.close_price != null && h.trade_date >= fromDate && h.trade_date <= toDate
   );
-  const warnings: { date: string; ratio: number }[] = [];
+  const warnings: SplitWarning[] = [];
   for (let i = 1; i < points.length; i++) {
     const prev = points[i - 1].close_price;
     const curr = points[i].close_price;
     if (prev <= 0) continue;
     const ratio = curr / prev;
-    if (ratio < SPLIT_RATIO_LOW || ratio > SPLIT_RATIO_HIGH) {
-      warnings.push({ date: points[i].trade_date, ratio });
+    const matchedSplitRatio = matchCommonSplitRatio(ratio);
+    if (matchedSplitRatio != null) {
+      warnings.push({ date: points[i].trade_date, ratio, matchedSplitRatio, confidence: "high" });
+    } else if (ratio < SPLIT_RATIO_LOW || ratio > SPLIT_RATIO_HIGH) {
+      warnings.push({ date: points[i].trade_date, ratio, matchedSplitRatio: null, confidence: "ambiguous" });
     }
   }
   return warnings;

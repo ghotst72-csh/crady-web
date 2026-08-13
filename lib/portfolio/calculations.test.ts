@@ -310,7 +310,7 @@ describe("simulateReinvestment", () => {
 });
 
 describe("detectSplitWarnings", () => {
-  it("flags an extreme single-day ratio consistent with a reverse split", () => {
+  it("flags an extreme single-day ratio consistent with a reverse split (ambiguous->high via common-ratio match)", () => {
     const history = [
       { trade_date: "2025-01-01", close_price: 5 },
       { trade_date: "2025-01-02", close_price: 20 }, // 4x overnight — reverse-split-shaped
@@ -320,15 +320,114 @@ describe("detectSplitWarnings", () => {
     expect(warnings).toHaveLength(1);
     expect(warnings[0].date).toBe("2025-01-02");
     expect(warnings[0].ratio).toBe(4);
+    expect(warnings[0].confidence).toBe("high");
+    expect(warnings[0].matchedSplitRatio).toBe(4);
   });
 
-  it("does not flag normal, even large-ish daily volatility", () => {
+  it("does not flag normal, even large-ish daily volatility (-20%)", () => {
     const history = [
       { trade_date: "2025-01-01", close_price: 10 },
       { trade_date: "2025-01-02", close_price: 8 }, // -20%, plausible for this product category
       { trade_date: "2025-01-03", close_price: 9 },
     ];
     expect(detectSplitWarnings(history, "2025-01-01", "2025-01-03")).toHaveLength(0);
+  });
+
+  it("does not flag an ordinary +20% single-day move", () => {
+    const history = [
+      { trade_date: "2025-01-01", close_price: 10 },
+      { trade_date: "2025-01-02", close_price: 12 }, // +20%
+    ];
+    expect(detectSplitWarnings(history, "2025-01-01", "2025-01-02")).toHaveLength(0);
+  });
+
+  it("does not flag an ordinary -20% single-day move", () => {
+    const history = [
+      { trade_date: "2025-01-01", close_price: 10 },
+      { trade_date: "2025-01-02", close_price: 8 }, // -20%
+    ];
+    expect(detectSplitWarnings(history, "2025-01-01", "2025-01-02")).toHaveLength(0);
+  });
+
+  it("flags a 2-for-1 split (ratio 0.5) even though it sits inside the old broad [0.4, 2.5] band", () => {
+    const history = [
+      { trade_date: "2025-01-01", close_price: 100 },
+      { trade_date: "2025-01-02", close_price: 50 }, // exactly halved
+    ];
+    const warnings = detectSplitWarnings(history, "2025-01-01", "2025-01-02");
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].confidence).toBe("high");
+    expect(warnings[0].matchedSplitRatio).toBeCloseTo(0.5, 5);
+  });
+
+  it("flags a 3-for-1 split (ratio ~0.333)", () => {
+    const history = [
+      { trade_date: "2025-01-01", close_price: 90 },
+      { trade_date: "2025-01-02", close_price: 30 },
+    ];
+    const warnings = detectSplitWarnings(history, "2025-01-01", "2025-01-02");
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].confidence).toBe("high");
+    expect(warnings[0].matchedSplitRatio).toBeCloseTo(1 / 3, 5);
+  });
+
+  it("flags a 1-for-2 reverse split (ratio 2.0) even though it sits inside the old broad [0.4, 2.5] band", () => {
+    const history = [
+      { trade_date: "2025-01-01", close_price: 10 },
+      { trade_date: "2025-01-02", close_price: 20 }, // exactly doubled
+    ];
+    const warnings = detectSplitWarnings(history, "2025-01-01", "2025-01-02");
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].confidence).toBe("high");
+    expect(warnings[0].matchedSplitRatio).toBe(2);
+  });
+
+  it("flags a 1-for-3 reverse split (ratio 3.0)", () => {
+    const history = [
+      { trade_date: "2025-01-01", close_price: 10 },
+      { trade_date: "2025-01-02", close_price: 30 },
+    ];
+    const warnings = detectSplitWarnings(history, "2025-01-01", "2025-01-02");
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].confidence).toBe("high");
+    expect(warnings[0].matchedSplitRatio).toBe(3);
+  });
+
+  it("tolerates ordinary same-day noise around an exact split ratio (2-for-1 with a 3% wobble)", () => {
+    const history = [
+      { trade_date: "2025-01-01", close_price: 100 },
+      { trade_date: "2025-01-02", close_price: 51.5 }, // ratio 0.515, ~3% off exact 0.5
+    ];
+    const warnings = detectSplitWarnings(history, "2025-01-01", "2025-01-02");
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].confidence).toBe("high");
+    expect(warnings[0].matchedSplitRatio).toBeCloseTo(0.5, 5);
+  });
+
+  it("does not falsely classify a large but plausible market move that isn't close to any split ratio", () => {
+    // +80% single-day move — extreme but not split-shaped (nearest common
+    // ratio is 2.0 for a 1-for-2 reverse split, but 1.8 is 10% away from
+    // it, outside the 7% tolerance) and still inside the broad [0.4, 2.5]
+    // safety band, so it must not be flagged at all.
+    const history = [
+      { trade_date: "2025-01-01", close_price: 10 },
+      { trade_date: "2025-01-02", close_price: 18 },
+    ];
+    const warnings = detectSplitWarnings(history, "2025-01-01", "2025-01-02");
+    expect(warnings).toHaveLength(0);
+  });
+
+  it("flags a genuinely extreme, non-round ratio as ambiguous rather than a specific split", () => {
+    // 6.7x overnight — far outside the broad band, but not close to any
+    // common split multiple (nearest is 5 or 10, both >7% away).
+    const history = [
+      { trade_date: "2025-01-01", close_price: 3 },
+      { trade_date: "2025-01-02", close_price: 20.1 },
+    ];
+    const warnings = detectSplitWarnings(history, "2025-01-01", "2025-01-02");
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].confidence).toBe("ambiguous");
+    expect(warnings[0].matchedSplitRatio).toBeNull();
   });
 
   it("only scans within the given date window", () => {

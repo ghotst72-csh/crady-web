@@ -5,7 +5,7 @@ import { Calendar, DollarSign, Sparkles } from "lucide-react";
 import { TickerAutocompleteInput } from "@/components/portfolio/TickerAutocompleteInput";
 import type { SearchEntry } from "@/lib/search/searchTickers";
 import { providerLabel } from "@/lib/providers";
-import { resolvePurchasePrice } from "@/lib/portfolio/calculations";
+import { resolvePurchasePrice, type SplitWarning } from "@/lib/portfolio/calculations";
 import { getPriceHistoryForTicker } from "@/lib/etfCalculator/priceHistoryForTicker";
 import { calculateHistoricalReturn, type HistoricalReturnResponse } from "@/lib/etfCalculator/historicalReturn";
 import { HistoricalResultCard } from "./HistoricalResultCard";
@@ -20,6 +20,23 @@ function isoDaysAgo(days: number): string {
 }
 function fmtDate(iso: string): string {
   return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
+}
+
+/** Human phrasing for a detected split day — "N-for-1 split" for a price
+ * drop matched to a common ratio, "1-for-N reverse split" for a price
+ * rise, or a generic factor description when the ratio didn't match a
+ * specific known split (ambiguous confidence). Never mentions "raw
+ * close"/implementation details — this is user-facing copy. */
+function describeSplitWarning(w: SplitWarning): string {
+  if (w.matchedSplitRatio == null) {
+    return `price moved by a factor of ${w.ratio.toFixed(2)}x from the prior trading day`;
+  }
+  if (w.matchedSplitRatio < 1) {
+    const n = Math.round(1 / w.matchedSplitRatio);
+    return `price dropped ~${(1 / w.matchedSplitRatio).toFixed(1)}x from the prior trading day, consistent with a ${n}-for-1 split`;
+  }
+  const n = Math.round(w.matchedSplitRatio);
+  return `price rose ~${w.matchedSplitRatio.toFixed(1)}x from the prior trading day, consistent with a 1-for-${n} reverse split`;
 }
 
 type PricePoint = { trade_date: string; close_price: number | null };
@@ -305,7 +322,7 @@ function ErrorState({ result }: { result: Extract<HistoricalReturnResponse, { ok
           <ul className="mt-2 text-xs text-[var(--gray-600)] list-disc pl-4">
             {result.splitWarnings.map((w) => (
               <li key={w.date}>
-                {fmtDate(w.date)}: price moved by a factor of {w.ratio.toFixed(2)}x from the prior trading day
+                {fmtDate(w.date)}: {describeSplitWarning(w)}
               </li>
             ))}
           </ul>

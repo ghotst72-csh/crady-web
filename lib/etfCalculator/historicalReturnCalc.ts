@@ -27,6 +27,7 @@ import {
   daysBetween,
   type PriceHistoryPoint,
   type DistributionPoint,
+  type SplitWarning,
 } from "@/lib/portfolio/calculations";
 
 export type DistributionLineItem = {
@@ -75,7 +76,7 @@ export type HistoricalReturnResult =
   | {
       ok: false;
       reason: "invalid-range" | "not-listed-yet" | "insufficient-data" | "split-anomaly";
-      splitWarnings?: { date: string; ratio: number }[];
+      splitWarnings?: SplitWarning[];
     };
 
 export function computeHistoricalReturn(
