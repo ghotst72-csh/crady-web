@@ -19,17 +19,94 @@ export type AnnouncementRow = {
 const ANNOUNCEMENT_COLUMNS =
   "id, issuer, provider_id, title, slug, announcement_date, source_url, source_type, etf_count, status, fetched_at, published_at";
 
-export async function getLatestAnnouncement(): Promise<AnnouncementRow | null> {
+/** Prefix marking a synthesized (not a real DB row) AnnouncementRow — see
+ * getLatestAnnouncement()'s fallback path. Never collides with a real
+ * distribution_announcements.id (uuid). */
+const SYNTHETIC_ID_PREFIX = "synthetic-yieldmax-";
+
+/** Builds an honestly-framed AnnouncementRow when no real
+ * distribution_announcements row exists yet for the latest real batch —
+ * used instead of fabricating a press-release title/source_url. Reads the
+ * real rows' own created_at so "last updated" stays a genuine timestamp,
+ * not "now". */
+async function synthesizeYieldMaxAnnouncement(declarationDate: string): Promise<AnnouncementRow> {
   const { data, error } = await supabase
+    .from("distributions")
+    .select("created_at")
+    .eq("provider_id", "yieldmax")
+    .eq("declaration_date", declarationDate)
+    .not("amount", "is", null);
+  if (error) throw error;
+
+  const rows = data ?? [];
+  const fetchedAt = rows.reduce(
+    (max, r) => (r.created_at && r.created_at > max ? r.created_at : max),
+    rows[0]?.created_at ?? new Date().toISOString()
+  );
+
+  return {
+    id: `${SYNTHETIC_ID_PREFIX}${declarationDate}`,
+    issuer: "YieldMax",
+    provider_id: "yieldmax",
+    title: "YieldMax Weekly Distributions (Official Issuer Data)",
+    slug: `${SYNTHETIC_ID_PREFIX}${declarationDate}`,
+    announcement_date: declarationDate,
+    // Real, currently-live page these amounts were actually scraped from
+    // (per-ticker) — not a fabricated GlobeNewswire press-release link,
+    // since no matching press release has been captured for this batch.
+    source_url: "https://yieldmaxetfs.com/distribution-schedule/",
+    source_type: "issuer_official_page",
+    etf_count: rows.length,
+    status: "published",
+    fetched_at: fetchedAt,
+    published_at: null,
+  };
+}
+
+/** The most recent real YieldMax distribution batch. Deliberately derives
+ * "latest" from `distributions.declaration_date` directly (the table fed
+ * by scrapers/yieldmax/scrape_distribution_amounts.py, which hits each
+ * issuer's own page and is independent of GlobeNewswire) rather than from
+ * `distribution_announcements` (fed by the separate, GlobeNewswire-
+ * dependent scrape_distribution_announcements.py). GlobeNewswire became
+ * unreachable for that scraper starting 2026-08-10 — no new
+ * distribution_announcements row has been created since — while the real
+ * amounts kept updating normally every week. Selecting "latest" from the
+ * announcements table alone left this page (and /calendar, /magazine)
+ * frozen on 2026-08-05 while verified real 2026-08-12+ data sat unused.
+ *
+ * A real distribution_announcements row is still used for display
+ * metadata (real press-release title/source_url) whenever one exists for
+ * the latest date; synthesizeYieldMaxAnnouncement() only kicks in for the
+ * gap where the core data is real but no press-release citation has been
+ * captured for it yet. */
+export async function getLatestAnnouncement(): Promise<AnnouncementRow | null> {
+  const { data: latestDateRow, error: dateErr } = await supabase
+    .from("distributions")
+    .select("declaration_date")
+    .eq("provider_id", "yieldmax")
+    .not("amount", "is", null)
+    .not("declaration_date", "is", null)
+    .order("declaration_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (dateErr) throw dateErr;
+  if (!latestDateRow) return null;
+  const latestDate = latestDateRow.declaration_date;
+
+  const { data: matched, error: matchErr } = await supabase
     .from("distribution_announcements")
     .select(ANNOUNCEMENT_COLUMNS)
+    .eq("provider_id", "yieldmax")
+    .eq("announcement_date", latestDate)
     .eq("status", "published")
-    .order("announcement_date", { ascending: false })
     .order("fetched_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (error) throw error;
-  return data;
+  if (matchErr) throw matchErr;
+  if (matched) return matched;
+
+  return synthesizeYieldMaxAnnouncement(latestDate);
 }
 
 export async function getAnnouncementBySlug(slug: string): Promise<AnnouncementRow | null> {
@@ -61,22 +138,25 @@ export async function getAllAnnouncementSlugs(): Promise<string[]> {
   return (data ?? []).map((r) => r.slug);
 }
 
-/** Distribution rows for one announcement, joined with etfs for name/
- * frequency via a manual two-query join (distributions/etfs have no FK
- * PostgREST can embed across — same pattern already used throughout
- * lib/data.ts, e.g. getTopByCradyScore). */
-export async function getDistributionRowsForAnnouncement(
-  announcementId: string
-): Promise<DistributionRow[]> {
-  const { data: rows, error } = await supabase
-    .from("distributions")
-    .select(
-      "ticker, provider_id, ex_date, pay_date, amount, distribution_rate, sec_yield_30d, roc_rate, source_url"
-    )
-    .eq("announcement_id", announcementId)
-    .order("ticker", { ascending: true });
-  if (error) throw error;
-  if (!rows || rows.length === 0) return [];
+type RawDistributionRow = {
+  ticker: string;
+  provider_id: string;
+  ex_date: string;
+  pay_date: string;
+  amount: number | null;
+  distribution_rate: number | null;
+  sec_yield_30d: number | null;
+  roc_rate: number | null;
+  source_url: string | null;
+};
+
+/** Joins raw distributions rows with etfs for name/frequency via a manual
+ * two-query join (distributions/etfs have no FK PostgREST can embed
+ * across — same pattern already used throughout lib/data.ts, e.g.
+ * getTopByCradyScore). Shared by both the announcement_id and
+ * declaration_date row-fetch paths below. */
+async function mapDistributionRowsWithEtfInfo(rows: RawDistributionRow[]): Promise<DistributionRow[]> {
+  if (rows.length === 0) return [];
 
   const tickers = rows.map((r) => r.ticker);
   const { data: etfRows, error: etfErr } = await supabase
@@ -105,6 +185,48 @@ export async function getDistributionRowsForAnnouncement(
       sourceUrl: r.source_url,
     } satisfies DistributionRow;
   });
+}
+
+/** Real distributions rows sharing one declaration_date — the fallback
+ * fetch path for getLatestAnnouncement()'s synthesized-id case, where
+ * announcement_id was never set because no distribution_announcements row
+ * exists for this batch (see getLatestAnnouncement's doc comment). */
+async function getDistributionRowsForDeclarationDate(declarationDate: string): Promise<DistributionRow[]> {
+  const { data: rows, error } = await supabase
+    .from("distributions")
+    .select(
+      "ticker, provider_id, ex_date, pay_date, amount, distribution_rate, sec_yield_30d, roc_rate, source_url"
+    )
+    .eq("provider_id", "yieldmax")
+    .eq("declaration_date", declarationDate)
+    .not("amount", "is", null)
+    .order("ticker", { ascending: true });
+  if (error) throw error;
+  return mapDistributionRowsWithEtfInfo(rows ?? []);
+}
+
+/** Distribution rows for one announcement. Transparently falls back to a
+ * declaration_date lookup for the synthesized-id case (see
+ * getLatestAnnouncement) since those rows never got a real announcement_id
+ * — everything downstream of this function (DistributionKpis,
+ * DistributionExplorer, ...) is unaffected either way, since they only
+ * ever consume the returned DistributionRow[]. */
+export async function getDistributionRowsForAnnouncement(
+  announcementId: string
+): Promise<DistributionRow[]> {
+  if (announcementId.startsWith(SYNTHETIC_ID_PREFIX)) {
+    return getDistributionRowsForDeclarationDate(announcementId.slice(SYNTHETIC_ID_PREFIX.length));
+  }
+
+  const { data: rows, error } = await supabase
+    .from("distributions")
+    .select(
+      "ticker, provider_id, ex_date, pay_date, amount, distribution_rate, sec_yield_30d, roc_rate, source_url"
+    )
+    .eq("announcement_id", announcementId)
+    .order("ticker", { ascending: true });
+  if (error) throw error;
+  return mapDistributionRowsWithEtfInfo(rows ?? []);
 }
 
 export type RecentAnnouncedRow = DistributionRow & { announcedDate: string };
