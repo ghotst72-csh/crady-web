@@ -378,6 +378,33 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ];
   });
 
+  // CRADY Next Dividend SEO landing pages (/{ticker}/next-dividend) — the
+  // dedicated canonical page for "{ticker} next dividend" / "next dividend
+  // prediction" search intent, distinct from the ticker hub page and from
+  // /magazine/{ticker}-next-dividend-prediction (a broader evergreen
+  // guide). Priority matches the ticker hub entries above.
+  const nextDividendEntries: MetadataRoute.Sitemap = snapshot.flatMap((etf) => {
+    const enUrl = `https://crady.net/${etf.ticker.toLowerCase()}/next-dividend`;
+    const koUrl = `https://crady.net/ko/${etf.ticker.toLowerCase()}/next-dividend`;
+    const languages = { en: enUrl, ko: koUrl, "x-default": enUrl };
+    return [
+      {
+        url: enUrl,
+        lastModified: etf.calculatedAt ? new Date(etf.calculatedAt) : undefined,
+        changeFrequency: "daily" as const,
+        priority: 0.85,
+        alternates: { languages },
+      },
+      {
+        url: koUrl,
+        lastModified: etf.calculatedAt ? new Date(etf.calculatedAt) : undefined,
+        changeFrequency: "daily" as const,
+        priority: 0.85,
+        alternates: { languages },
+      },
+    ];
+  });
+
   const announcementEntries: MetadataRoute.Sitemap = announcements.flatMap((a) => {
     const enUrl = `https://crady.net/distributions/${a.slug}`;
     const koUrl = `https://crady.net/ko/distributions/${a.slug}`;
@@ -458,6 +485,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     ...staticEntries,
     ...tickerEntries,
+    ...nextDividendEntries,
     ...announcementEntries,
     ...hubEntries,
     ...calendarHubEntries,

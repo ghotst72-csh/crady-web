@@ -587,6 +587,12 @@ export default async function KoreanTickerPage({
               <p className="mt-3 text-sm text-[var(--gray-600)] max-w-[850px]">{nextDividendDirectAnswer}</p>
             )}
 
+            <p className="mt-2 text-sm">
+              <Link href={`/ko/${ticker.toLowerCase()}/next-dividend`} className="font-medium text-[#92400e] hover:underline">
+                다음 배당 전체 분석 보기 →
+              </Link>
+            </p>
+
             <div className="mt-6">
               <NextDividendIntelligence data={nextDividendIntelligenceData} lang="ko" />
             </div>

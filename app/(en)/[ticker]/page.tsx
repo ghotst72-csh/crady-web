@@ -608,6 +608,12 @@ export default async function TickerPage({
               <p className="mt-3 text-sm text-[var(--gray-600)] max-w-[850px]">{nextDividendDirectAnswer}</p>
             )}
 
+            <p className="mt-2 text-sm">
+              <Link href={`/${ticker.toLowerCase()}/next-dividend`} className="font-medium text-[#92400e] hover:underline">
+                View full next dividend analysis →
+              </Link>
+            </p>
+
             <div className="mt-6">
               <NextDividendIntelligence data={nextDividendIntelligenceData} lang="en" />
             </div>
