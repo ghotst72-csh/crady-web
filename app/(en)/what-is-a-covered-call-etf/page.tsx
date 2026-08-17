@@ -19,6 +19,12 @@ const VIDEO_SRC = "/learn/covered-call/covered-call-explainer.mp4";
 const TITLE = "What Is a Covered Call ETF? Simple Guide + Synthetic Covered Calls";
 const DESCRIPTION =
   "Learn what a covered call ETF is, how covered calls generate income, how synthetic covered calls differ, and why high distributions can come with limited upside and substantial downside risk.";
+// This page has no per-request dynamic data (unlike ticker pages), so
+// there's no real timestamp to derive dateModified from automatically --
+// update this constant when the editorial content below the Toon/Video is
+// next revised, rather than fabricating a live "now()" for a page that
+// isn't actually regenerated per request.
+const LAST_CONTENT_UPDATE = "2026-08-17";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -73,6 +79,11 @@ const FAQ_ITEMS: FaqItem[] = [
       "It collects option premium upfront when it sells call options, regardless of what the underlying does afterward. That premium, combined with any price return or loss on the underlying position, makes up the fund's total performance.",
   },
   {
+    question: "Do covered call ETFs pay dividends?",
+    answer:
+      "Not exactly — most covered call ETFs pay \"distributions,\" not dividends in the traditional sense. A dividend is normally a company sharing its own earnings; a covered call ETF's distributions are mainly funded by option premium income, plus any dividends its underlying holdings happen to pay. The two words get used interchangeably in everyday conversation, but the underlying source of the cash is different.",
+  },
+  {
     question: "What is a synthetic covered call ETF?",
     answer:
       "A fund that creates stock-like exposure using options — typically a combination of long calls and short puts — instead of directly owning the underlying shares, then sells calls or call spreads against that synthetic position to generate income.",
@@ -102,6 +113,11 @@ const FAQ_ITEMS: FaqItem[] = [
     answer:
       "Not necessarily as well as owning the underlying directly. Because sold calls cap upside beyond a strike price, a covered call fund typically captures less of a sharp rally than the underlying asset itself, in exchange for the option income it collected.",
   },
+  {
+    question: "Are covered call ETFs good for long-term investing?",
+    answer:
+      "It depends on the objective. If the goal is current income and the investor understands that upside can be capped and the underlying can still decline, a covered call ETF can fit that objective. If the goal is maximizing long-term total return, it's worth comparing the fund's actual total return — not just its distribution rate — against simpler alternatives, since capped upside can be a real long-term trade-off.",
+  },
 ];
 
 export default function CoveredCallLandingPage() {
@@ -109,12 +125,15 @@ export default function CoveredCallLandingPage() {
     path.join(process.cwd(), "public", "learn", "covered-call", "covered-call-explainer.mp4")
   );
 
-  const webPageJsonLd = buildWebPageJsonLd({
-    name: "What Is a Covered Call ETF?",
-    description: DESCRIPTION,
-    url: PAGE_URL,
-    speakableSelectors: ["#quick-summary"],
-  });
+  const webPageJsonLd = {
+    ...buildWebPageJsonLd({
+      name: "What Is a Covered Call ETF?",
+      description: DESCRIPTION,
+      url: PAGE_URL,
+      speakableSelectors: ["#quick-summary"],
+    }),
+    dateModified: LAST_CONTENT_UPDATE,
+  };
   const faqJsonLd = buildFaqJsonLd(FAQ_ITEMS);
 
   return (
@@ -187,18 +206,23 @@ export default function CoveredCallLandingPage() {
       </div>
 
       {/* ---- Crawlable quick summary (not gated behind the tabs above) ---- */}
-      <div id="quick-summary" className="mt-6 max-w-3xl text-[15px] leading-relaxed text-[var(--gray-700)] space-y-3">
-        <p>
-          A covered call ETF owns stocks or other securities and sells call options to generate income. The
-          option premium can increase cash distributions, but selling calls can limit some of the upside when
-          the underlying asset rises.
-        </p>
-        <p>
-          A synthetic covered call strategy can use options to create stock-like exposure instead of directly
-          owning the underlying asset. It may then sell calls or call spreads to generate income.
-        </p>
-        <p>Both structures can produce significant distributions, but substantial downside risk can remain.</p>
-      </div>
+      <section className="mt-6">
+        <h2 className="text-lg sm:text-xl font-bold mb-3">What Is a Covered Call ETF?</h2>
+        <div id="quick-summary" className="max-w-3xl text-[15px] leading-relaxed text-[var(--gray-700)] space-y-3">
+          <p>
+            A covered call ETF is an exchange-traded fund that holds stocks or other securities and sells
+            (&quot;writes&quot;) call options against that exposure. The option premium collected from selling those
+            calls becomes a source of income the fund can distribute — a different mechanism from a typical
+            dividend ETF, whose payouts usually come from dividends its underlying companies already pay out,
+            not from selling options.
+          </p>
+          <p>
+            A synthetic covered call strategy can use options to create stock-like exposure instead of directly
+            owning the underlying asset. It may then sell calls or call spreads to generate income.
+          </p>
+          <p>Both structures can produce significant distributions, but substantial downside risk can remain.</p>
+        </div>
+      </section>
 
       <div className="mt-5 text-center py-3.5 px-4 border-y border-[var(--gray-200)] bg-[var(--gray-50)] font-black tracking-tight text-base sm:text-lg">
         HIGH DISTRIBUTION ≠ HIGH TOTAL RETURN
@@ -220,6 +244,25 @@ export default function CoveredCallLandingPage() {
       {/* ---- Comparison ---- */}
       <section className="mt-10">
         <h2 className="text-lg sm:text-xl font-bold mb-4">Covered Call ETF vs. Synthetic Covered Call ETF</h2>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+          <div className="border border-[var(--gray-200)] rounded-lg p-4">
+            <h3 className="text-sm font-bold text-[var(--gray-900)]">Traditional Covered Call</h3>
+            <ul className="mt-2 space-y-1.5 text-sm text-[var(--gray-700)] list-disc pl-4">
+              <li>Fund owns the underlying shares</li>
+              <li>Sells call options against those holdings</li>
+              <li>Receives option premium as income</li>
+            </ul>
+          </div>
+          <div className="border border-[var(--gray-200)] rounded-lg p-4">
+            <h3 className="text-sm font-bold text-[var(--gray-900)]">Synthetic Covered Call</h3>
+            <ul className="mt-2 space-y-1.5 text-sm text-[var(--gray-700)] list-disc pl-4">
+              <li>Uses options to create stock-like exposure</li>
+              <li>Doesn&apos;t necessarily own the underlying shares directly</li>
+              <li>Sells calls or call spreads to generate option premium</li>
+            </ul>
+          </div>
+        </div>
 
         {/* Desktop/tablet: table. Hidden below sm so nothing needs horizontal scrolling on phones. */}
         <div className="hidden sm:block border border-[var(--gray-200)] rounded-xl overflow-hidden">
@@ -270,6 +313,66 @@ export default function CoveredCallLandingPage() {
             how YieldMax ETFs work
           </Link>{" "}
           before assuming two of its funds behave the same way.
+        </p>
+      </section>
+
+      {/* ---- Why investors use these funds ---- */}
+      <section className="mt-10">
+        <h2 className="text-lg sm:text-xl font-bold mb-3">Why Do Investors Use Covered Call ETFs?</h2>
+        <div className="max-w-3xl text-[15px] leading-relaxed text-[var(--gray-700)] space-y-3">
+          <p>
+            The main appeal is income. Selling call options generates option premium upfront, which can fund
+            frequent — often weekly or monthly — cash distributions that are typically larger than what a
+            traditional dividend-paying stock or fund offers.
+          </p>
+          <p>
+            That premium income can be especially useful in a flat or moderately rising market: even if the
+            underlying asset doesn&apos;t move much, the fund can still generate meaningful income simply from
+            selling options period after period.
+          </p>
+        </div>
+        <p className="mt-4 max-w-3xl text-sm text-[var(--gray-600)]">
+          Curious how that actually plays out for a real fund?{" "}
+          <Link href="/etf-calculator" className="underline hover:text-black font-medium">
+            Try the ETF Return Calculator →
+          </Link>{" "}
+          to see how a covered-call ETF has actually performed, including price change and distributions.
+        </p>
+      </section>
+
+      {/* ---- Risks ---- */}
+      <section className="mt-10">
+        <h2 className="text-lg sm:text-xl font-bold mb-3">What Are the Risks?</h2>
+        <div className="max-w-3xl text-[15px] leading-relaxed text-[var(--gray-700)]">
+          <ul className="space-y-2.5 list-disc pl-5">
+            <li>
+              <span className="font-semibold text-[var(--gray-900)]">Upside can be limited.</span>{" "}
+              Selling calls typically means giving up some gains beyond the option&apos;s strike price.
+            </li>
+            <li>
+              <span className="font-semibold text-[var(--gray-900)]">The underlying asset can still decline significantly.</span>{" "}
+              Option premium does not eliminate downside risk — a covered call ETF&apos;s share price can fall
+              substantially even while it keeps paying distributions.
+            </li>
+            <li>
+              <span className="font-semibold text-[var(--gray-900)]">A high distribution yield does not automatically mean a high total return.</span>{" "}
+              Distributions are only one side of the ledger; share-price or NAV movement is the other (see below).
+            </li>
+            <li>
+              <span className="font-semibold text-[var(--gray-900)]">Distributions can change significantly</span>{" "}
+              from period to period, since they largely track option premium, which moves with volatility.
+            </li>
+            <li>
+              <span className="font-semibold text-[var(--gray-900)]">Some distributions may include return of capital (ROC),</span>{" "}
+              depending on the fund — money that isn&apos;t investment income but instead reduces your cost basis.
+            </li>
+          </ul>
+        </div>
+        <p className="mt-4 max-w-3xl text-sm text-[var(--gray-600)]">
+          Want to weigh several funds side by side?{" "}
+          <Link href="/compare" className="underline hover:text-black font-medium">
+            Compare Covered-Call ETFs →
+          </Link>
         </p>
       </section>
 
